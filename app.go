@@ -2,7 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -20,7 +25,7 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	store := accounts.NewMemoryStore()
+	store := initStoreFromEnv()
 	cipher := security.DefaultCipher()
 	dialer := providers.NewStubDialer()
 	svc := accounts.NewService(store, cipher, dialer)
@@ -74,6 +79,124 @@ func (a *App) ActiveAccount() (*accounts.Account, error) {
 // TestAccountConnection validates the credentials for an account.
 func (a *App) TestAccountConnection(id string) (accounts.ConnectionTestResult, error) {
 	return a.accounts.TestConnection(a.ctx, id)
+}
+
+// ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.
+func (a *App) ExportAccounts() (accounts.ExportSummary, error) {
+	var summary accounts.ExportSummary
+	if a.ctx == nil {
+		return summary, errors.New("application context not ready")
+	}
+	payload, err := a.accounts.ExportData(a.ctx)
+	if err != nil {
+		return summary, err
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "导出账户配置",
+		DefaultFilename: fmt.Sprintf("can-accounts-%s.canx", time.Now().Format("20060102-150405")),
+		Filters: []runtime.FileFilter{
+			{DisplayName: "CAN Account Bundle (*.canx)", Pattern: "*.canx"},
+		},
+	})
+	if err != nil {
+		return summary, err
+	}
+	if path == "" {
+		summary.Cancelled = true
+		return summary, nil
+	}
+	if filepath.Ext(path) == "" {
+		path += ".canx"
+	}
+	if err := os.WriteFile(path, payload.Blob, 0o600); err != nil {
+		return summary, err
+	}
+	summary.FilePath = path
+	summary.Count = payload.Count
+	summary.Cipher = payload.Cipher
+	summary.Version = payload.Version
+	return summary, nil
+}
+
+// ImportAccounts loads account configs from an encrypted bundle selected via OpenFileDialog.
+func (a *App) ImportAccounts() (accounts.ImportSummary, error) {
+	var summary accounts.ImportSummary
+	if a.ctx == nil {
+		return summary, errors.New("application context not ready")
+	}
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "导入账户配置",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "CAN Account Bundle (*.canx)", Pattern: "*.canx"},
+		},
+	})
+	if err != nil {
+		return summary, err
+	}
+	if path == "" {
+		summary.Cancelled = true
+		return summary, nil
+	}
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return summary, err
+	}
+	result, err := a.accounts.ImportData(a.ctx, blob)
+	if err != nil {
+		return summary, err
+	}
+	summary.FilePath = path
+	summary.Total = result.Total
+	summary.Imported = result.Imported
+	summary.Skipped = result.Skipped
+	summary.Failed = result.Failed
+	summary.Issues = result.Issues
+	return summary, nil
+}
+
+func initStoreFromEnv() accounts.Store {
+	driver := strings.TrimSpace(os.Getenv("CAN_DB_DRIVER"))
+	if driver == "" {
+		driver = "sqlite"
+	}
+	switch strings.ToLower(driver) {
+	case "memory":
+		return accounts.NewMemoryStore()
+	case "sqlite":
+		dsn := strings.TrimSpace(os.Getenv("CAN_DB_DSN"))
+		if dsn == "" {
+			path, err := defaultSQLitePath()
+			if err != nil {
+				fmt.Printf("failed to resolve default sqlite path, fallback to memory: %v\n", err)
+				break
+			}
+			dsn = path
+		}
+		store, err := accounts.NewSQLiteStore(dsn)
+		if err != nil {
+			fmt.Printf("failed to init sqlite store (%s): %v\n", dsn, err)
+			break
+		}
+		return store
+	default:
+		fmt.Printf("unknown CAN_DB_DRIVER %q, fallback to sqlite\n", driver)
+		os.Setenv("CAN_DB_DRIVER", "sqlite")
+		return initStoreFromEnv()
+	}
+	return accounts.NewMemoryStore()
+}
+
+func defaultSQLitePath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil || dir == "" {
+		dir = filepath.Join(os.TempDir(), "can")
+	} else {
+		dir = filepath.Join(dir, "can")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "accounts.db"), nil
 }
 
 // Greet returns a greeting for the given name (legacy sample kept for smoke tests).
