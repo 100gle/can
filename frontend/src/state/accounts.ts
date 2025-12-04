@@ -1,8 +1,10 @@
-import { useSyncExternalStore } from "react"
+import { create } from "zustand"
 import {
   ActiveAccount,
   CreateAccount,
   DeleteAccount,
+  ExportAccounts,
+  ImportAccounts,
   ListAccounts,
   SetActiveAccount,
   SupportedProviders,
@@ -12,11 +14,8 @@ import {
 import type { accounts as AccountModels, types as ProviderModels } from "../../wailsjs/go/models"
 import { isBridgeAvailable } from "@/lib/bridge"
 
-type WailsAccount = AccountModels.Account
-type WailsCreateInput = AccountModels.CreateAccountInput
-
-export type AccountModel = Omit<WailsAccount, "convertValues"> & {
-  convertValues?: WailsAccount["convertValues"]
+export type AccountModel = Omit<AccountModels.Account, "convertValues"> & {
+  convertValues?: AccountModels.Account["convertValues"]
 }
 export type ProviderMetadata = ProviderModels.ProviderMetadata
 
@@ -35,7 +34,38 @@ export type AccountsState = {
   connectionProbe: ConnectionProbe
 }
 
-type Listener = () => void
+export type AccountFormInput = {
+  name: string
+  provider: string
+  endpoint: string
+  region: string
+  accessKeyId?: string
+  secretAccessKey?: string
+  useSSL: boolean
+  port: number
+}
+
+type WailsAccount = AccountModels.Account
+
+type WailsCreateInput = AccountModels.CreateAccountInput
+
+type WailsExportSummary = AccountModels.ExportSummary
+
+type WailsImportSummary = AccountModels.ImportSummary
+
+type AccountsActions = {
+  bootstrap: () => Promise<void>
+  refresh: () => Promise<void>
+  setActiveAccount: (accountId: string) => Promise<void>
+  createAccount: (input: AccountFormInput) => Promise<AccountModel>
+  testConnection: (accountId: string) => Promise<void>
+  updateAccount: (accountId: string, input: AccountFormInput) => Promise<AccountModel>
+  deleteAccount: (accountId: string) => Promise<void>
+  exportAccounts: () => Promise<WailsExportSummary | undefined>
+  importAccounts: () => Promise<WailsImportSummary | undefined>
+}
+
+type AccountsStore = AccountsState & AccountsActions
 
 const clone = <T,>(value: T): T => {
   if (typeof structuredClone === "function") {
@@ -78,16 +108,6 @@ const buildLocalAccount = (input: AccountFormInput, providerLabel: string): Acco
   }
 }
 
-export type AccountFormInput = {
-  name: string
-  provider: string
-  endpoint: string
-  region: string
-  accessKeyId?: string
-  secretAccessKey?: string
-  useSSL: boolean
-  port: number
-}
 const FALLBACK_ACCOUNTS: AccountModel[] = [
   {
     id: "seed-aws",
@@ -134,32 +154,23 @@ const initialState: AccountsState = {
   connectionProbe: { status: "idle" },
 }
 
-class AccountsStore {
-  private state: AccountsState = initialState
-  private listeners = new Set<Listener>()
-  private hydration?: Promise<void>
+let hydrationPromise: Promise<void> | undefined
 
-  subscribe = (listener: Listener) => {
-    this.listeners.add(listener)
-    return () => this.listeners.delete(listener)
-  }
-
-  getState = () => this.state
-
-  private setState = (partial: Partial<AccountsState>) => {
-    this.state = { ...this.state, ...partial }
-    this.listeners.forEach((listener) => listener())
-  }
-
-  bootstrap = () => {
-    if (!this.hydration) {
-      this.hydration = this.refresh()
+const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
+  ...initialState,
+  bootstrap: async () => {
+    if (!hydrationPromise) {
+      hydrationPromise = get()
+        .refresh()
+        .catch((error) => {
+          hydrationPromise = undefined
+          throw error
+        })
     }
-    return this.hydration
-  }
-
-  refresh = async () => {
-    this.setState({ loading: true, error: undefined })
+    return hydrationPromise
+  },
+  refresh: async () => {
+    set({ loading: true, error: undefined })
     const useBridge = isBridgeAvailable()
     try {
       let accounts: AccountModel[] = []
@@ -174,7 +185,7 @@ class AccountsStore {
         ])
         accounts = normalizeAccountList(rawAccounts)
         providers = providerPayload
-        active = normalizeAccount(activePayload as AccountModels.Account | null)
+        active = normalizeAccount(activePayload as WailsAccount | null)
       } else {
         accounts = clone(FALLBACK_ACCOUNTS)
         providers = clone(FALLBACK_PROVIDERS)
@@ -182,36 +193,37 @@ class AccountsStore {
       }
 
       const activeAccountId = (active ? active.id : undefined) ?? accounts[0]?.id
-      this.setState({
+      const prevProbe = get().connectionProbe
+      set({
         accounts,
         providers,
         activeAccountId,
         loading: false,
         error: undefined,
-        connectionProbe: activeAccountId ? { status: "idle" } : this.state.connectionProbe,
+        connectionProbe: activeAccountId ? { status: "idle" } : prevProbe,
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "加载账户失败"
-      this.setState({ loading: false, error: message })
+      set({ loading: false, error: message })
+      throw error
     }
-  }
-
-  setActiveAccount = async (accountId: string) => {
-    if (this.state.activeAccountId === accountId) return
+  },
+  setActiveAccount: async (accountId: string) => {
+    if (get().activeAccountId === accountId) return
     const useBridge = isBridgeAvailable()
     try {
-      this.setState({ loading: true, error: undefined })
+      set({ loading: true, error: undefined })
       if (useBridge) {
         await SetActiveAccount(accountId)
       }
-      this.setState({ activeAccountId: accountId, loading: false, connectionProbe: { status: "idle" } })
+      set({ activeAccountId: accountId, loading: false, connectionProbe: { status: "idle" } })
     } catch (error) {
       const message = error instanceof Error ? error.message : "切换账户失败"
-      this.setState({ loading: false, error: message })
+      set({ loading: false, error: message })
+      throw error
     }
-  }
-
-  createAccount = async (input: AccountFormInput) => {
+  },
+  createAccount: async (input: AccountFormInput) => {
     const useBridge = isBridgeAvailable()
     const accessKey = input.accessKeyId?.trim()
     const secret = input.secretAccessKey?.trim()
@@ -221,7 +233,7 @@ class AccountsStore {
     if (!secret) {
       throw new Error("secretAccessKey is required")
     }
-    this.setState({ loading: true, error: undefined })
+    set({ loading: true, error: undefined })
     try {
       let created: AccountModel | null = null
       if (useBridge) {
@@ -239,41 +251,41 @@ class AccountsStore {
         await SetActiveAccount(serverAccount.id)
         created = normalizeAccount(serverAccount)
       } else {
-        const providerLabel = this.state.providers.find((item) => item.id === input.provider)?.label ?? input.provider
+        const providerLabel = get().providers.find((item) => item.id === input.provider)?.label ?? input.provider
         created = buildLocalAccount({ ...input, accessKeyId: accessKey }, providerLabel)
       }
       if (!created) {
         throw new Error("创建账户失败")
       }
-      this.setState({
-        accounts: [...this.state.accounts, created],
-        activeAccountId: created.id,
+      set((state) => ({
+        accounts: [...state.accounts, created!],
+        activeAccountId: created!.id,
         loading: false,
         error: undefined,
         connectionProbe: { status: "idle" },
-      })
+      }))
       return created
     } catch (error) {
       const message = error instanceof Error ? error.message : "创建账户失败"
-      this.setState({ loading: false, error: message })
+      set({ loading: false, error: message })
       throw error
     }
-  }
-
-  testConnection = async (accountId: string) => {
+  },
+  testConnection: async (accountId: string) => {
     const useBridge = isBridgeAvailable()
-    this.setState({ connectionProbe: { status: "running" } })
+    set({ connectionProbe: { status: "running" } })
     try {
+      const state = get()
       const result = useBridge
         ? await TestAccountConnection(accountId)
         : {
             accountId,
-            provider: this.state.accounts.find((item) => item.id === accountId)?.provider ?? "aws",
+            provider: state.accounts.find((item) => item.id === accountId)?.provider ?? "aws",
             status: "ok",
             message: "示例数据 · 连接稳定",
             checkedAt: new Date().toISOString(),
           }
-      this.setState({
+      set({
         connectionProbe: {
           status: result.status === "ok" ? "ok" : "error",
           message: result.message,
@@ -282,16 +294,15 @@ class AccountsStore {
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "连接测试失败"
-      this.setState({ connectionProbe: { status: "error", message } })
+      set({ connectionProbe: { status: "error", message } })
     }
-  }
-
-  updateAccount = async (accountId: string, input: AccountFormInput) => {
+  },
+  updateAccount: async (accountId: string, input: AccountFormInput) => {
     const useBridge = isBridgeAvailable()
-    this.setState({ loading: true, error: undefined })
+    set({ loading: true, error: undefined })
     try {
       let updated: AccountModel | null = null
-      const existing = this.state.accounts.find((account) => account.id === accountId)
+      const existing = get().accounts.find((account) => account.id === accountId)
       if (useBridge) {
         const payload: Record<string, unknown> = {
           name: input.name,
@@ -309,7 +320,7 @@ class AccountsStore {
         const serverAccount = await UpdateAccount(accountId, payload)
         updated = normalizeAccount(serverAccount)
       } else if (existing) {
-        const providerLabel = this.state.providers.find((item) => item.id === input.provider)?.label ?? input.provider
+        const providerLabel = get().providers.find((item) => item.id === input.provider)?.label ?? input.provider
         updated = {
           id: accountId,
           name: input.name,
@@ -326,44 +337,98 @@ class AccountsStore {
         }
       }
       if (!updated) throw new Error("更新账户失败")
-      this.setState({
-        accounts: this.state.accounts.map((account) => (account.id === accountId ? { ...account, ...updated } : account)),
+      set((state) => ({
+        accounts: state.accounts.map((account) => (account.id === accountId ? { ...account, ...updated! } : account)),
         loading: false,
         error: undefined,
-      })
+      }))
       return updated
     } catch (error) {
       const message = error instanceof Error ? error.message : "更新账户失败"
-      this.setState({ loading: false, error: message })
+      set({ loading: false, error: message })
       throw error
     }
-  }
-
-  deleteAccount = async (accountId: string) => {
+  },
+  deleteAccount: async (accountId: string) => {
     const useBridge = isBridgeAvailable()
-    this.setState({ loading: true, error: undefined })
+    set({ loading: true, error: undefined })
     try {
       if (useBridge) {
         await DeleteAccount(accountId)
       }
-      const remaining = this.state.accounts.filter((account) => account.id !== accountId)
-      const activeAccountId = this.state.activeAccountId === accountId ? remaining[0]?.id : this.state.activeAccountId
-      this.setState({
-        accounts: remaining,
-        activeAccountId,
-        loading: false,
-        connectionProbe: { status: "idle" },
+      set((state) => {
+        const remaining = state.accounts.filter((account) => account.id !== accountId)
+        const activeAccountId = state.activeAccountId === accountId ? remaining[0]?.id : state.activeAccountId
+        return {
+          accounts: remaining,
+          activeAccountId,
+          loading: false,
+          connectionProbe: { status: "idle" },
+        }
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "删除账户失败"
-      this.setState({ loading: false, error: message })
+      set({ loading: false, error: message })
       throw error
     }
-  }
-}
-
-export const accountsStore = new AccountsStore()
+  },
+  exportAccounts: async () => {
+    const useBridge = isBridgeAvailable()
+    if (!useBridge) {
+      if (typeof window !== "undefined") {
+        window.alert?.("导入/导出功能仅在桌面应用中可用")
+      }
+      return undefined
+    }
+    try {
+      const summary = await ExportAccounts()
+      set({ error: undefined })
+      return summary as WailsExportSummary
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "导出配置失败"
+      set({ error: message })
+      throw error
+    }
+  },
+  importAccounts: async () => {
+    const useBridge = isBridgeAvailable()
+    if (!useBridge) {
+      if (typeof window !== "undefined") {
+        window.alert?.("导入/导出功能仅在桌面应用中可用")
+      }
+      return undefined
+    }
+    try {
+      const summary = await ImportAccounts()
+      if (!summary.cancelled) {
+        await get().refresh()
+      }
+      set({ error: undefined })
+      return summary as WailsImportSummary
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "导入配置失败"
+      set({ error: message })
+      throw error
+    }
+  },
+}))
 
 export const useAccountsStore = <T,>(selector: (state: AccountsState) => T): T => {
-  return useSyncExternalStore(accountsStore.subscribe, () => selector(accountsStore.getState()))
+  return useAccountsStoreBase(selector as (state: AccountsStore) => T)
+}
+
+const relay = <Args extends unknown[], Return>(selector: (store: AccountsStore) => (...args: Args) => Return) => {
+  return (...args: Args) => selector(useAccountsStoreBase.getState())(...args)
+}
+
+export const accountsStore = {
+  bootstrap: relay((store) => store.bootstrap),
+  refresh: relay((store) => store.refresh),
+  setActiveAccount: relay((store) => store.setActiveAccount),
+  createAccount: relay((store) => store.createAccount),
+  testConnection: relay((store) => store.testConnection),
+  updateAccount: relay((store) => store.updateAccount),
+  deleteAccount: relay((store) => store.deleteAccount),
+  exportAccounts: relay((store) => store.exportAccounts),
+  importAccounts: relay((store) => store.importAccounts),
 }
