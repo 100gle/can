@@ -16,16 +16,21 @@ import (
 
 // Service orchestrates account CRUD, encryption, and provider probing.
 type Service struct {
-	store  Store
-	cipher security.Cipher
-	dialer providers.Dialer
-
+	store    Store
+	cipher   security.Cipher
+	dialer   providers.Dialer
+	session  ActiveSessionStore
 	activeID string
+
+	activeLoaded bool
 }
 
 // NewService wires dependencies for account management.
-func NewService(store Store, cipher security.Cipher, dialer providers.Dialer) *Service {
-	return &Service{store: store, cipher: cipher, dialer: dialer}
+func NewService(store Store, cipher security.Cipher, dialer providers.Dialer, session ActiveSessionStore) *Service {
+	if session == nil {
+		session = NewMemorySessionStore()
+	}
+	return &Service{store: store, cipher: cipher, dialer: dialer, session: session}
 }
 
 // ListAccounts returns sanitized account views.
@@ -80,6 +85,10 @@ func (s *Service) UpdateAccount(ctx context.Context, id string, input UpdateAcco
 	if err != nil {
 		return Account{}, err
 	}
+	if input.Provider != nil {
+		provider := types.ParseProvider(string(*input.Provider))
+		record.Provider = provider
+	}
 	if input.Name != nil {
 		record.Name = strings.TrimSpace(*input.Name)
 	}
@@ -114,29 +123,38 @@ func (s *Service) UpdateAccount(ctx context.Context, id string, input UpdateAcco
 
 // DeleteAccount removes the given account.
 func (s *Service) DeleteAccount(ctx context.Context, id string) error {
+	s.ensureActiveLoaded(ctx)
 	if s.activeID == id {
 		s.activeID = ""
+		_ = s.session.Clear(ctx)
 	}
 	return s.store.Delete(ctx, id)
 }
 
 // SetActiveAccount marks the provided account as active.
 func (s *Service) SetActiveAccount(ctx context.Context, id string) (Account, error) {
+	s.ensureActiveLoaded(ctx)
 	record, err := s.store.Get(ctx, id)
 	if err != nil {
 		return Account{}, err
 	}
 	s.activeID = id
+	if err := s.session.Save(ctx, id); err != nil {
+		return Account{}, err
+	}
 	return toAccount(record), nil
 }
 
 // ActiveAccount returns actives account if any.
 func (s *Service) ActiveAccount(ctx context.Context) (*Account, error) {
+	s.ensureActiveLoaded(ctx)
 	if s.activeID == "" {
 		return nil, nil
 	}
 	record, err := s.store.Get(ctx, s.activeID)
 	if err != nil {
+		_ = s.session.Clear(ctx)
+		s.activeID = ""
 		return nil, err
 	}
 	acc := toAccount(record)
@@ -271,4 +289,20 @@ func maskAccessKey(value string) string {
 		return trimmed
 	}
 	return trimmed[:4] + "***" + trimmed[len(trimmed)-2:]
+}
+
+func (s *Service) ensureActiveLoaded(ctx context.Context) {
+	if s.activeLoaded {
+		return
+	}
+	if s.session != nil {
+		if id, err := s.session.Load(ctx); err == nil && id != "" {
+			if _, err := s.store.Get(ctx, id); err == nil {
+				s.activeID = id
+			} else {
+				_ = s.session.Clear(ctx)
+			}
+		}
+	}
+	s.activeLoaded = true
 }

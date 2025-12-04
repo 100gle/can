@@ -56,13 +56,14 @@ type CreateAccountInput struct {
 
 // UpdateAccountInput represents optional fields for account updates.
 type UpdateAccountInput struct {
-	Name            *string `json:"name"`
-	Endpoint        *string `json:"endpoint"`
-	AccessKeyID     *string `json:"accessKeyId"`
-	SecretAccessKey *string `json:"secretAccessKey"`
-	Region          *string `json:"region"`
-	UseSSL          *bool   `json:"useSSL"`
-	Port            *int    `json:"port"`
+	Provider        *types.Provider `json:"provider"`
+	Name            *string         `json:"name"`
+	Endpoint        *string         `json:"endpoint"`
+	AccessKeyID     *string         `json:"accessKeyId"`
+	SecretAccessKey *string         `json:"secretAccessKey"`
+	Region          *string         `json:"region"`
+	UseSSL          *bool           `json:"useSSL"`
+	Port            *int            `json:"port"`
 }
 
 // ConnectionTestResult summarizes a connectivity check outcome.

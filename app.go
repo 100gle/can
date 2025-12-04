@@ -33,7 +33,8 @@ func NewApp() *App {
 	cipher := security.DefaultCipher()
 	s3Factory := providers.NewS3ClientFactory()
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
-	accountSvc := accounts.NewService(store, cipher, dialer)
+	sessionStore := initSessionStore()
+	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	bucketSvc := buckets.NewService(accountSvc, s3Factory)
 	objectSvc := objects.NewService(accountSvc, s3Factory)
 	return &App{accounts: accountSvc, buckets: bucketSvc, objects: objectSvc}
@@ -259,6 +260,29 @@ func defaultSQLitePath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "accounts.db"), nil
+}
+
+func initSessionStore() accounts.ActiveSessionStore {
+	path := strings.TrimSpace(os.Getenv("CAN_SESSION_PATH"))
+	if path == "" {
+		dir, err := os.UserConfigDir()
+		if err != nil || dir == "" {
+			dir = filepath.Join(os.TempDir(), "can")
+		} else {
+			dir = filepath.Join(dir, "can")
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fmt.Printf("failed to prepare session directory, using memory store: %v\n", err)
+			return accounts.NewMemorySessionStore()
+		}
+		path = filepath.Join(dir, "session.json")
+	}
+	store, err := accounts.NewFileSessionStore(path)
+	if err != nil {
+		fmt.Printf("failed to create session store (%s), using memory store: %v\n", path, err)
+		return accounts.NewMemorySessionStore()
+	}
+	return store
 }
 
 // Greet returns a greeting for the given name (legacy sample kept for smoke tests).

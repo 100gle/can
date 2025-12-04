@@ -164,6 +164,7 @@ export namespace accounts {
 	    }
 	}
 	export class UpdateAccountInput {
+	    provider?: string;
 	    name?: string;
 	    endpoint?: string;
 	    accessKeyId?: string;
@@ -178,6 +179,7 @@ export namespace accounts {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
 	        this.name = source["name"];
 	        this.endpoint = source["endpoint"];
 	        this.accessKeyId = source["accessKeyId"];

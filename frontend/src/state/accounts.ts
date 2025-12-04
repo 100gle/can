@@ -335,6 +335,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
       const existing = get().accounts.find((account) => account.id === accountId);
       if (useBridge) {
         const payload: Record<string, unknown> = {
+          provider: input.provider,
           name: input.name,
           endpoint: input.endpoint,
           region: input.region,

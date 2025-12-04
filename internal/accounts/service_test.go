@@ -13,7 +13,7 @@ import (
 func TestServiceExportImportRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	svc := NewService(NewMemoryStore(), cipher, providers.NewStubDialer())
+	svc := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
 
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Account A",
@@ -48,7 +48,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("expected 2 accounts exported, got %d", exportData.Count)
 	}
 
-	dest := NewService(NewMemoryStore(), cipher, providers.NewStubDialer())
+	dest := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
 	result, err := dest.ImportData(ctx, exportData.Blob)
 	if err != nil {
 		t.Fatalf("import data: %v", err)
@@ -72,7 +72,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 func TestImportSkipsDuplicates(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	exporter := NewService(NewMemoryStore(), cipher, providers.NewStubDialer())
+	exporter := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
 	input := CreateAccountInput{
 		Name:            "Duplicate",
 		Provider:        types.ProviderCOS,
@@ -91,7 +91,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 		t.Fatalf("export data: %v", err)
 	}
 
-	importer := NewService(NewMemoryStore(), cipher, providers.NewStubDialer())
+	importer := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
 	if _, err := importer.CreateAccount(ctx, input); err != nil {
 		t.Fatalf("seed importer account: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 func TestImportRejectsInvalidPayload(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	svc := NewService(NewMemoryStore(), cipher, providers.NewStubDialer())
+	svc := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
 	if _, err := svc.ImportData(ctx, []byte("not-json")); err == nil {
 		t.Fatalf("expected error for invalid payload")
 	}
@@ -127,7 +127,7 @@ func TestSQLiteStorePersistsData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new sqlite store: %v", err)
 	}
-	svc := NewService(store, testCipher(t), providers.NewStubDialer())
+	svc := NewService(store, testCipher(t), providers.NewStubDialer(), NewMemorySessionStore())
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "SQLite Account",
 		Provider:        types.ProviderAWS,
@@ -149,6 +149,42 @@ func TestSQLiteStorePersistsData(t *testing.T) {
 	}
 	if records[0].Name != "SQLite Account" {
 		t.Fatalf("unexpected account name: %s", records[0].Name)
+	}
+}
+
+func TestActiveAccountPersistsViaSessionStore(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	sessionStore := NewMemorySessionStore()
+	cipher := testCipher(t)
+	dialer := providers.NewStubDialer()
+
+	svc := NewService(store, cipher, dialer, sessionStore)
+	account, err := svc.CreateAccount(ctx, CreateAccountInput{
+		Name:            "Primary",
+		Provider:        types.ProviderAWS,
+		Endpoint:        "https://s3.amazonaws.com",
+		AccessKeyID:     "AKIA-PRIMARY",
+		SecretAccessKey: "secret",
+		Region:          "us-east-1",
+		UseSSL:          true,
+		Port:            443,
+	})
+	if err != nil {
+		t.Fatalf("create account: %v", err)
+	}
+	if _, err := svc.SetActiveAccount(ctx, account.ID); err != nil {
+		t.Fatalf("set active account: %v", err)
+	}
+
+	// Simulate a new service instance (e.g., application restart).
+	svcReloaded := NewService(store, cipher, dialer, sessionStore)
+	active, err := svcReloaded.ActiveAccount(ctx)
+	if err != nil {
+		t.Fatalf("active account: %v", err)
+	}
+	if active == nil || active.ID != account.ID {
+		t.Fatalf("expected active account %s, got %#v", account.ID, active)
 	}
 }
 

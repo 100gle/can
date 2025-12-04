@@ -147,31 +147,44 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     } catch (error) {
       const message = error instanceof Error ? error.message : "加载对象失败";
       set({ loading: false, error: message });
-      throw error;
+      return;
     }
   },
   loadMore: async () => {
     const { accountId, bucket, prefix, nextMarker, truncated } = get();
     if (!accountId || !bucket || !truncated || !nextMarker) return;
     set({ loadingMore: true, error: undefined });
+    const useBridge = isBridgeAvailable();
     try {
-      const result = await ListObjects(accountId, {
-        bucket,
-        prefix,
-        delimiter: "/",
-        limit: 500,
-        marker: nextMarker,
-      });
-      set((state) => ({
-        objects: [...state.objects, ...result.objects.map((object) => normalizeObject(object))],
-        loadingMore: false,
-        nextMarker: result.nextMarker || undefined,
-        truncated: Boolean(result.truncated),
-      }));
+      if (useBridge) {
+        const result = await ListObjects(accountId, {
+          bucket,
+          prefix,
+          delimiter: "/",
+          limit: 500,
+          marker: nextMarker,
+        });
+        set((state) => ({
+          objects: [...state.objects, ...result.objects.map((object) => normalizeObject(object))],
+          loadingMore: false,
+          nextMarker: result.nextMarker || undefined,
+          truncated: Boolean(result.truncated),
+        }));
+      } else {
+        const fallback = FALLBACK_OBJECTS.filter(
+          (object) => !prefix || object.key.startsWith(prefix),
+        ).map((object) => normalizeObject(object));
+        set((state) => ({
+          objects: [...state.objects, ...fallback],
+          loadingMore: false,
+          nextMarker: undefined,
+          truncated: false,
+        }));
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "加载更多对象失败";
       set({ loadingMore: false, error: message });
-      throw error;
+      return;
     }
   },
   uploadFromPath: async (filePath: string, key: string) => {
