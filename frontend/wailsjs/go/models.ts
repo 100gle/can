@@ -119,6 +119,50 @@ export namespace accounts {
 	        this.port = source["port"];
 	    }
 	}
+	export class ExportSummary {
+	    filePath: string;
+	    count: number;
+	    cipher: string;
+	    version: string;
+	    cancelled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExportSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filePath = source["filePath"];
+	        this.count = source["count"];
+	        this.cipher = source["cipher"];
+	        this.version = source["version"];
+	        this.cancelled = source["cancelled"];
+	    }
+	}
+	export class ImportSummary {
+	    filePath: string;
+	    total: number;
+	    imported: number;
+	    skipped: number;
+	    failed: number;
+	    issues: string[];
+	    cancelled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filePath = source["filePath"];
+	        this.total = source["total"];
+	        this.imported = source["imported"];
+	        this.skipped = source["skipped"];
+	        this.failed = source["failed"];
+	        this.issues = source["issues"];
+	        this.cancelled = source["cancelled"];
+	    }
+	}
 	export class UpdateAccountInput {
 	    name?: string;
 	    endpoint?: string;
@@ -142,6 +186,150 @@ export namespace accounts {
 	        this.useSSL = source["useSSL"];
 	        this.port = source["port"];
 	    }
+	}
+
+}
+
+export namespace buckets {
+	
+	export class BucketInfo {
+	    name: string;
+	    // Go type: time
+	    createdAt: any;
+	    region: string;
+	    objectCount: number;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BucketInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.region = source["region"];
+	        this.objectCount = source["objectCount"];
+	        this.size = source["size"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace objects {
+	
+	export class ListObjectsInput {
+	    bucket: string;
+	    prefix: string;
+	    delimiter: string;
+	    limit: number;
+	    marker: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ListObjectsInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.prefix = source["prefix"];
+	        this.delimiter = source["delimiter"];
+	        this.limit = source["limit"];
+	        this.marker = source["marker"];
+	    }
+	}
+	export class ObjectInfo {
+	    key: string;
+	    size: number;
+	    // Go type: time
+	    lastModified: any;
+	    etag: string;
+	    contentType: string;
+	    isDir: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ObjectInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.size = source["size"];
+	        this.lastModified = this.convertValues(source["lastModified"], null);
+	        this.etag = source["etag"];
+	        this.contentType = source["contentType"];
+	        this.isDir = source["isDir"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ListObjectsResult {
+	    objects: ObjectInfo[];
+	    nextMarker: string;
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ListObjectsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.objects = this.convertValues(source["objects"], ObjectInfo);
+	        this.nextMarker = source["nextMarker"];
+	        this.truncated = source["truncated"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

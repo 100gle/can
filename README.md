@@ -30,3 +30,18 @@ pnpm --dir frontend build && wails build
 ## 更多配置
 
 应用打包、窗口配置等均在 `wails.json` 中维护，详见官方文档：https://wails.io/docs/reference/project-config
+
+## 开发进度与文档
+
+### 当前状态
+- ✅ 账户管理框架完成
+- ✅ 安全加密存储实现
+- ⚠️ S3 API 层（待实现）
+- ❌ 存储桶/对象管理（待实现）
+
+### 重要文档
+- **[R2 Testing Setup](docs/R2_Testing_Setup.md)** - 如何配置和测试 Cloudflare R2 账户
+- **[TODO R2 Implementation](docs/TODO_R2_Implementation.md)** - 详细的实现计划和任务分解（供开发者参考）
+- **[Implementation Guide](docs/Implementation_Guide.md)** - 代码结构、关键接口和实现指南
+- **[Features](docs/features.md)** - 完整的功能规划文档
+- **[Specifications](docs/spec/)** - 各功能模块的详细规格

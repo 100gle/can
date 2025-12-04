@@ -6,20 +6,68 @@ export function ActiveAccount() {
   return window['go']['main']['App']['ActiveAccount']();
 }
 
+export function BucketLocation(arg1, arg2) {
+  return window['go']['main']['App']['BucketLocation'](arg1, arg2);
+}
+
+export function CopyObject(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CopyObject'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function CreateAccount(arg1) {
   return window['go']['main']['App']['CreateAccount'](arg1);
+}
+
+export function CreateBucket(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateBucket'](arg1, arg2, arg3);
 }
 
 export function DeleteAccount(arg1) {
   return window['go']['main']['App']['DeleteAccount'](arg1);
 }
 
+export function DeleteBucket(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBucket'](arg1, arg2);
+}
+
+export function DeleteObject(arg1, arg2, arg3) {
+  return window['go']['main']['App']['DeleteObject'](arg1, arg2, arg3);
+}
+
+export function DownloadObject(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['DownloadObject'](arg1, arg2, arg3, arg4);
+}
+
+export function ExportAccounts() {
+  return window['go']['main']['App']['ExportAccounts']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function HeadBucket(arg1, arg2) {
+  return window['go']['main']['App']['HeadBucket'](arg1, arg2);
+}
+
+export function HeadObject(arg1, arg2, arg3) {
+  return window['go']['main']['App']['HeadObject'](arg1, arg2, arg3);
+}
+
+export function ImportAccounts() {
+  return window['go']['main']['App']['ImportAccounts']();
+}
+
 export function ListAccounts() {
   return window['go']['main']['App']['ListAccounts']();
+}
+
+export function ListBuckets(arg1) {
+  return window['go']['main']['App']['ListBuckets'](arg1);
+}
+
+export function ListObjects(arg1, arg2) {
+  return window['go']['main']['App']['ListObjects'](arg1, arg2);
 }
 
 export function SetActiveAccount(arg1) {
@@ -36,4 +84,8 @@ export function TestAccountConnection(arg1) {
 
 export function UpdateAccount(arg1, arg2) {
   return window['go']['main']['App']['UpdateAccount'](arg1, arg2);
+}
+
+export function UploadObject(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UploadObject'](arg1, arg2, arg3, arg4);
 }

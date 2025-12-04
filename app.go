@@ -12,6 +12,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"can/internal/accounts"
+	"can/internal/buckets"
+	"can/internal/objects"
 	"can/internal/providers"
 	"can/internal/security"
 	"can/internal/types"
@@ -21,15 +23,20 @@ import (
 type App struct {
 	ctx      context.Context
 	accounts *accounts.Service
+	buckets  *buckets.Service
+	objects  *objects.Service
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	store := initStoreFromEnv()
 	cipher := security.DefaultCipher()
-	dialer := providers.NewStubDialer()
-	svc := accounts.NewService(store, cipher, dialer)
-	return &App{accounts: svc}
+	s3Factory := providers.NewS3ClientFactory()
+	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
+	accountSvc := accounts.NewService(store, cipher, dialer)
+	bucketSvc := buckets.NewService(accountSvc, s3Factory)
+	objectSvc := objects.NewService(accountSvc, s3Factory)
+	return &App{accounts: accountSvc, buckets: bucketSvc, objects: objectSvc}
 }
 
 // startup is called when the app starts. The context is saved
@@ -79,6 +86,61 @@ func (a *App) ActiveAccount() (*accounts.Account, error) {
 // TestAccountConnection validates the credentials for an account.
 func (a *App) TestAccountConnection(id string) (accounts.ConnectionTestResult, error) {
 	return a.accounts.TestConnection(a.ctx, id)
+}
+
+// ListBuckets returns all buckets for the given account.
+func (a *App) ListBuckets(accountID string) ([]buckets.BucketInfo, error) {
+	return a.buckets.ListBuckets(a.ctx, accountID)
+}
+
+// CreateBucket provisions a new bucket under the provided account.
+func (a *App) CreateBucket(accountID, name, region string) error {
+	return a.buckets.CreateBucket(a.ctx, accountID, name, region)
+}
+
+// DeleteBucket removes the selected bucket.
+func (a *App) DeleteBucket(accountID, name string) error {
+	return a.buckets.DeleteBucket(a.ctx, accountID, name)
+}
+
+// BucketLocation resolves the region for a bucket.
+func (a *App) BucketLocation(accountID, name string) (string, error) {
+	return a.buckets.BucketLocation(a.ctx, accountID, name)
+}
+
+// HeadBucket checks whether a bucket exists.
+func (a *App) HeadBucket(accountID, name string) error {
+	return a.buckets.HeadBucket(a.ctx, accountID, name)
+}
+
+// ListObjects enumerates objects under the given prefix.
+func (a *App) ListObjects(accountID string, input objects.ListObjectsInput) (objects.ListObjectsResult, error) {
+	return a.objects.ListObjects(a.ctx, accountID, input)
+}
+
+// UploadObject uploads a local file to the target bucket.
+func (a *App) UploadObject(accountID, bucket, key, filePath string) error {
+	return a.objects.UploadObject(a.ctx, accountID, bucket, key, filePath)
+}
+
+// DownloadObject downloads an object to the provided path.
+func (a *App) DownloadObject(accountID, bucket, key, savePath string) error {
+	return a.objects.DownloadObject(a.ctx, accountID, bucket, key, savePath)
+}
+
+// DeleteObject removes an object from the bucket.
+func (a *App) DeleteObject(accountID, bucket, key string) error {
+	return a.objects.DeleteObject(a.ctx, accountID, bucket, key)
+}
+
+// CopyObject duplicates an object to a new location.
+func (a *App) CopyObject(accountID, sourceBucket, sourceKey, targetBucket, targetKey string) error {
+	return a.objects.CopyObject(a.ctx, accountID, sourceBucket, sourceKey, targetBucket, targetKey)
+}
+
+// HeadObject fetches metadata for a specific key.
+func (a *App) HeadObject(accountID, bucket, key string) (objects.ObjectInfo, error) {
+	return a.objects.HeadObject(a.ctx, accountID, bucket, key)
 }
 
 // ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.

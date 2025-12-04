@@ -149,18 +149,9 @@ func (s *Service) TestConnection(ctx context.Context, id string) (ConnectionTest
 	if err != nil {
 		return ConnectionTestResult{}, err
 	}
-	secret, err := s.cipher.DecryptString(ctx, record.EncryptedSecret)
+	creds, err := s.credentialsFromRecord(ctx, record)
 	if err != nil {
-		return ConnectionTestResult{}, fmt.Errorf("decrypt secret: %w", err)
-	}
-	creds := providers.ConnectionCredentials{
-		Provider:        record.Provider,
-		Endpoint:        record.Endpoint,
-		AccessKeyID:     record.AccessKeyID,
-		SecretAccessKey: secret,
-		Region:          record.Region,
-		UseSSL:          record.UseSSL,
-		Port:            record.Port,
+		return ConnectionTestResult{}, err
 	}
 	status := "ok"
 	message := "connection verified"
@@ -216,6 +207,15 @@ func (s *Service) EnsureSeed(ctx context.Context) error {
 	return nil
 }
 
+// ConnectionCredentials resolves decrypted credentials for the given account.
+func (s *Service) ConnectionCredentials(ctx context.Context, id string) (providers.ConnectionCredentials, error) {
+	record, err := s.store.Get(ctx, id)
+	if err != nil {
+		return providers.ConnectionCredentials{}, err
+	}
+	return s.credentialsFromRecord(ctx, record)
+}
+
 func validateCreateInput(input CreateAccountInput) error {
 	if strings.TrimSpace(input.Name) == "" {
 		return errors.New("name is required")
@@ -230,6 +230,22 @@ func validateCreateInput(input CreateAccountInput) error {
 		return errors.New("secret access key is required")
 	}
 	return nil
+}
+
+func (s *Service) credentialsFromRecord(ctx context.Context, record StorageAccount) (providers.ConnectionCredentials, error) {
+	secret, err := s.cipher.DecryptString(ctx, record.EncryptedSecret)
+	if err != nil {
+		return providers.ConnectionCredentials{}, fmt.Errorf("decrypt secret: %w", err)
+	}
+	return providers.ConnectionCredentials{
+		Provider:        record.Provider,
+		Endpoint:        record.Endpoint,
+		AccessKeyID:     record.AccessKeyID,
+		SecretAccessKey: secret,
+		Region:          record.Region,
+		UseSSL:          record.UseSSL,
+		Port:            record.Port,
+	}, nil
 }
 
 func toAccount(record StorageAccount) Account {

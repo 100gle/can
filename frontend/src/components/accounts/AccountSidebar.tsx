@@ -1,20 +1,20 @@
-import { Sun, Moon } from "lucide-react"
-import logo from "@/assets/images/logo-universal.png"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
-import type { AccountModel, ProviderMetadata } from "@/state/accounts"
+import { Sun, Moon } from "lucide-react";
+import logo from "@/assets/images/logo-universal.png";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import type { AccountModel, ProviderMetadata } from "@/state/accounts";
 
 export type AccountSidebarProps = {
-  accounts: AccountModel[]
-  providers: ProviderMetadata[]
-  activeAccountId?: string
-  loading: boolean
-  isDark: boolean
-  onToggleTheme: () => void
-  onSelectAccount: (account: AccountModel) => void
-}
+  accounts: AccountModel[];
+  providers: ProviderMetadata[];
+  activeAccountId?: string;
+  loading: boolean;
+  isDark: boolean;
+  onToggleTheme: () => void;
+  onSelectAccount: (account: AccountModel) => void;
+};
 
 export const AccountSidebar = ({
   accounts,
@@ -76,8 +76,8 @@ export const AccountSidebar = ({
         </div>
       </div>
     </aside>
-  )
-}
+  );
+};
 
 const SidebarAccountItem = ({
   account,
@@ -85,10 +85,10 @@ const SidebarAccountItem = ({
   loading,
   onSelect,
 }: {
-  account: AccountModel
-  active: boolean
-  loading: boolean
-  onSelect: (account: AccountModel) => void
+  account: AccountModel;
+  active: boolean;
+  loading: boolean;
+  onSelect: (account: AccountModel) => void;
 }) => (
   <button
     type="button"
@@ -96,7 +96,7 @@ const SidebarAccountItem = ({
     disabled={loading}
     className={cn(
       "w-full rounded-2xl border border-transparent bg-card/60 p-4 text-left transition hover:border-border/80",
-      active && "border-primary/60 bg-primary/10"
+      active && "border-primary/60 bg-primary/10",
     )}
   >
     <div className="flex items-start justify-between">
@@ -108,6 +108,6 @@ const SidebarAccountItem = ({
       </div>
       {active ? <Badge variant="success">Active</Badge> : null}
     </div>
-    <p className="mt-3 text-xs text-muted-foreground">Endpoint · {account.endpoint}</p>
+    <p className="mt-3 truncate text-xs text-muted-foreground">Endpoint · {account.endpoint}</p>
   </button>
-)
+);
