@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const params = useParams({ from: "/accounts/$accountId/dashboard" });
   const routeAccountId = params.accountId;
-  const { accounts, providers, loading, error, activeAccountId } = useAccountsStore(
+  const { accounts, providers, capabilities, loading, error, activeAccountId } = useAccountsStore(
     (state) => state,
   );
   const selectedBucket = useBucketsStore((state) => state.selectedBucket);
@@ -68,6 +68,11 @@ export default function DashboardPage() {
     }
     return accounts.find((account) => account.id === activeAccountId) ?? accounts[0];
   }, [accounts, routeAccountId, activeAccountId]);
+
+  const activeCapabilities = useMemo(() => {
+    if (!activeAccount) return [];
+    return capabilities.filter((cap) => cap.provider === activeAccount.provider);
+  }, [capabilities, activeAccount]);
 
   const openDrawer = (mode: "create" | "edit", account?: AccountModel) => {
     setDrawerState({ open: true, mode, account });
@@ -265,7 +270,12 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-4 p-4 lg:grid-cols-3">
-          <BucketBrowser accountId={activeAccount.id} className="lg:col-span-1" />
+          <BucketBrowser
+            accountId={activeAccount.id}
+            providerId={activeAccount.provider}
+            capabilities={activeCapabilities}
+            className="lg:col-span-1"
+          />
           <ObjectBrowser
             accountId={activeAccount.id}
             bucket={selectedBucket}

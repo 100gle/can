@@ -32,6 +32,7 @@ func NewApp() *App {
 	store := initStoreFromEnv()
 	cipher := security.DefaultCipher()
 	s3Factory := providers.NewS3ClientFactory()
+	storageFactory := providers.NewStorageFactory(s3Factory)
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
 	sessionStore := initSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
@@ -52,6 +53,11 @@ func (a *App) startup(ctx context.Context) {
 // SupportedProviders exposes the providers metadata to the UI.
 func (a *App) SupportedProviders() []types.ProviderMetadata {
 	return types.KnownProviders()
+}
+
+// ProviderCapabilities exposes capability matrix to the UI.
+func (a *App) ProviderCapabilities() []types.ProviderCapability {
+	return types.CapabilityMatrix()
 }
 
 // ListAccounts returns all configured accounts.
