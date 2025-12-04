@@ -1,28 +1,28 @@
 import {
-  forwardRef,
-  useEffect,
-  useState,
-  type ButtonHTMLAttributes,
-  type ChangeEvent,
-  type FormEvent,
-  type HTMLAttributes,
-} from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import {
   Cloud,
   Database,
+  Loader2,
+  LucideIcon,
   Moon,
+  Plus,
   RefreshCcw,
-  Settings,
   ShieldCheck,
   Sparkles,
   Sun,
-  UploadCloud,
-  type LucideIcon,
+  Wifi,
 } from "lucide-react"
+import {
+  forwardRef,
+  useEffect,
+  useMemo,
+  useState,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+} from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 import logo from "./assets/images/logo-universal.png"
 import { cn } from "@/lib/utils"
-import { Greet } from "../wailsjs/go/main/App"
+import { accountsStore, useAccountsStore, type AccountModel, type ConnectionProbe } from "@/state/accounts"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
@@ -50,28 +50,23 @@ const buttonVariants = cva(
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & VariantProps<typeof buttonVariants>
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => (
-    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
-  )
-)
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, ...props }, ref) => (
+  <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+))
 Button.displayName = "Button"
 
-const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-  {
-    variants: {
-      variant: {
-        default: "border-transparent bg-secondary/70 text-secondary-foreground",
-        outline: "border-border/70 text-foreground",
-        success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-      },
+const badgeVariants = cva("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold", {
+  variants: {
+    variant: {
+      default: "border-transparent bg-secondary/70 text-secondary-foreground",
+      outline: "border-border/70 text-foreground",
+      success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+})
 
 type BadgeProps = HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeVariants>
 
@@ -89,90 +84,40 @@ const Card = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
   />
 )
 
-type Highlight = {
-  title: string
-  description: string
+type Stat = {
   icon: LucideIcon
+  label: string
+  value: string
+  hint: string
 }
 
-type PipelineStep = {
-  title: string
-  detail: string
-  status: "done" | "ready" | "pending"
-}
-
-const highlights: Highlight[] = [
-  {
-    title: "多云账户聚合",
-    description: "AWS · OSS · COS · R2 一站式接入",
-    icon: Cloud,
-  },
-  {
-    title: "端到端加密",
-    description: "本地密钥加密存储凭证",
-    icon: ShieldCheck,
-  },
-  {
-    title: "极速对象操作",
-    description: "拖拽上传、批量任务、断点续传",
-    icon: UploadCloud,
-  },
-  {
-    title: "实时同步",
-    description: "多标签监听、秒级刷新",
-    icon: RefreshCcw,
-  },
+const futureModules = [
+  { title: "Bucket 属性与策略", detail: "Versioning · CORS · Policy" },
+  { title: "对象批量操作", detail: "复制 / 移动 / 标签" },
+  { title: "传输调度", detail: "分片上传 · 队列管理" },
 ]
 
-const pipelineSteps: PipelineStep[] = [
-  {
-    title: "导入凭证",
-    detail: "本地加密 + Endpoint 校验",
-    status: "done",
-  },
-  {
-    title: "访问策略体检",
-    detail: "检测读写/对象锁权限",
-    status: "ready",
-  },
-  {
-    title: "元数据缓存",
-    detail: "Bucket + 对象索引预热",
-    status: "pending",
-  },
-]
-
-const quickStats = [
-  { label: "连接延迟", value: "127 ms", hint: "杭州 · 内网" },
-  { label: "Bucket 数量", value: "42", hint: "最近同步" },
-  { label: "传输任务", value: "8", hint: "上传 3 · 下载 5" },
-  { label: "实时告警", value: "0", hint: "全部正常" },
-]
-
-const techBadges = [
-  { label: "Tailwind CSS 4.1", variant: "success" as const },
-  { label: "shadcn/ui 原子组件", variant: "success" as const },
-  { label: "tw-animate", variant: "default" as const },
-  { label: "Lucide React", variant: "default" as const },
+const placeholderBuckets = [
+  { name: "product-assets", region: "us-east-1", objects: "1.2M", size: "4.7 TB" },
+  { name: "media-staging", region: "ap-southeast-1", objects: "320K", size: "1.3 TB" },
+  { name: "logs-r2", region: "global", objects: "87K", size: "420 GB" },
 ]
 
 function App() {
-  const [resultText, setResultText] = useState("调用 Go · Wails Greet 以确认桥接状态")
-  const [name, setName] = useState("")
-  const [isInvoking, setIsInvoking] = useState(false)
+  const { accounts, providers, loading, error, activeAccountId, connectionProbe } = useAccountsStore((state) => state)
   const [isDark, setIsDark] = useState(() => {
     if (typeof document === "undefined") return false
     return document.documentElement.classList.contains("dark")
   })
 
-  useEffect(() => {
-    if (typeof document === "undefined") return
-    setIsDark(document.documentElement.classList.contains("dark"))
-  }, [])
+  const activeAccount = useMemo(() => {
+    if (!accounts.length) return undefined
+    return accounts.find((item) => item.id === activeAccountId) ?? accounts[0]
+  }, [accounts, activeAccountId])
 
-  const updateName = (event: ChangeEvent<HTMLInputElement>) => {
-    setName(event.target.value)
-  }
+  useEffect(() => {
+    accountsStore.bootstrap()
+  }, [])
 
   const toggleTheme = () => {
     if (typeof document === "undefined") return
@@ -181,201 +126,297 @@ function App() {
     setIsDark(root.classList.contains("dark"))
   }
 
-  const handleGreet = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const payload = name.trim()
-    if (!payload) {
-      setResultText("请先输入要发送给 Go 后端的昵称 👀")
-      return
-    }
-
-    setIsInvoking(true)
-    try {
-      const response = await Greet(payload)
-      setResultText(response)
-    } catch (error) {
-      console.error("Failed to invoke Greet", error)
-      setResultText("调用失败，请检查 Wails 后端是否已运行")
-    } finally {
-      setIsInvoking(false)
-    }
+  const handleSelectAccount = (account: AccountModel) => {
+    void accountsStore.setActiveAccount(account.id)
   }
 
+  const handleRefresh = () => {
+    void accountsStore.refresh()
+  }
+
+  const handleTestConnection = () => {
+    if (!activeAccount) return
+    void accountsStore.testConnection(activeAccount.id)
+  }
+
+  const connectionPreview = getConnectionPreview(connectionProbe)
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 px-4 py-6 text-foreground">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-        <Card className="animate-in fade-in slide-in-from-top-4 space-y-8 bg-card/70 backdrop-blur">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-border/70 bg-background/70 p-3 shadow-inner">
-                  <img src={logo} alt="logo" className="h-12 w-12 object-contain" />
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Wails · Tailwind</p>
-                  <h1 className="mt-1 text-3xl font-semibold tracking-tight">对象存储控制中心</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Go + Wails + React · Tailwind CSS 4 · shadcn/ui 原子组件
-                  </p>
-                </div>
-              </div>
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="hidden w-[320px] flex-col border-r border-border/40 bg-sidebar/40 p-6 backdrop-blur-xl xl:flex">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="logo" className="h-10 w-10 rounded-2xl bg-secondary/40 p-1.5" />
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Nebula</p>
+              <h1 className="text-xl font-semibold">Object Studio</h1>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline">前端预览</Badge>
-              <Badge variant="default">Live Tailwind</Badge>
-              <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label="切换主题">
-                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </div>
+          <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="切换主题">
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+        </div>
+
+        <div className="mt-8">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">支持的服务商</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {providers.map((provider) => (
+              <Badge key={provider.id} variant="outline">
+                {provider.label}
+              </Badge>
+            ))}
+            {!providers.length ? <Badge variant="outline">加载中...</Badge> : null}
+          </div>
+        </div>
+
+        <div className="mt-8 flex-1 overflow-hidden">
+          <div className="flex items-center justify-between text-xs uppercase tracking-widest text-muted-foreground">
+            <span>账户</span>
+            <span>{accounts.length}</span>
+          </div>
+          <div className="mt-3 space-y-3 overflow-y-auto pr-2">
+            {accounts.map((account) => (
+              <SidebarAccountItem
+                key={account.id}
+                account={account}
+                active={activeAccount?.id === account.id}
+                onSelect={handleSelectAccount}
+                loading={loading}
+              />
+            ))}
+            {!accounts.length ? (
+              <Card className="border-dashed text-sm text-muted-foreground">
+                <p>尚未配置账户。</p>
+                <p className="mt-1">通过“新建账户”按钮即可接入 AWS / OSS / COS / R2。</p>
+              </Card>
+            ) : null}
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1">
+        <header className="border-b border-border/40 bg-gradient-to-br from-background via-background/80 to-background/40 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">当前会话账户</p>
+              <h2 className="mt-1 text-3xl font-semibold">
+                {activeAccount ? activeAccount.name : "尚未选择账户"}
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {activeAccount
+                  ? `${activeAccount.providerLabel} · ${activeAccount.region || "Region 未设置"}`
+                  : "选择或新建一个账户以开始同步 Buckets"}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" className="gap-2" onClick={handleRefresh} disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                刷新
+              </Button>
+              <Button variant="secondary" className="gap-2" onClick={handleTestConnection} disabled={!activeAccount}>
+                <ShieldCheck className="h-4 w-4" />
+                测试连接
+              </Button>
+              <Button variant="default" className="gap-2" disabled>
+                <Plus className="h-4 w-4" />
+                新建账户 · 开发中
               </Button>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {quickStats.map((item) => (
-              <div
-                key={item.label}
-                className="rounded-2xl border border-border/60 bg-background/60 p-4 shadow-sm"
-              >
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{item.label}</p>
-                <p className="mt-1 text-2xl font-semibold">{item.value}</p>
-                <p className="text-sm text-muted-foreground">{item.hint}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
+          {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
+        </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.4fr,0.9fr]">
-          <div className="flex flex-col gap-6">
-            <Card className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Wails RPC 互通测试</p>
-                  <h2 className="text-2xl font-semibold tracking-tight">调用 Go 后端 Greet</h2>
-                </div>
-                <Badge variant="success" className="gap-1">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  实时响应
-                </Badge>
-              </div>
-              <form className="space-y-4" onSubmit={handleGreet}>
-                <label className="text-sm font-medium text-muted-foreground" htmlFor="greet-name">
-                  输入一个昵称，立即调用后端函数：
-                </label>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    id="greet-name"
-                    value={name}
-                    onChange={updateName}
-                    autoComplete="off"
-                    placeholder="例如：Tailwind Explorer"
-                    className="flex-1 rounded-2xl border border-input bg-background px-4 py-3 text-sm shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  <Button type="submit" size="lg" disabled={isInvoking}>
-                    {isInvoking ? "调用中..." : "发送到 Go"}
-                  </Button>
-                </div>
-              </form>
-              <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  返回结果
-                </p>
-                <p className="mt-2 text-base font-medium text-foreground">{resultText}</p>
-              </div>
-            </Card>
-
-            <Card className="space-y-5">
+        <section className="grid gap-6 p-6 lg:grid-cols-2 xl:grid-cols-3">
+          <Card>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-muted-foreground">核心能力示例</p>
-                <h2 className="text-2xl font-semibold tracking-tight">Tailwind + shadcn 组件状态</h2>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">凭证摘要</p>
+                <h3 className="mt-2 text-xl font-semibold">{activeAccount?.accessKeyPreview || "-"}</h3>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {highlights.map((item) => (
-                  <div
-                    key={item.title}
-                    className="group rounded-2xl border border-border/60 bg-background/60 p-4 shadow-sm transition hover:-translate-y-1 hover:bg-primary/10"
-                  >
-                    <div className="mb-3 inline-flex rounded-2xl border border-border/70 bg-card/60 p-2 text-primary shadow">
-                      <item.icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-lg font-semibold">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <Card className="space-y-4">
+              <Cloud className="h-10 w-10 text-primary" />
+            </div>
+            <dl className="mt-6 space-y-3 text-sm text-muted-foreground">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">上线前检查</p>
-                  <h2 className="text-xl font-semibold tracking-tight">Pipeline 预览</h2>
-                </div>
-                <Settings className="h-5 w-5 text-muted-foreground" />
+                <dt>Endpoint</dt>
+                <dd className="text-foreground">{activeAccount?.endpoint || "-"}</dd>
               </div>
-              <div className="space-y-4">
-                {pipelineSteps.map((step) => (
-                  <div key={step.title} className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        "mt-1 h-2.5 w-2.5 rounded-full",
-                        step.status === "done" && "bg-emerald-500",
-                        step.status === "ready" && "bg-amber-400",
-                        step.status === "pending" && "bg-border"
-                      )}
-                    />
-                    <div>
-                      <p className="text-sm font-semibold">{step.title}</p>
-                      <p className="text-sm text-muted-foreground">{step.detail}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <dt>SSL</dt>
+                <dd>{activeAccount?.useSSL ? "已开启" : "未启用"}</dd>
               </div>
-            </Card>
+              <div className="flex items-center justify-between">
+                <dt>端口</dt>
+                <dd>{activeAccount?.port || 443}</dd>
+              </div>
+            </dl>
+          </Card>
 
-            <Card className="space-y-4">
+          <Card>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-muted-foreground">配置状态</p>
-                <h2 className="text-xl font-semibold tracking-tight">Tailwind & shadcn 运行中</h2>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">连接状态</p>
+                <h3 className={cn("mt-2 text-xl font-semibold", connectionPreview.color)}>{connectionPreview.title}</h3>
               </div>
-              <div className="flex flex-wrap gap-3">
-                {techBadges.map((badge) => (
-                  <Badge key={badge.label} variant={badge.variant}>
-                    {badge.label}
-                  </Badge>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-dashed border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-                观察背景、文字、边框和按钮的配色、阴影与动画，若样式与 shadcn 设计语言一致，说明 Tailwind CSS + shadcn/ui 已正确加载。
-              </div>
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Tailwind 变量</span>
-                  <span className="font-medium text-foreground">bg-background / text-foreground</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">shadcn Button</span>
-                  <span className="font-medium text-foreground">{isInvoking ? "Loading" : "Ready"}</span>
-                </div>
-              </div>
-            </Card>
+              <Wifi className={cn("h-10 w-10", connectionPreview.iconColor)} />
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">{connectionPreview.message}</p>
+            {connectionPreview.timestamp ? (
+              <p className="mt-2 text-xs text-muted-foreground">最近检测 · {connectionPreview.timestamp}</p>
+            ) : null}
+          </Card>
 
-            <Card className="space-y-3">
-              <div className="flex items-center gap-3">
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">路线图</p>
+                <h3 className="mt-2 text-xl font-semibold">下一阶段</h3>
+              </div>
+              <Sparkles className="h-10 w-10 text-accent" />
+            </div>
+            <ul className="mt-4 space-y-3 text-sm">
+              {futureModules.map((item) => (
+                <li key={item.title} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{item.title}</p>
+                    <p className="text-muted-foreground">{item.detail}</p>
+                  </div>
+                  <Badge variant="success">规划中</Badge>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+
+        <section className="flex flex-col gap-4 p-6 pt-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">多云 Bucket 列表</p>
+              <h3 className="text-lg font-semibold">跨服务商概览 · 即将接入 API</h3>
+            </div>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <div className="flex items-center justify-between">
+                <h4 className="text-base font-semibold">最近关注</h4>
                 <Database className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">工作负载示例</p>
-                  <h2 className="text-xl font-semibold tracking-tight">对象存储概要</h2>
-                </div>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-                这里可以扩展为真实的 Bucket 列表或传输队列。Tailwind 工具类已经准备好随时搭建更复杂的可视化界面。
+              <div className="mt-4 divide-y divide-border/40 text-sm">
+                {placeholderBuckets.map((bucket) => (
+                  <div key={bucket.name} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="font-medium">{bucket.name}</p>
+                      <p className="text-muted-foreground">{bucket.region}</p>
+                    </div>
+                    <div className="text-right text-muted-foreground">
+                      <p>{bucket.objects} 对象</p>
+                      <p>{bucket.size}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-center justify-between">
+                <h4 className="text-base font-semibold">阶段进度</h4>
+                <ShieldCheck className="h-5 w-5 text-secondary-foreground" />
+              </div>
+              <div className="mt-4 space-y-4">
+                {progressRoadmap.map((item) => (
+                  <div key={item.title}>
+                    <div className="flex items-center justify-between text-sm">
+                      <p className="font-medium">{item.title}</p>
+                      <span className="text-muted-foreground">{item.status}</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-border/60">
+                      <div className={cn("h-full rounded-full bg-primary", item.progressClass)} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                  </div>
+                ))}
               </div>
             </Card>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }
+
+const progressRoadmap = [
+  { title: "账户模块架构", status: "已完成", detail: "服务层 + 加密 + Stub Dialer", progressClass: "w-full" },
+  { title: "Bucket 列表", status: "进行中", detail: "等待 API 适配", progressClass: "w-1/2" },
+  { title: "传输模块", status: "计划中", detail: "分片上传、并发控制", progressClass: "w-1/4" },
+]
+
+const getConnectionPreview = (probe: ConnectionProbe) => {
+  const status = probe.status
+  if (status === "running") {
+    return {
+      title: "检测中",
+      message: "调用云端 API 以验证访问凭证...",
+      timestamp: undefined,
+      color: "text-foreground",
+      iconColor: "text-primary",
+    }
+  }
+  if (status === "ok") {
+    return {
+      title: "连接正常",
+      message: probe.message || "凭证已通过校验，可进行 Bucket 操作",
+      timestamp: probe.checkedAt,
+      color: "text-emerald-400",
+      iconColor: "text-emerald-400",
+    }
+  }
+  if (status === "error") {
+    return {
+      title: "连接异常",
+      message: probe.message || "无法建立连接，请检查 Endpoint / 凭证",
+      timestamp: probe.checkedAt,
+      color: "text-destructive",
+      iconColor: "text-destructive",
+    }
+  }
+  return {
+    title: "等待检测",
+    message: "点击“测试连接”即可触发 API 探测",
+    timestamp: undefined,
+    color: "text-muted-foreground",
+    iconColor: "text-muted-foreground",
+  }
+}
+
+const SidebarAccountItem = ({
+  account,
+  active,
+  onSelect,
+  loading,
+}: {
+  account: AccountModel
+  active: boolean
+  loading: boolean
+  onSelect: (account: AccountModel) => void
+}) => (
+  <button
+    type="button"
+    onClick={() => onSelect(account)}
+    disabled={loading}
+    className={cn(
+      "w-full rounded-2xl border border-transparent bg-card/60 p-4 text-left transition hover:border-border/80",
+      active && "border-primary/60 bg-primary/10"
+    )}
+  >
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="font-medium">{account.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {account.providerLabel} · {account.region || "Region 未设置"}
+        </p>
+      </div>
+      {active ? <Badge variant="success">Active</Badge> : null}
+    </div>
+    <p className="mt-3 text-xs text-muted-foreground">Endpoint · {account.endpoint}</p>
+  </button>
+)
 
 export default App
