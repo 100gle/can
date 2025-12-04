@@ -1,95 +1,12 @@
-import {
-  Cloud,
-  Database,
-  Loader2,
-  LucideIcon,
-  Moon,
-  Plus,
-  RefreshCcw,
-  ShieldCheck,
-  Sparkles,
-  Sun,
-  Wifi,
-} from "lucide-react"
-import {
-  forwardRef,
-  useEffect,
-  useMemo,
-  useState,
-  type ButtonHTMLAttributes,
-  type HTMLAttributes,
-} from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import logo from "./assets/images/logo-universal.png"
+import { Cloud, Database, Loader2, Plus, RefreshCcw, ShieldCheck, Sparkles, Wifi } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { AccountSidebar } from "@/components/accounts/AccountSidebar"
+import { AccountFormDrawer } from "@/components/accounts/AccountFormDrawer"
 import { accountsStore, useAccountsStore, type AccountModel, type ConnectionProbe } from "@/state/accounts"
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 px-3",
-        lg: "h-11 px-6",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & VariantProps<typeof buttonVariants>
-
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, ...props }, ref) => (
-  <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
-))
-Button.displayName = "Button"
-
-const badgeVariants = cva("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold", {
-  variants: {
-    variant: {
-      default: "border-transparent bg-secondary/70 text-secondary-foreground",
-      outline: "border-border/70 text-foreground",
-      success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-    },
-  },
-  defaultVariants: {
-    variant: "default",
-  },
-})
-
-type BadgeProps = HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeVariants>
-
-const Badge = ({ className, variant, ...props }: BadgeProps) => (
-  <span className={cn(badgeVariants({ variant }), className)} {...props} />
-)
-
-const Card = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "rounded-3xl border border-border/70 bg-card/80 p-6 text-card-foreground shadow-lg shadow-border/20",
-      className
-    )}
-    {...props}
-  />
-)
-
-type Stat = {
-  icon: LucideIcon
-  label: string
-  value: string
-  hint: string
-}
 
 const futureModules = [
   { title: "Bucket 属性与策略", detail: "Versioning · CORS · Policy" },
@@ -109,6 +26,10 @@ function App() {
     if (typeof document === "undefined") return false
     return document.documentElement.classList.contains("dark")
   })
+  const [drawerState, setDrawerState] = useState<{ open: boolean; mode: "create" | "edit"; account?: AccountModel }>({
+    open: false,
+    mode: "create",
+  })
 
   const activeAccount = useMemo(() => {
     if (!accounts.length) return undefined
@@ -118,6 +39,12 @@ function App() {
   useEffect(() => {
     accountsStore.bootstrap()
   }, [])
+
+  const openDrawer = (mode: "create" | "edit", account?: AccountModel) => {
+    setDrawerState({ open: true, mode, account })
+  }
+
+  const closeDrawer = () => setDrawerState((prev) => ({ ...prev, open: false }))
 
   const toggleTheme = () => {
     if (typeof document === "undefined") return
@@ -143,56 +70,15 @@ function App() {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden w-[320px] flex-col border-r border-border/40 bg-sidebar/40 p-6 backdrop-blur-xl xl:flex">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="logo" className="h-10 w-10 rounded-2xl bg-secondary/40 p-1.5" />
-            <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Nebula</p>
-              <h1 className="text-xl font-semibold">Object Studio</h1>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="切换主题">
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-        </div>
-
-        <div className="mt-8">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">支持的服务商</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {providers.map((provider) => (
-              <Badge key={provider.id} variant="outline">
-                {provider.label}
-              </Badge>
-            ))}
-            {!providers.length ? <Badge variant="outline">加载中...</Badge> : null}
-          </div>
-        </div>
-
-        <div className="mt-8 flex-1 overflow-hidden">
-          <div className="flex items-center justify-between text-xs uppercase tracking-widest text-muted-foreground">
-            <span>账户</span>
-            <span>{accounts.length}</span>
-          </div>
-          <div className="mt-3 space-y-3 overflow-y-auto pr-2">
-            {accounts.map((account) => (
-              <SidebarAccountItem
-                key={account.id}
-                account={account}
-                active={activeAccount?.id === account.id}
-                onSelect={handleSelectAccount}
-                loading={loading}
-              />
-            ))}
-            {!accounts.length ? (
-              <Card className="border-dashed text-sm text-muted-foreground">
-                <p>尚未配置账户。</p>
-                <p className="mt-1">通过“新建账户”按钮即可接入 AWS / OSS / COS / R2。</p>
-              </Card>
-            ) : null}
-          </div>
-        </div>
-      </aside>
+      <AccountSidebar
+        accounts={accounts}
+        providers={providers}
+        activeAccountId={activeAccountId}
+        loading={loading}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
+        onSelectAccount={handleSelectAccount}
+      />
 
       <main className="flex-1">
         <header className="border-b border-border/40 bg-gradient-to-br from-background via-background/80 to-background/40 p-6">
@@ -217,9 +103,12 @@ function App() {
                 <ShieldCheck className="h-4 w-4" />
                 测试连接
               </Button>
-              <Button variant="default" className="gap-2" disabled>
+              <Button variant="outline" className="gap-2" disabled={!activeAccount} onClick={() => activeAccount && openDrawer("edit", activeAccount)}>
+                编辑账户
+              </Button>
+              <Button variant="default" className="gap-2" onClick={() => openDrawer("create")}>
                 <Plus className="h-4 w-4" />
-                新建账户 · 开发中
+                新建账户
               </Button>
             </div>
           </div>
@@ -338,6 +227,13 @@ function App() {
           </div>
         </section>
       </main>
+      <AccountFormDrawer
+        open={drawerState.open}
+        mode={drawerState.mode}
+        providers={providers}
+        initialAccount={drawerState.account}
+        onClose={closeDrawer}
+      />
     </div>
   )
 }
@@ -385,38 +281,5 @@ const getConnectionPreview = (probe: ConnectionProbe) => {
     iconColor: "text-muted-foreground",
   }
 }
-
-const SidebarAccountItem = ({
-  account,
-  active,
-  onSelect,
-  loading,
-}: {
-  account: AccountModel
-  active: boolean
-  loading: boolean
-  onSelect: (account: AccountModel) => void
-}) => (
-  <button
-    type="button"
-    onClick={() => onSelect(account)}
-    disabled={loading}
-    className={cn(
-      "w-full rounded-2xl border border-transparent bg-card/60 p-4 text-left transition hover:border-border/80",
-      active && "border-primary/60 bg-primary/10"
-    )}
-  >
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="font-medium">{account.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {account.providerLabel} · {account.region || "Region 未设置"}
-        </p>
-      </div>
-      {active ? <Badge variant="success">Active</Badge> : null}
-    </div>
-    <p className="mt-3 text-xs text-muted-foreground">Endpoint · {account.endpoint}</p>
-  </button>
-)
 
 export default App
