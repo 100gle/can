@@ -1,5 +1,3 @@
-import { AlertCircle, Loader2, Plus, RefreshCcw, Save, ShieldCheck, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +24,8 @@ import {
   type AccountModel,
   type ProviderMetadata,
 } from "@/state/accounts";
+import { AlertCircle, Loader2, Plus, RefreshCcw, Save, ShieldCheck, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 
 export type AccountFormDrawerProps = {
   open: boolean;
@@ -122,9 +122,7 @@ export const AccountFormDrawer = ({
 
   const handleDelete = async () => {
     if (!initialAccount) return;
-    const confirmed = window.confirm(
-      `确定要删除账户 “${initialAccount.name}” 吗？此操作不可撤销。`,
-    );
+    const confirmed = window.confirm(`确定要删除账户“${initialAccount.name}”吗？此操作不可撤销。`);
     if (!confirmed) return;
     setSubmitting(true);
     try {
@@ -193,17 +191,25 @@ export const AccountFormDrawer = ({
     }
   };
 
-  const testMessage =
+  const testButtonLabel =
+    testStatus === "ok" ? "连接已验证" : testStatus === "error" ? "测试失败" : "测试连接";
+  const testButtonIcon = testingConnection ? (
+    <Loader2 className="h-4 w-4 animate-spin" />
+  ) : testStatus === "ok" ? (
+    <ShieldCheck className="h-4 w-4" />
+  ) : testStatus === "error" ? (
+    <AlertCircle className="h-4 w-4" />
+  ) : (
+    <RefreshCcw className="h-4 w-4" />
+  );
+  const testButtonTitle =
     testHint ??
     (mode === "edit" && !form.secretAccessKey
       ? "如需测试新配置，请重新输入 Secret"
       : "填写凭证后可快速测试连接是否可用");
-  const testMessageClass =
-    testStatus === "ok"
-      ? "text-emerald-600"
-      : testStatus === "error"
-        ? "text-destructive"
-        : "text-muted-foreground";
+  const testButtonClass =
+    "gap-2 mr-auto" +
+    (testStatus === "ok" ? " text-emerald-600" : testStatus === "error" ? " text-destructive" : "");
 
   return (
     <Sheet
@@ -347,35 +353,6 @@ export const AccountFormDrawer = ({
             />
           </div>
 
-          <Alert variant={testStatus === "error" ? "destructive" : "default"} className="space-y-3">
-            {testStatus === "error" ? (
-              <AlertCircle className="text-destructive" />
-            ) : (
-              <ShieldCheck />
-            )}
-            <div>
-              <AlertTitle>连接检测</AlertTitle>
-              <AlertDescription className={testMessageClass}>{testMessage}</AlertDescription>
-            </div>
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={handleTestConnection}
-                disabled={!canRunConnectionTest || testingConnection}
-              >
-                {testingConnection ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCcw className="h-4 w-4" />
-                )}
-                测试连接
-              </Button>
-            </div>
-          </Alert>
-
           {localError ? (
             <Alert variant="destructive">
               <AlertCircle className="text-destructive" />
@@ -388,14 +365,27 @@ export const AccountFormDrawer = ({
 
           <SheetFooter className="gap-4 border-t border-border/60 pt-4">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
-                  取消
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={testButtonClass}
+                  onClick={handleTestConnection}
+                  disabled={!canRunConnectionTest || testingConnection}
+                  title={testButtonTitle}
+                >
+                  {testButtonIcon}
+                  {testButtonLabel}
                 </Button>
-                <Button type="submit" className="gap-2" disabled={submitting}>
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : submitIcon}
-                  {submitLabel}
-                </Button>
+                <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
+                    取消
+                  </Button>
+                  <Button type="submit" className="gap-2" disabled={submitting}>
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : submitIcon}
+                    {submitLabel}
+                  </Button>
+                </div>
               </div>
               {mode === "edit" && initialAccount ? (
                 <Alert variant="destructive" className="gap-3">

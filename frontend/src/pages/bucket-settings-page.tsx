@@ -43,7 +43,9 @@ export const BucketSettingsPage = () => {
     if (!providerCapabilities.length) {
       return matrix;
     }
-    const byId = new Map(providerCapabilities.map((capability) => [capability.featureId, capability]));
+    const byId = new Map(
+      providerCapabilities.map((capability) => [capability.featureId, capability]),
+    );
     (Object.keys(FEATURE_CAPABILITY_IDS) as BucketFeature[]).forEach((feature) => {
       const capability = byId.get(FEATURE_CAPABILITY_IDS[feature]);
       if (capability) {

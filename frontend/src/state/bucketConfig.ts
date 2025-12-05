@@ -50,7 +50,13 @@ export type BucketCORSModel = {
 
 type SavingKey = "versioning" | "encryption" | "lifecycle" | "cors";
 
-export type BucketFeature = "versioning" | "encryption" | "lifecycle" | "cors" | "website" | "policy";
+export type BucketFeature =
+  | "versioning"
+  | "encryption"
+  | "lifecycle"
+  | "cors"
+  | "website"
+  | "policy";
 
 export type BucketConfigState = {
   accountId?: string;

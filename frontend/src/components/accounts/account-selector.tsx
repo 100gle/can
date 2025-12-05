@@ -101,7 +101,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-border/60 bg-background/70 p-1">
+          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/70 p-1">
             <Button
               type="button"
               variant={viewMode === "cards" ? "default" : "ghost"}
