@@ -209,9 +209,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       onBlur={field.handleBlur}
                       aria-invalid={showError}
                     />
-                    {showError ? (
-                      <p className="text-xs text-destructive">{errorMessage}</p>
-                    ) : null}
+                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -243,9 +241,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       onBlur={field.handleBlur}
                       aria-invalid={showError}
                     />
-                    {showError ? (
-                      <p className="text-xs text-destructive">{errorMessage}</p>
-                    ) : null}
+                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -316,9 +312,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       onBlur={field.handleBlur}
                       aria-invalid={showError}
                     />
-                    {showError ? (
-                      <p className="text-xs text-destructive">{errorMessage}</p>
-                    ) : null}
+                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -426,9 +420,13 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       {formatBytes(item.size)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {item.lastModified ? new Date(item.lastModified as any).toLocaleString() : "-"}
+                      {item.lastModified
+                        ? new Date(item.lastModified as any).toLocaleString()
+                        : "-"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{item.storageClass || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.storageClass || "-"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -1,8 +1,9 @@
+import logo from "@/assets/images/logo-universal.png";
+import { AccountSwitcher } from "@/components/accounts/account-switcher";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "@tanstack/react-router";
 import { HelpCircle, Moon, Plus, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import logo from "@/assets/images/logo-universal.png";
-import { Button } from "@/components/ui/button";
-import { AccountSwitcher } from "@/components/accounts/account-switcher";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -11,6 +12,7 @@ type SidebarProps = {
 
 export const Sidebar = ({ onCreateAccount, onOpenSettings }: SidebarProps) => {
   const [isDark, setIsDark] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -25,17 +27,22 @@ export const Sidebar = ({ onCreateAccount, onOpenSettings }: SidebarProps) => {
 
   return (
     <div className="flex h-full flex-col gap-6 px-4 py-6">
-      <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={() => navigate({ to: "/" })}
+        className="flex items-center gap-3 rounded-xl border border-transparent p-2 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="返回首页"
+      >
         <img
           src={logo}
           alt="logo"
           className="h-10 w-10 rounded-xl border border-border/40 bg-background/70 p-1.5"
         />
-        <div>
+        <div className="text-left">
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">CAN</p>
           <p className="text-sm font-semibold">Object Studio</p>
         </div>
-      </div>
+      </button>
       <div className="flex-1 overflow-y-auto pr-1">
         <p className="px-2 text-xs uppercase tracking-widest text-muted-foreground">我的账户</p>
         <div className="mt-3 space-y-2">

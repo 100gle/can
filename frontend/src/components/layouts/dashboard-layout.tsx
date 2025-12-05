@@ -1,9 +1,9 @@
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "@tanstack/react-router";
+import { PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
 type DashboardLayoutProps = {
   sidebar: ReactNode;
@@ -61,15 +61,6 @@ export const DashboardLayout = ({ sidebar, children }: DashboardLayoutProps) => 
                 <PanelLeftClose className="h-4 w-4" />
               )}
             </Button>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" className="gap-2" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4" />
-                返回
-              </Button>
-              <span className="hidden text-xs text-muted-foreground sm:inline-flex">
-                回到上一页或账户中心
-              </span>
-            </div>
           </div>
           <Button
             variant="outline"

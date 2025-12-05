@@ -414,9 +414,7 @@ export const AccountFormDrawer = ({
                         min={1}
                         max={65535}
                         value={displayValue}
-                        onChange={(event) =>
-                          field.handleChange(Number(event.target.value) || 0)
-                        }
+                        onChange={(event) => field.handleChange(Number(event.target.value) || 0)}
                         onBlur={field.handleBlur}
                         aria-invalid={showError}
                       />
