@@ -2,7 +2,7 @@ import { HelpCircle, Moon, Plus, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import logo from "@/assets/images/logo-universal.png";
 import { Button } from "@/components/ui/button";
-import { AccountSwitcher } from "@/components/accounts/AccountSwitcher";
+import { AccountSwitcher } from "@/components/accounts/account-switcher";
 
 type SidebarProps = {
   onCreateAccount?: () => void;

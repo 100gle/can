@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { BucketSettings, type BucketSettingsSection } from "@/components/buckets/bucket-settings";
+import { CORSPanel } from "@/components/buckets/cors-panel";
+import { EncryptionPanel } from "@/components/buckets/encryption-panel";
+import { LifecyclePanel } from "@/components/buckets/lifecycle-panel";
+import { VersioningPanel } from "@/components/buckets/versioning-panel";
+import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { Sidebar } from "@/components/layouts/sidebar";
 import { Button } from "@/components/ui/button";
-import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import { Sidebar } from "@/components/layouts/Sidebar";
-import { BucketSettings, type BucketSettingsSection } from "@/components/buckets/BucketSettings";
-import { VersioningPanel } from "@/components/buckets/VersioningPanel";
-import { EncryptionPanel } from "@/components/buckets/EncryptionPanel";
-import { LifecyclePanel } from "@/components/buckets/LifecyclePanel";
-import { CORSPanel } from "@/components/buckets/CORSPanel";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { bucketConfigStore } from "@/state/bucketConfig";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 
 export const BucketSettingsPage = () => {
   const navigate = useNavigate();
@@ -46,7 +46,14 @@ export const BucketSettingsPage = () => {
       <DashboardLayout sidebar={<Sidebar />}>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
           <p>未找到目标账户，请返回仪表盘。</p>
-          <Button onClick={() => navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: activeAccountId ?? accounts[0].id } })}>
+          <Button
+            onClick={() =>
+              navigate({
+                to: "/accounts/$accountId/dashboard",
+                params: { accountId: activeAccountId ?? accounts[0].id },
+              })
+            }
+          >
             返回
           </Button>
         </div>
@@ -65,7 +72,12 @@ export const BucketSettingsPage = () => {
     <DashboardLayout
       sidebar={
         <Sidebar
-          onCreateAccount={() => navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: params.accountId } })}
+          onCreateAccount={() =>
+            navigate({
+              to: "/accounts/$accountId/dashboard",
+              params: { accountId: params.accountId },
+            })
+          }
           onOpenSettings={() => navigate({ to: "/settings" })}
         />
       }
@@ -76,7 +88,9 @@ export const BucketSettingsPage = () => {
             {account.name} · Bucket 设置
           </p>
           <h2 className="mt-2 text-2xl font-semibold">{params.bucketId}</h2>
-          <p className="text-sm text-muted-foreground">这里可以管理版本控制、默认加密以及跨域策略。</p>
+          <p className="text-sm text-muted-foreground">
+            这里可以管理版本控制、默认加密以及跨域策略。
+          </p>
         </div>
         <BucketSettings sections={sections} activeSection={section} onSectionChange={setSection} />
       </main>

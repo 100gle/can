@@ -426,6 +426,8 @@ func (d *ossObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key,
 		return wrapOSSError("取消分片上传", err)
 	}
 	return nil
+}
+
 func (d *ossObjectDriver) GetObjectTags(ctx context.Context, bucketName, key string) (map[string]string, error) {
 	return nil, ErrUnsupportedCapability
 }

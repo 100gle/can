@@ -1,3 +1,16 @@
+import { AccountFormDrawer } from "@/components/accounts/account-form-drawer";
+import { ConnectionTestButton } from "@/components/accounts/connection-test-button";
+import { BucketBrowser } from "@/components/buckets/bucket-browser";
+import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { Sidebar } from "@/components/layouts/sidebar";
+import { ObjectBrowser } from "@/components/objects/object-browser";
+import { UploadProgress } from "@/components/transfer/upload-progress";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
+import { useBucketsStore } from "@/state/buckets";
+import { transfersStore } from "@/state/transfers";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   DownloadCloud,
   Loader2,
@@ -8,25 +21,6 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import { Sidebar } from "@/components/layouts/Sidebar";
-import { AccountFormDrawer } from "@/components/accounts/AccountFormDrawer";
-import { ConnectionTestButton } from "@/components/accounts/ConnectionTestButton";
-import { BucketBrowser } from "@/components/buckets/BucketBrowser";
-import { ObjectBrowser } from "@/components/objects/ObjectBrowser";
-import { UploadProgress } from "@/components/transfer/UploadProgress";
-import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
-import { useBucketsStore } from "@/state/buckets";
-import { transfersStore } from "@/state/transfers";
-
-const futureModules = [
-  { title: "Bucket 属性与策略", detail: "Versioning · CORS · Policy" },
-  { title: "对象批量操作", detail: "复制 / 移动 / 标签" },
-  { title: "传输调度", detail: "分片上传 · 队列管理" },
-];
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -296,22 +290,6 @@ export default function DashboardPage() {
                 <dd>{activeAccount.port || 443}</dd>
               </div>
             </dl>
-          </Card>
-          <Card className="lg:col-span-2">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-muted-foreground">下一步</p>
-                <h3 className="mt-2 text-lg font-semibold">Roadmap Modules</h3>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {futureModules.map((module) => (
-                <div key={module.title} className="rounded-2xl border border-border/40 p-3">
-                  <p className="text-sm font-semibold">{module.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{module.detail}</p>
-                </div>
-              ))}
-            </div>
           </Card>
         </section>
 

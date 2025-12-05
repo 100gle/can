@@ -42,6 +42,26 @@ export function DeleteBucket(arg1, arg2) {
   return window['go']['main']['App']['DeleteBucket'](arg1, arg2);
 }
 
+export function DeleteBucketCORS(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBucketCORS'](arg1, arg2);
+}
+
+export function DeleteBucketEncryption(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBucketEncryption'](arg1, arg2);
+}
+
+export function DeleteBucketLifecycle(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBucketLifecycle'](arg1, arg2);
+}
+
+export function DeleteBucketPolicy(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBucketPolicy'](arg1, arg2);
+}
+
+export function DeleteBucketWebsite(arg1, arg2) {
+  return window['go']['main']['App']['DeleteBucketWebsite'](arg1, arg2);
+}
+
 export function DeleteObject(arg1, arg2, arg3) {
   return window['go']['main']['App']['DeleteObject'](arg1, arg2, arg3);
 }
@@ -50,8 +70,40 @@ export function DownloadObject(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DownloadObject'](arg1, arg2, arg3, arg4);
 }
 
+export function EnableBucketVersioning(arg1, arg2) {
+  return window['go']['main']['App']['EnableBucketVersioning'](arg1, arg2);
+}
+
 export function ExportAccounts() {
   return window['go']['main']['App']['ExportAccounts']();
+}
+
+export function ExportSearchResults(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ExportSearchResults'](arg1, arg2, arg3);
+}
+
+export function GetBucketCORS(arg1, arg2) {
+  return window['go']['main']['App']['GetBucketCORS'](arg1, arg2);
+}
+
+export function GetBucketEncryption(arg1, arg2) {
+  return window['go']['main']['App']['GetBucketEncryption'](arg1, arg2);
+}
+
+export function GetBucketLifecycle(arg1, arg2) {
+  return window['go']['main']['App']['GetBucketLifecycle'](arg1, arg2);
+}
+
+export function GetBucketPolicy(arg1, arg2) {
+  return window['go']['main']['App']['GetBucketPolicy'](arg1, arg2);
+}
+
+export function GetBucketVersioning(arg1, arg2) {
+  return window['go']['main']['App']['GetBucketVersioning'](arg1, arg2);
+}
+
+export function GetBucketWebsite(arg1, arg2) {
+  return window['go']['main']['App']['GetBucketWebsite'](arg1, arg2);
 }
 
 export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
@@ -106,20 +158,56 @@ export function ProviderCapabilities() {
   return window['go']['main']['App']['ProviderCapabilities']();
 }
 
+export function RenameObject(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RenameObject'](arg1, arg2, arg3, arg4);
+}
+
 export function ResumeTransferTask(arg1) {
   return window['go']['main']['App']['ResumeTransferTask'](arg1);
+}
+
+export function SearchObjects(arg1, arg2) {
+  return window['go']['main']['App']['SearchObjects'](arg1, arg2);
 }
 
 export function SetActiveAccount(arg1) {
   return window['go']['main']['App']['SetActiveAccount'](arg1);
 }
 
+export function SetBucketCORS(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetBucketCORS'](arg1, arg2, arg3);
+}
+
+export function SetBucketEncryption(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetBucketEncryption'](arg1, arg2, arg3);
+}
+
+export function SetBucketLifecycle(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetBucketLifecycle'](arg1, arg2, arg3);
+}
+
+export function SetBucketPolicy(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetBucketPolicy'](arg1, arg2, arg3);
+}
+
+export function SetBucketWebsite(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetBucketWebsite'](arg1, arg2, arg3);
+}
+
 export function SupportedProviders() {
   return window['go']['main']['App']['SupportedProviders']();
 }
 
+export function SuspendBucketVersioning(arg1, arg2) {
+  return window['go']['main']['App']['SuspendBucketVersioning'](arg1, arg2);
+}
+
 export function TestAccountConnection(arg1) {
   return window['go']['main']['App']['TestAccountConnection'](arg1);
+}
+
+export function TestAccountConnectionPreview(arg1) {
+  return window['go']['main']['App']['TestAccountConnectionPreview'](arg1);
 }
 
 export function UpdateAccount(arg1, arg2) {

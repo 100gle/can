@@ -191,10 +191,7 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
       if (useBridge) {
         const response = await SearchObjects(accountId, { ...query, offset: nextOffset } as any);
         set((state) => ({
-          results: [
-            ...state.results,
-            ...(response.results?.map((item) => clone(item)) ?? []),
-          ],
+          results: [...state.results, ...(response.results?.map((item) => clone(item)) ?? [])],
           loadingMore: false,
           hasMore: Boolean(response.hasMore),
           total: response.total ?? state.total,

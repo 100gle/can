@@ -77,7 +77,9 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
               className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
               placeholder="报告、合同等"
               value={draft.searchText || ""}
-              onChange={(event) => setDraft((prev) => ({ ...prev, searchText: event.target.value }))}
+              onChange={(event) =>
+                setDraft((prev) => ({ ...prev, searchText: event.target.value }))
+              }
             />
           </label>
         </div>
@@ -136,7 +138,9 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
               onChange={(event) =>
                 setDraft((prev) => ({
                   ...prev,
-                  startTime: event.target.value ? new Date(event.target.value).toISOString() : undefined,
+                  startTime: event.target.value
+                    ? new Date(event.target.value).toISOString()
+                    : undefined,
                 }))
               }
             />
@@ -150,7 +154,9 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
               onChange={(event) =>
                 setDraft((prev) => ({
                   ...prev,
-                  endTime: event.target.value ? new Date(event.target.value).toISOString() : undefined,
+                  endTime: event.target.value
+                    ? new Date(event.target.value).toISOString()
+                    : undefined,
                 }))
               }
             />
@@ -172,7 +178,11 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex flex-wrap gap-3">
           <Button type="submit" disabled={loading} className="gap-2">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
             执行搜索
           </Button>
           <Button
@@ -182,7 +192,11 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
             onClick={() => handleExport("csv")}
             className="gap-2"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <DownloadCloud className="h-4 w-4" />
+            )}
             导出 CSV
           </Button>
           <Button
@@ -192,7 +206,11 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
             onClick={() => handleExport("json")}
             className="gap-2"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <UploadCloud className="h-4 w-4" />
+            )}
             导出 JSON
           </Button>
         </div>
@@ -232,7 +250,9 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                     <td className="py-2 text-muted-foreground">{item.bucket}</td>
                     <td className="py-2 text-muted-foreground">{formatBytes(item.size)}</td>
                     <td className="py-2 text-muted-foreground">
-                      {item.lastModified ? new Date(item.lastModified as any).toLocaleString() : "-"}
+                      {item.lastModified
+                        ? new Date(item.lastModified as any).toLocaleString()
+                        : "-"}
                     </td>
                     <td className="py-2 text-muted-foreground">{item.storageClass || "-"}</td>
                   </tr>

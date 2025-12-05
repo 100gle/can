@@ -7,7 +7,9 @@ import { useCallback } from "react";
 export const useBackNavigation = (fallback?: () => void) => {
   return useCallback(() => {
     const canUseHistory =
-      typeof window !== "undefined" && typeof window.history !== "undefined" && window.history.length > 1;
+      typeof window !== "undefined" &&
+      typeof window.history !== "undefined" &&
+      window.history.length > 1;
 
     if (canUseHistory) {
       window.history.back();

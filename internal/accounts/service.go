@@ -186,6 +186,31 @@ func (s *Service) TestConnection(ctx context.Context, id string) (ConnectionTest
 	}, nil
 }
 
+// TestConnectionWithInput verifies credentials that have not been persisted yet.
+func (s *Service) TestConnectionWithInput(ctx context.Context, input CreateAccountInput) (ConnectionTestResult, error) {
+	cloned := input
+	if strings.TrimSpace(cloned.Name) == "" {
+		cloned.Name = "connection-test"
+	}
+	if err := validateCreateInput(cloned); err != nil {
+		return ConnectionTestResult{}, err
+	}
+	creds := credentialsFromInput(cloned)
+	status := "ok"
+	message := "connection verified"
+	if err := s.dialer.TestConnection(ctx, creds); err != nil {
+		status = "error"
+		message = err.Error()
+	}
+	return ConnectionTestResult{
+		AccountID: "",
+		Provider:  creds.Provider,
+		Status:    status,
+		Message:   message,
+		CheckedAt: time.Now().UTC(),
+	}, nil
+}
+
 // EnsureSeed inserts sample accounts if none exist, aiding early UI integration.
 func (s *Service) EnsureSeed(ctx context.Context) error {
 	count, err := s.store.Count(ctx)
@@ -248,6 +273,22 @@ func validateCreateInput(input CreateAccountInput) error {
 		return errors.New("secret access key is required")
 	}
 	return nil
+}
+
+func credentialsFromInput(input CreateAccountInput) providers.ConnectionCredentials {
+	provider := input.Provider
+	if provider == "" {
+		provider = types.ProviderCustom
+	}
+	return providers.ConnectionCredentials{
+		Provider:        provider,
+		Endpoint:        strings.TrimSpace(input.Endpoint),
+		AccessKeyID:     strings.TrimSpace(input.AccessKeyID),
+		SecretAccessKey: strings.TrimSpace(input.SecretAccessKey),
+		Region:          strings.TrimSpace(input.Region),
+		UseSSL:          input.UseSSL,
+		Port:            input.Port,
+	}
 }
 
 func (s *Service) credentialsFromRecord(ctx context.Context, record StorageAccount) (providers.ConnectionCredentials, error) {

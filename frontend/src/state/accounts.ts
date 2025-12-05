@@ -10,6 +10,7 @@ import {
   SupportedProviders,
   ProviderCapabilities,
   TestAccountConnection,
+  TestAccountConnectionPreview,
   UpdateAccount,
 } from "../../wailsjs/go/main/App";
 import type { accounts as AccountModels, types as ProviderModels } from "../../wailsjs/go/models";
@@ -62,6 +63,7 @@ type AccountsActions = {
   setActiveAccount: (accountId: string) => Promise<void>;
   createAccount: (input: AccountFormInput) => Promise<AccountModel>;
   testConnection: (accountId: string) => Promise<void>;
+  testConnectionPreview: (input: AccountFormInput) => Promise<AccountModels.ConnectionTestResult>;
   updateAccount: (accountId: string, input: AccountFormInput) => Promise<AccountModel>;
   deleteAccount: (accountId: string) => Promise<void>;
   exportAccounts: () => Promise<WailsExportSummary | undefined>;
@@ -372,6 +374,29 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
       }));
     }
   },
+  testConnectionPreview: async (input: AccountFormInput) => {
+    const payload: WailsCreateInput = {
+      name: (input.name ?? "").trim() || "连接测试",
+      provider: (input.provider ?? "aws") as any,
+      endpoint: (input.endpoint ?? "").trim(),
+      accessKeyId: (input.accessKeyId ?? "").trim(),
+      secretAccessKey: (input.secretAccessKey ?? "").trim(),
+      region: (input.region ?? "").trim(),
+      useSSL: typeof input.useSSL === "boolean" ? input.useSSL : true,
+      port: input.port || 443,
+    };
+    const useBridge = isBridgeAvailable();
+    if (!useBridge) {
+      return {
+        accountId: "",
+        provider: payload.provider,
+        status: "ok",
+        message: "本地模式已跳过真实连接测试",
+        checkedAt: new Date().toISOString(),
+      } as AccountModels.ConnectionTestResult;
+    }
+    return TestAccountConnectionPreview(payload);
+  },
   updateAccount: async (accountId: string, input: AccountFormInput) => {
     const useBridge = isBridgeAvailable();
     set({ loading: true, error: undefined });
@@ -512,6 +537,7 @@ export const accountsStore = {
   setActiveAccount: relay((store) => store.setActiveAccount),
   createAccount: relay((store) => store.createAccount),
   testConnection: relay((store) => store.testConnection),
+  testConnectionPreview: relay((store) => store.testConnectionPreview),
   updateAccount: relay((store) => store.updateAccount),
   deleteAccount: relay((store) => store.deleteAccount),
   exportAccounts: relay((store) => store.exportAccounts),

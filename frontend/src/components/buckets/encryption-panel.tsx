@@ -12,9 +12,11 @@ export const EncryptionPanel = () => {
 
   useEffect(() => {
     setEnabled(Boolean(encryption?.enabled));
-    setAlgorithm((encryption?.algorithm?.toUpperCase() === "AWS:KMS" ? "aws:kms" : "AES256") as
-      | "AES256"
-      | "aws:kms");
+    setAlgorithm(
+      (encryption?.algorithm?.toUpperCase() === "AWS:KMS" ? "aws:kms" : "AES256") as
+        | "AES256"
+        | "aws:kms",
+    );
     setKmsKeyId(encryption?.kmsKeyId ?? "");
   }, [encryption?.enabled, encryption?.algorithm, encryption?.kmsKeyId]);
 

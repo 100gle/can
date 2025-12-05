@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { PresignedURLDialog } from "@/components/transfer/PresignedURLDialog";
+import { PresignedURLDialog } from "@/components/transfer/presigned-url-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { saveFileDialog } from "@/lib/bridge";

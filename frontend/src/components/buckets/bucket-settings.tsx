@@ -14,7 +14,11 @@ type BucketSettingsProps = {
   onSectionChange: (sectionId: string) => void;
 };
 
-export const BucketSettings = ({ sections, activeSection, onSectionChange }: BucketSettingsProps) => {
+export const BucketSettings = ({
+  sections,
+  activeSection,
+  onSectionChange,
+}: BucketSettingsProps) => {
   const active = sections.find((section) => section.id === activeSection) ?? sections[0];
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -28,7 +32,9 @@ export const BucketSettings = ({ sections, activeSection, onSectionChange }: Buc
               <button
                 className={cn(
                   "w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-primary/10",
-                  section.id === activeSection ? "bg-primary/10 font-semibold" : "text-muted-foreground",
+                  section.id === activeSection
+                    ? "bg-primary/10 font-semibold"
+                    : "text-muted-foreground",
                 )}
                 onClick={() => onSectionChange(section.id)}
               >

@@ -458,6 +458,7 @@ func isNotFoundError(err error) bool {
 		strings.Contains(msg, "nosuchobject") ||
 		strings.Contains(msg, "no such object") ||
 		strings.Contains(msg, "不存在")
+}
 
 type progressReader struct {
 	reader io.Reader

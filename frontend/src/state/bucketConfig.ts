@@ -110,7 +110,9 @@ const clone = <T>(input: T): T => {
   }
 };
 
-const normalizeVersioning = (versioning?: ConfigModels.BucketVersioning | null): BucketVersioningModel | undefined => {
+const normalizeVersioning = (
+  versioning?: ConfigModels.BucketVersioning | null,
+): BucketVersioningModel | undefined => {
   if (!versioning) return undefined;
   return clone({
     status: versioning.status,
@@ -118,7 +120,9 @@ const normalizeVersioning = (versioning?: ConfigModels.BucketVersioning | null):
   });
 };
 
-const normalizeEncryption = (encryption?: ConfigModels.BucketEncryption | null): BucketEncryptionModel | undefined => {
+const normalizeEncryption = (
+  encryption?: ConfigModels.BucketEncryption | null,
+): BucketEncryptionModel | undefined => {
   if (!encryption) return undefined;
   return clone({
     enabled: Boolean(encryption.enabled),
@@ -128,7 +132,9 @@ const normalizeEncryption = (encryption?: ConfigModels.BucketEncryption | null):
   });
 };
 
-const normalizeLifecycle = (rules: ConfigModels.LifecycleRule[] | undefined): LifecycleRuleModel[] => {
+const normalizeLifecycle = (
+  rules: ConfigModels.LifecycleRule[] | undefined,
+): LifecycleRuleModel[] => {
   if (!rules?.length) return [];
   return rules.map((rule) => ({
     id: rule.id || "",

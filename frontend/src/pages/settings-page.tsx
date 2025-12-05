@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
-import { useResolvedTheme } from "@/components/providers/ThemeProvider";
+import { useResolvedTheme } from "@/components/providers/theme-provider";
 import {
   DEFAULT_ADVANCED_OPTIONS,
   usePreferencesStore,
@@ -113,7 +113,12 @@ export default function SettingsPage() {
             返回
           </Button>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate({ to: "/" })}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => navigate({ to: "/" })}
+            >
               <Home className="h-4 w-4" />
               账户中心
             </Button>
@@ -237,7 +242,12 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={handleResetAdvanced} disabled={isDefaultAdvanced}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetAdvanced}
+                disabled={isDefaultAdvanced}
+              >
                 恢复默认
               </Button>
             </div>

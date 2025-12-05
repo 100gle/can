@@ -17,7 +17,8 @@ const formatBytes = (bytes: number) => {
 };
 
 export const UploadProgress = () => {
-  const tasks = useTransfersStore((state) => Object.values(state.tasks));
+  const taskMap = useTransfersStore((state) => state.tasks);
+  const tasks = useMemo(() => Object.values(taskMap), [taskMap]);
   const summary = useMemo(() => {
     const running = tasks.filter((task) => activeStatuses.has(task.status));
     if (!running.length) return null;
@@ -66,7 +67,9 @@ export const UploadProgress = () => {
       </div>
       <div className="mt-4 space-y-3">
         {topTasks.map((task) => {
-          const taskPercent = task.total ? Math.min(100, Math.round((task.progress / task.total) * 100)) : 0;
+          const taskPercent = task.total
+            ? Math.min(100, Math.round((task.progress / task.total) * 100))
+            : 0;
           return (
             <div key={task.id} className="rounded-xl border border-border/30 p-3 text-sm">
               <div className="flex items-center justify-between gap-3">

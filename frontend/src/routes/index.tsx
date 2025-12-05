@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import HomePage from "@/pages/HomePage";
+import HomePage from "@/pages/home-page";
 import { accountsStore } from "@/state/accounts";
 
 export const Route = createFileRoute("/")({

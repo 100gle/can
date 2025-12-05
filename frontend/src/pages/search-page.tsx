@@ -1,13 +1,13 @@
-import { useEffect } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { Sidebar } from "@/components/layouts/sidebar";
+import { SearchPanel } from "@/components/search/search-panel";
 import { Button } from "@/components/ui/button";
-import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import { Sidebar } from "@/components/layouts/Sidebar";
-import { SearchPanel } from "@/components/search/SearchPanel";
+import { Route } from "@/routes/accounts/$accountId/search";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
 import { searchStore } from "@/state/search";
-import { Route } from "@/routes/accounts/$accountId/search";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 export const SearchPage = () => {
   const navigate = useNavigate();
@@ -30,7 +30,9 @@ export const SearchPage = () => {
   if (!accounts.length && loading) {
     return (
       <DashboardLayout sidebar={<Sidebar />}>
-        <div className="flex flex-1 items-center justify-center text-muted-foreground">加载账户中...</div>
+        <div className="flex flex-1 items-center justify-center text-muted-foreground">
+          加载账户中...
+        </div>
       </DashboardLayout>
     );
   }
@@ -40,7 +42,10 @@ export const SearchPage = () => {
       sidebar={
         <Sidebar
           onCreateAccount={() =>
-            navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: params.accountId } })
+            navigate({
+              to: "/accounts/$accountId/dashboard",
+              params: { accountId: params.accountId },
+            })
           }
           onOpenSettings={() => navigate({ to: "/settings" })}
         />
@@ -53,12 +58,17 @@ export const SearchPage = () => {
               账户 {params.accountId}
             </p>
             <h2 className="text-2xl font-semibold">对象搜索</h2>
-            <p className="text-sm text-muted-foreground">跨存储桶执行关键字和过滤搜索，快速定位对象。</p>
+            <p className="text-sm text-muted-foreground">
+              跨存储桶执行关键字和过滤搜索，快速定位对象。
+            </p>
           </div>
           <Button
             variant="outline"
             onClick={() =>
-              navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: params.accountId } })
+              navigate({
+                to: "/accounts/$accountId/dashboard",
+                params: { accountId: params.accountId },
+              })
             }
           >
             返回仪表盘

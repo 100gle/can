@@ -1,4 +1,4 @@
-import { Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { Loader2, Plus, RefreshCcw, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,9 @@ export const AccountFormDrawer = ({
   const [form, setForm] = useState<AccountFormInput>(() => createDefaultForm(fallbackProvider));
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string>();
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testStatus, setTestStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [testHint, setTestHint] = useState<string>();
 
   useEffect(() => {
     if (!open) return;
@@ -56,6 +59,8 @@ export const AccountFormDrawer = ({
       setForm(createDefaultForm(fallbackProvider));
     }
     setLocalError(undefined);
+    setTestStatus("idle");
+    setTestHint(undefined);
   }, [open, mode, initialAccount, fallbackProvider]);
 
   const title = mode === "create" ? "连接 S3 兼容存储" : "编辑账户";
@@ -123,6 +128,63 @@ export const AccountFormDrawer = ({
       { id: "r2", label: "Cloudflare R2", description: "" },
     ];
   }, [providers]);
+
+  useEffect(() => {
+    setTestStatus("idle");
+    setTestHint(undefined);
+  }, [
+    form.accessKeyId,
+    form.secretAccessKey,
+    form.endpoint,
+    form.region,
+    form.provider,
+    form.useSSL,
+    form.port,
+  ]);
+
+  const canRunConnectionTest =
+    Boolean(form.endpoint?.trim()) &&
+    Boolean(form.accessKeyId?.trim()) &&
+    Boolean(form.secretAccessKey?.trim());
+
+  const handleTestConnection = async () => {
+    if (!canRunConnectionTest) {
+      setLocalError("请先填写 Endpoint、Access Key 与 Secret 后再测试连接");
+      return;
+    }
+    try {
+      setTestingConnection(true);
+      setLocalError(undefined);
+      setTestStatus("idle");
+      setTestHint(undefined);
+      const result = await accountsStore.testConnectionPreview(form);
+      if (result.status === "ok") {
+        setTestStatus("ok");
+        setTestHint(result.message || "连接正常");
+      } else {
+        setTestStatus("error");
+        setTestHint(result.message || "连接失败");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "连接测试失败";
+      setTestStatus("error");
+      setTestHint(message);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const testMessage =
+    testHint ??
+    (mode === "edit" && !form.secretAccessKey
+      ? "如需测试新配置，请重新输入 Secret"
+      : "填写凭证后可快速测试连接是否可用");
+  const testMessageClass =
+    testStatus === "ok"
+      ? "text-emerald-600"
+      : testStatus === "error"
+        ? "text-destructive"
+        : "text-muted-foreground";
 
   if (!open) return null;
 
@@ -249,6 +311,30 @@ export const AccountFormDrawer = ({
             />
             启用 SSL/TLS 访问
           </label>
+
+          <div className="rounded-2xl border border-border/60 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold">连接检测</p>
+                <p className={`mt-1 text-xs ${testMessageClass}`}>{testMessage}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleTestConnection}
+                disabled={!canRunConnectionTest || testingConnection}
+              >
+                {testingConnection ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCcw className="h-4 w-4" />
+                )}
+                测试连接
+              </Button>
+            </div>
+          </div>
 
           {localError ? <p className="text-sm text-destructive">{localError}</p> : null}
 

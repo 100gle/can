@@ -1,40 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, RefreshCcw, Sparkles } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { AccountFormDrawer } from "./AccountFormDrawer";
-import { AccountCardGrid } from "./AccountCardGrid";
-import type { AccountCardStatus } from "./AccountCard";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
+import { useNavigate } from "@tanstack/react-router";
+import { Loader2, Plus, RefreshCcw, Sparkles } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import type { AccountCardStatus } from "./account-card";
+import { AccountCardGrid } from "./account-card-grid";
 
-type DrawerState =
-  | { open: false }
-  | {
-      open: true;
-      mode: "create" | "edit";
-      account?: AccountModel;
-    };
+type AccountSelectorProps = {
+  onCreateAccount: () => void;
+  onEditAccount: (account: AccountModel) => void;
+};
 
-const CLOSED_DRAWER: DrawerState = { open: false };
-
-export const AccountSelector = () => {
+export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelectorProps) => {
   const navigate = useNavigate();
   const accounts = useAccountsStore((state) => state.accounts);
-  const providers = useAccountsStore((state) => state.providers);
   const loading = useAccountsStore((state) => state.loading);
   const error = useAccountsStore((state) => state.error);
   const connectionTests = useAccountsStore((state) => state.connectionTests);
-  const [drawerState, setDrawerState] = useState<DrawerState>(CLOSED_DRAWER);
 
   useEffect(() => {
     void accountsStore.bootstrap();
   }, []);
-
-  const openDrawer = (mode: "create" | "edit", account?: AccountModel) => {
-    setDrawerState({ open: true, mode, account });
-  };
-
-  const closeDrawer = () => setDrawerState(CLOSED_DRAWER);
 
   const handleSelectAccount = async (account: AccountModel) => {
     await accountsStore.setActiveAccount(account.id);
@@ -87,7 +73,7 @@ export const AccountSelector = () => {
     }
 
     if (!accounts.length) {
-      return <EmptyState onCreate={() => openDrawer("create")} />;
+      return <EmptyState onCreate={onCreateAccount} />;
     }
 
     return (
@@ -113,22 +99,13 @@ export const AccountSelector = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" className="gap-2" onClick={() => openDrawer("create")}>
+          <Button size="sm" className="gap-2" onClick={onCreateAccount}>
             <Plus className="h-4 w-4" />
             新建账户
           </Button>
         </div>
       </div>
       {renderGrid()}
-      {drawerState.open ? (
-        <AccountFormDrawer
-          open
-          mode={drawerState.mode}
-          providers={providers}
-          initialAccount={drawerState.account}
-          onClose={closeDrawer}
-        />
-      ) : null}
     </section>
   );
 };

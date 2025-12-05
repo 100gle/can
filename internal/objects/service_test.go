@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"testing"
+	"time"
 
 	"can/internal/accounts"
 	"can/internal/providers"
@@ -121,6 +122,30 @@ func (s *stubObjectDriver) DownloadObject(context.Context, string, string) (prov
 	return providers.ObjectDownload{}, nil
 }
 
+func (s *stubObjectDriver) PresignURL(context.Context, string, string, time.Duration, string) (string, error) {
+	return "", nil
+}
+
+func (s *stubObjectDriver) InitiateMultipartUpload(context.Context, string, string) (string, error) {
+	return "", nil
+}
+
+func (s *stubObjectDriver) UploadPart(context.Context, string, string, string, int, io.Reader, int64) (string, error) {
+	return "", nil
+}
+
+func (s *stubObjectDriver) CompleteMultipartUpload(context.Context, string, string, string, map[int]string) error {
+	return nil
+}
+
+func (s *stubObjectDriver) AbortMultipartUpload(context.Context, string, string, string) error {
+	return nil
+}
+
+func (s *stubObjectDriver) GetObjectTags(context.Context, string, string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (s *stubObjectDriver) DeleteObject(_ context.Context, bucket, key string) error {
 	s.deleteCalls = append(s.deleteCalls, deleteCall{bucket: bucket, key: key})
 	if s.deleteErr != nil {
@@ -203,6 +228,6 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Servic
 		t.Fatalf("create account: %v", err)
 	}
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
-	service := NewService(accountSvc, factory)
+	service := NewService(accountSvc, factory, nil)
 	return service, account.ID
 }

@@ -126,7 +126,10 @@ const waitForResume = async (runtime: LocalTaskRuntime) => {
   }
 };
 
-const updateSpeedHints = (runtime: LocalTaskRuntime, task: TransferViewModel): TransferViewModel => {
+const updateSpeedHints = (
+  runtime: LocalTaskRuntime,
+  task: TransferViewModel,
+): TransferViewModel => {
   const elapsedSeconds = (Date.now() - runtime.startedAt) / 1000;
   if (elapsedSeconds > 0 && task.progress > 0) {
     const speed = Math.round(task.progress / elapsedSeconds);
@@ -259,7 +262,12 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       runtime.controller.canceled = true;
       try {
         if (runtime.uploadId) {
-          await AbortMultipartUpload(runtime.accountId, runtime.bucket, runtime.key, runtime.uploadId);
+          await AbortMultipartUpload(
+            runtime.accountId,
+            runtime.bucket,
+            runtime.key,
+            runtime.uploadId,
+          );
         }
       } catch (error) {
         console.error(error);
@@ -344,11 +352,23 @@ const processUploadTask = async (
         };
       });
     }
-    await CompleteMultipartUpload(runtime.accountId, runtime.bucket, runtime.key, uploadId, runtime.completedParts);
+    await CompleteMultipartUpload(
+      runtime.accountId,
+      runtime.bucket,
+      runtime.key,
+      uploadId,
+      runtime.completedParts,
+    );
     set((state) => ({
       tasks: {
         ...state.tasks,
-        [taskID]: { ...state.tasks[taskID], status: "completed", progress: runtime.file.size, eta: 0, speed: 0 },
+        [taskID]: {
+          ...state.tasks[taskID],
+          status: "completed",
+          progress: runtime.file.size,
+          eta: 0,
+          speed: 0,
+        },
       },
     }));
     localRuntimes.delete(taskID);
@@ -357,7 +377,12 @@ const processUploadTask = async (
     const canceled = runtime.controller.canceled || message.includes("canceled");
     if (runtime.uploadId && !canceled) {
       try {
-        await AbortMultipartUpload(runtime.accountId, runtime.bucket, runtime.key, runtime.uploadId);
+        await AbortMultipartUpload(
+          runtime.accountId,
+          runtime.bucket,
+          runtime.key,
+          runtime.uploadId,
+        );
       } catch (abortErr) {
         console.error(abortErr);
       }

@@ -1,4 +1,4 @@
-import { AccountCard, type AccountCardStatus } from "./AccountCard";
+import { AccountCard, type AccountCardStatus } from "./account-card";
 import type { AccountModel } from "@/state/accounts";
 
 type AccountCardGridProps = {

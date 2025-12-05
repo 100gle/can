@@ -58,9 +58,10 @@ const getBrowserStorage = (): StateStorage => {
   return storage as StateStorage;
 };
 
-const jsonStorage = createJSONStorage<Pick<PreferencesState, "themePreference" | "advancedOptions">>(
-  getBrowserStorage,
-);
+const jsonStorage =
+  createJSONStorage<Pick<PreferencesState, "themePreference" | "advancedOptions">>(
+    getBrowserStorage,
+  );
 
 const cloneDefaultAdvancedOptions = (): AdvancedOptions => ({ ...DEFAULT_ADVANCED_OPTIONS });
 
@@ -116,7 +117,9 @@ const hydrateFromLegacyKeys = () => {
   const themePreference = parseThemePreference(
     ensureStringValue(storage.getItem(THEME_PREFERENCE_KEY)),
   );
-  const advancedOptions = readAdvancedOptions(ensureStringValue(storage.getItem(ADVANCED_SETTINGS_KEY)));
+  const advancedOptions = readAdvancedOptions(
+    ensureStringValue(storage.getItem(ADVANCED_SETTINGS_KEY)),
+  );
   const hasLegacyData =
     themePreference !== "system" ||
     advancedOptions.databaseDriver !== DEFAULT_ADVANCED_OPTIONS.databaseDriver ||

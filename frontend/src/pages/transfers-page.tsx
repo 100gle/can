@@ -1,13 +1,13 @@
-import { useEffect } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, RefreshCcw } from "lucide-react";
-import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import { Sidebar } from "@/components/layouts/Sidebar";
+import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { Sidebar } from "@/components/layouts/sidebar";
+import { UploadProgress } from "@/components/transfer/upload-progress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useAccountsStore, accountsStore } from "@/state/accounts";
+import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
-import { UploadProgress } from "@/components/transfer/UploadProgress";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { ArrowLeft, RefreshCcw } from "lucide-react";
+import { useEffect, useMemo } from "react";
 
 const statusLabel: Record<string, string> = {
   pending: "排队中",
@@ -30,7 +30,8 @@ export default function TransfersPage() {
   const params = useParams({ from: "/accounts/$accountId/transfers" });
   const navigate = useNavigate();
   const { accounts } = useAccountsStore((state) => state);
-  const tasks = useTransfersStore((state) => Object.values(state.tasks));
+  const taskMap = useTransfersStore((state) => state.tasks);
+  const tasks = useMemo(() => Object.values(taskMap), [taskMap]);
 
   useEffect(() => {
     void accountsStore.bootstrap();
@@ -67,13 +68,20 @@ export default function TransfersPage() {
                 variant="ghost"
                 className="gap-2"
                 onClick={() =>
-                  navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: params.accountId } })
+                  navigate({
+                    to: "/accounts/$accountId/dashboard",
+                    params: { accountId: params.accountId },
+                  })
                 }
               >
                 <ArrowLeft className="h-4 w-4" />
                 返回工作台
               </Button>
-              <Button variant="outline" className="gap-2" onClick={() => transfersStore.syncBackendTasks()}>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => transfersStore.syncBackendTasks()}
+              >
                 <RefreshCcw className="h-4 w-4" />
                 手动刷新
               </Button>

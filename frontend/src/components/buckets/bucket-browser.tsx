@@ -16,7 +16,11 @@ export type BucketBrowserProps = {
   className?: string;
 };
 
-const bucketFeatureIds = new Set(["bucket.storage_class", "bucket.multi_az", "bucket.custom_domain"]);
+const bucketFeatureIds = new Set([
+  "bucket.storage_class",
+  "bucket.multi_az",
+  "bucket.custom_domain",
+]);
 
 export function BucketBrowser({
   accountId,

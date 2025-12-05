@@ -44,15 +44,16 @@ func NewApp() *App {
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	bucketSvc := buckets.NewService(accountSvc, storageFactory)
 	transferSvc := transfer.NewService(accountSvc, storageFactory)
-	objectSvc := objects.NewService(accountSvc, storageFactory)
+	objectSvc := objects.NewService(accountSvc, storageFactory, transferSvc)
 	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
 	searchSvc := search.NewService(accountSvc, storageFactory)
 	return &App{
-		accounts: accountSvc,
-		buckets:  bucketSvc,
-		objects:  objectSvc,
-		config:   configSvc,
-		search:   searchSvc,
+		accounts:  accountSvc,
+		buckets:   bucketSvc,
+		objects:   objectSvc,
+		transfers: transferSvc,
+		config:    configSvc,
+		search:    searchSvc,
 	}
 }
 
@@ -108,6 +109,11 @@ func (a *App) ActiveAccount() (*accounts.Account, error) {
 // TestAccountConnection validates the credentials for an account.
 func (a *App) TestAccountConnection(id string) (accounts.ConnectionTestResult, error) {
 	return a.accounts.TestConnection(a.ctx, id)
+}
+
+// TestAccountConnectionPreview validates credentials before persisting.
+func (a *App) TestAccountConnectionPreview(input accounts.CreateAccountInput) (accounts.ConnectionTestResult, error) {
+	return a.accounts.TestConnectionWithInput(a.ctx, input)
 }
 
 // ListBuckets returns all buckets for the given account.
@@ -314,6 +320,8 @@ func (a *App) PauseTransferTask(taskID string) error {
 // ResumeTransferTask marks a paused transfer as running again.
 func (a *App) ResumeTransferTask(taskID string) error {
 	return a.transfers.ResumeTask(a.ctx, taskID)
+}
+
 // SearchObjects performs bucket-wide search with filters.
 func (a *App) SearchObjects(accountID string, query *search.SearchQuery) (*search.SearchResponse, error) {
 	return a.search.SearchObjects(a.ctx, accountID, query)

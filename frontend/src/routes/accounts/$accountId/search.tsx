@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SearchPage } from "@/pages/SearchPage";
+import { SearchPage } from "@/pages/search-page";
 import { accountsStore } from "@/state/accounts";
 
 type SearchParams = {

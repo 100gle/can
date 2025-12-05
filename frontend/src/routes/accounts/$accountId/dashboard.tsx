@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import DashboardPage from "@/pages/DashboardPage";
+import DashboardPage from "@/pages/dashboard-page";
 import { accountsStore } from "@/state/accounts";
 
 export const Route = createFileRoute("/accounts/$accountId/dashboard")({

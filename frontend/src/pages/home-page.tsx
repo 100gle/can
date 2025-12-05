@@ -1,15 +1,28 @@
-import { useEffect, useRef } from "react";
+import { AccountSelector } from "@/components/accounts/account-selector";
+import { HomeLayout } from "@/components/layouts/home-layout";
+import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
-import { HomeLayout } from "@/components/layouts/HomeLayout";
-import { AccountSelector } from "@/components/accounts/AccountSelector";
-import { accountsStore, useAccountsStore } from "@/state/accounts";
+import { useEffect, useRef, useState } from "react";
+import { AccountFormDrawer } from "@/components/accounts/account-form-drawer";
+
+type DrawerState =
+  | { open: false }
+  | {
+      open: true;
+      mode: "create" | "edit";
+      account?: AccountModel;
+    };
+
+const CLOSED_DRAWER: DrawerState = { open: false };
 
 export default function HomePage() {
   const navigate = useNavigate();
   const redirectRef = useRef(false);
   const accounts = useAccountsStore((state) => state.accounts);
+  const providers = useAccountsStore((state) => state.providers);
   const activeAccountId = useAccountsStore((state) => state.activeAccountId);
   const loading = useAccountsStore((state) => state.loading);
+  const [drawerState, setDrawerState] = useState<DrawerState>(CLOSED_DRAWER);
 
   useEffect(() => {
     void accountsStore.bootstrap();
@@ -25,6 +38,12 @@ export default function HomePage() {
       });
     }
   }, [accounts, activeAccountId, loading, navigate]);
+
+  const openDrawer = (mode: "create" | "edit", account?: AccountModel) => {
+    setDrawerState({ open: true, mode, account });
+  };
+
+  const closeDrawer = () => setDrawerState(CLOSED_DRAWER);
 
   const handleExportAccounts = () => {
     if (!accounts.length) {
@@ -77,7 +96,19 @@ export default function HomePage() {
       onExportAccounts={handleExportAccounts}
       onOpenSettings={handleOpenSettings}
     >
-      <AccountSelector />
+      <AccountSelector
+        onCreateAccount={() => openDrawer("create")}
+        onEditAccount={(account) => openDrawer("edit", account)}
+      />
+      {drawerState.open ? (
+        <AccountFormDrawer
+          open
+          mode={drawerState.mode}
+          providers={providers}
+          initialAccount={drawerState.account}
+          onClose={closeDrawer}
+        />
+      ) : null}
     </HomeLayout>
   );
 }

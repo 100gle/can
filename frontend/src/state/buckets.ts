@@ -91,7 +91,8 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
     } catch (error) {
       const message = error instanceof Error ? error.message : "加载 Bucket 失败";
       set({ loading: false, error: message });
-      throw error;
+      console.error(error);
+      return;
     }
   },
   refresh: async () => {

@@ -465,6 +465,8 @@ func (d *cosObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key,
 		return wrapCOSError("取消分片上传", err)
 	}
 	return nil
+}
+
 func (d *cosObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error) {
 	return nil, ErrUnsupportedCapability
 }
