@@ -15,8 +15,11 @@ import {
   DownloadCloud,
   Loader2,
   Plus,
+  Plug,
   RefreshCcw,
+  Server,
   Share2,
+  ShieldCheck,
   Sparkles,
   UploadCloud,
 } from "lucide-react";
@@ -276,20 +279,30 @@ export default function DashboardPage() {
               </div>
               <Sparkles className="h-10 w-10 text-primary" />
             </div>
-            <dl className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <div className="flex items-center justify-between">
-                <dt className="font-medium">Endpoint</dt>
-                <dd className="truncate text-foreground">{activeAccount.endpoint}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="font-medium">SSL</dt>
-                <dd>{activeAccount.useSSL ? "已开启" : "未启用"}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="font-medium">端口</dt>
-                <dd>{activeAccount.port || 443}</dd>
-              </div>
-            </dl>
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <li className="flex min-w-0 items-center gap-2">
+                <Server className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span className="shrink-0 text-foreground/80">Endpoint:</span>
+                <span className="truncate text-foreground">{activeAccount.endpoint}</span>
+              </li>
+              <li className="flex min-w-0 items-center gap-2">
+                <ShieldCheck
+                  className={`h-4 w-4 shrink-0 ${
+                    activeAccount.useSSL ? "text-emerald-500" : "text-amber-500"
+                  }`}
+                  aria-hidden="true"
+                />
+                <span className="shrink-0 text-foreground/80">SSL:</span>
+                <span className="truncate text-foreground">
+                  {activeAccount.useSSL ? "已开启" : "未启用"}
+                </span>
+              </li>
+              <li className="flex min-w-0 items-center gap-2">
+                <Plug className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="shrink-0 text-foreground/80">端口:</span>
+                <span className="truncate text-foreground">{activeAccount.port || 443}</span>
+              </li>
+            </ul>
           </Card>
         </section>
 

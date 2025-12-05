@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { memo } from "react";
+import { MapPin, Server, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { AccountModel } from "@/state/accounts";
@@ -56,7 +57,7 @@ export const AccountCard = memo(function AccountCard({
       aria-disabled={disabled}
       onClick={handleClick}
       className={cn(
-        "h-full cursor-pointer rounded-2xl border border-border/40 bg-card/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        "h-full w-full cursor-pointer rounded-2xl border border-border/40 bg-card/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         disabled && "pointer-events-none opacity-70",
       )}
     >
@@ -71,20 +72,29 @@ export const AccountCard = memo(function AccountCard({
           <span className={statusMeta.label}>{statusMeta.caption}</span>
         </span>
       </div>
-      <dl className="mt-6 space-y-3 text-xs text-muted-foreground">
-        <div className="space-y-1">
-          <dt className="font-medium text-foreground/80">Endpoint</dt>
-          <dd className="truncate">{account.endpoint}</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt>Region</dt>
-          <dd>{account.region || "未设置"}</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt>SSL</dt>
-          <dd>{account.useSSL ? "已启用" : "关闭"}</dd>
-        </div>
-      </dl>
+      <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
+        <li className="flex min-w-0 items-center gap-2">
+          <Server className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+          <span className="shrink-0 text-foreground/80">Endpoint:</span>
+          <span className="truncate text-foreground">{account.endpoint}</span>
+        </li>
+        <li className="flex min-w-0 items-center gap-2">
+          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="shrink-0 text-foreground/80">Region:</span>
+          <span className="truncate text-foreground">{account.region || "未设置"}</span>
+        </li>
+        <li className="flex min-w-0 items-center gap-2">
+          <ShieldCheck
+            className={cn(
+              "h-4 w-4 shrink-0",
+              account.useSSL ? "text-emerald-500" : "text-amber-500",
+            )}
+            aria-hidden="true"
+          />
+          <span className="shrink-0 text-foreground/80">SSL:</span>
+          <span className="truncate text-foreground">{account.useSSL ? "已启用" : "关闭"}</span>
+        </li>
+      </ul>
     </Card>
   );
 });
