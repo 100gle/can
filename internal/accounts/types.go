@@ -38,8 +38,8 @@ type Account struct {
 	Port             int            `json:"port"`
 	AccessKeyPreview string         `json:"accessKeyPreview"`
 	HasSecret        bool           `json:"hasSecret"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
+	CreatedAt        time.Time      `json:"createdAt" ts_type:"string"`
+	UpdatedAt        time.Time      `json:"updatedAt" ts_type:"string"`
 }
 
 // CreateAccountInput captures data needed to create a new account.
@@ -72,7 +72,7 @@ type ConnectionTestResult struct {
 	Provider  types.Provider `json:"provider"`
 	Status    string         `json:"status"`
 	Message   string         `json:"message"`
-	CheckedAt time.Time      `json:"checkedAt"`
+	CheckedAt time.Time      `json:"checkedAt" ts_type:"string"`
 }
 
 // ExportData represents the serialized file payload for account backups.
@@ -81,7 +81,7 @@ type ExportData struct {
 	Count      int       `json:"count"`
 	Cipher     string    `json:"cipher"`
 	Version    string    `json:"version"`
-	ExportedAt time.Time `json:"exportedAt"`
+	ExportedAt time.Time `json:"exportedAt" ts_type:"string"`
 }
 
 // ExportSummary describes the result of writing an export file via the desktop app.

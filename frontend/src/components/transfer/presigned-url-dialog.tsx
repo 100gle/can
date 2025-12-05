@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
-import { Copy, Loader2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,9 +10,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { GetPresignedDownloadURL, GetPresignedUploadURL } from "../../../wailsjs/go/main/App";
 import { isBridgeAvailable } from "@/lib/bridge";
+import { GetPresignedDownloadURL, GetPresignedUploadURL } from "@wailsjs/go/main/App";
+import { Copy, Loader2, Share2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 type PresignedURLDialogProps = {
   open: boolean;

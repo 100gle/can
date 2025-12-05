@@ -1,11 +1,9 @@
 import { isBridgeAvailable } from "@/lib/bridge";
+import { DeleteObject, DownloadObject, ListObjects, UploadObject } from "@wailsjs/go/main/App";
+import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { create } from "zustand";
-import { DeleteObject, DownloadObject, ListObjects, UploadObject } from "../../wailsjs/go/main/App";
-import type { objects as ObjectModels } from "../../wailsjs/go/models";
 
-export type ObjectModel = Omit<ObjectModels.ObjectInfo, "convertValues"> & {
-  convertValues?: ObjectModels.ObjectInfo["convertValues"];
-};
+export type ObjectModel = ObjectModels.ObjectInfo;
 
 export type ObjectsState = {
   accountId?: string;

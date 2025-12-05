@@ -33,7 +33,7 @@ import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
-import { GetPresignedDownloadURL } from "../../../wailsjs/go/main/App";
+import { GetPresignedDownloadURL } from "@wailsjs/go/main/App";
 
 export type ObjectBrowserProps = {
   accountId?: string;

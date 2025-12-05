@@ -11,10 +11,8 @@ export namespace accounts {
 	    port: number;
 	    accessKeyPreview: string;
 	    hasSecret: boolean;
-	    // Go type: time
-	    createdAt: any;
-	    // Go type: time
-	    updatedAt: any;
+	    createdAt: string;
+	    updatedAt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Account(source);
@@ -32,35 +30,16 @@ export namespace accounts {
 	        this.port = source["port"];
 	        this.accessKeyPreview = source["accessKeyPreview"];
 	        this.hasSecret = source["hasSecret"];
-	        this.createdAt = this.convertValues(source["createdAt"], null);
-	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class ConnectionTestResult {
 	    accountId: string;
 	    provider: string;
 	    status: string;
 	    message: string;
-	    // Go type: time
-	    checkedAt: any;
+	    checkedAt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConnectionTestResult(source);
@@ -72,26 +51,8 @@ export namespace accounts {
 	        this.provider = source["provider"];
 	        this.status = source["status"];
 	        this.message = source["message"];
-	        this.checkedAt = this.convertValues(source["checkedAt"], null);
+	        this.checkedAt = source["checkedAt"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class CreateAccountInput {
 	    name: string;
@@ -196,8 +157,7 @@ export namespace buckets {
 	
 	export class BucketInfo {
 	    name: string;
-	    // Go type: time
-	    createdAt: any;
+	    createdAt: string;
 	    region: string;
 	    objectCount: number;
 	    size: number;
@@ -209,29 +169,11 @@ export namespace buckets {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
-	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.createdAt = source["createdAt"];
 	        this.region = source["region"];
 	        this.objectCount = source["objectCount"];
 	        this.size = source["size"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }
@@ -292,8 +234,7 @@ export namespace config {
 	    enabled: boolean;
 	    algorithm: string;
 	    kmsKeyId: string;
-	    // Go type: time
-	    updated: any;
+	    updated: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new BucketEncryption(source);
@@ -304,26 +245,8 @@ export namespace config {
 	        this.enabled = source["enabled"];
 	        this.algorithm = source["algorithm"];
 	        this.kmsKeyId = source["kmsKeyId"];
-	        this.updated = this.convertValues(source["updated"], null);
+	        this.updated = source["updated"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class PolicyStatement {
 	    sid: string;
@@ -383,8 +306,7 @@ export namespace config {
 	}
 	export class BucketVersioning {
 	    status: string;
-	    // Go type: time
-	    updated: any;
+	    updated: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new BucketVersioning(source);
@@ -393,26 +315,8 @@ export namespace config {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.status = source["status"];
-	        this.updated = this.convertValues(source["updated"], null);
+	        this.updated = source["updated"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class BucketWebsite {
 	    enabled: boolean;
@@ -481,8 +385,7 @@ export namespace objects {
 	export class ObjectInfo {
 	    key: string;
 	    size: number;
-	    // Go type: time
-	    lastModified: any;
+	    lastModified: string;
 	    etag: string;
 	    contentType: string;
 	    isDir: boolean;
@@ -495,29 +398,11 @@ export namespace objects {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.key = source["key"];
 	        this.size = source["size"];
-	        this.lastModified = this.convertValues(source["lastModified"], null);
+	        this.lastModified = source["lastModified"];
 	        this.etag = source["etag"];
 	        this.contentType = source["contentType"];
 	        this.isDir = source["isDir"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class ListObjectsResult {
 	    objects: ObjectInfo[];
@@ -567,10 +452,8 @@ export namespace search {
 	    sortOrder: string;
 	    minSize: number;
 	    maxSize: number;
-	    // Go type: time
-	    startTime?: any;
-	    // Go type: time
-	    endTime?: any;
+	    startTime?: string;
+	    endTime?: string;
 	    fileTypes: string[];
 	    tags: Record<string, string>;
 	    limit: number;
@@ -590,38 +473,19 @@ export namespace search {
 	        this.sortOrder = source["sortOrder"];
 	        this.minSize = source["minSize"];
 	        this.maxSize = source["maxSize"];
-	        this.startTime = this.convertValues(source["startTime"], null);
-	        this.endTime = this.convertValues(source["endTime"], null);
+	        this.startTime = source["startTime"];
+	        this.endTime = source["endTime"];
 	        this.fileTypes = source["fileTypes"];
 	        this.tags = source["tags"];
 	        this.limit = source["limit"];
 	        this.offset = source["offset"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class SearchResult {
 	    key: string;
 	    bucket: string;
 	    size: number;
-	    // Go type: time
-	    lastModified: any;
+	    lastModified: string;
 	    etag: string;
 	    contentType: string;
 	    storageClass: string;
@@ -637,31 +501,13 @@ export namespace search {
 	        this.key = source["key"];
 	        this.bucket = source["bucket"];
 	        this.size = source["size"];
-	        this.lastModified = this.convertValues(source["lastModified"], null);
+	        this.lastModified = source["lastModified"];
 	        this.etag = source["etag"];
 	        this.contentType = source["contentType"];
 	        this.storageClass = source["storageClass"];
 	        this.tags = source["tags"];
 	        this.score = source["score"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class SearchResponse {
 	    results: SearchResult[];
@@ -715,10 +561,8 @@ export namespace transfer {
 	    total: number;
 	    speed: number;
 	    estimatedTime: number;
-	    // Go type: time
-	    startTime: any;
-	    // Go type: time
-	    endTime?: any;
+	    startTime: string;
+	    endTime?: string;
 	    error?: string;
 	    retries: number;
 	    maxRetries: number;
@@ -741,32 +585,14 @@ export namespace transfer {
 	        this.total = source["total"];
 	        this.speed = source["speed"];
 	        this.estimatedTime = source["estimatedTime"];
-	        this.startTime = this.convertValues(source["startTime"], null);
-	        this.endTime = this.convertValues(source["endTime"], null);
+	        this.startTime = source["startTime"];
+	        this.endTime = source["endTime"];
 	        this.error = source["error"];
 	        this.retries = source["retries"];
 	        this.maxRetries = source["maxRetries"];
 	        this.uploadId = source["uploadId"];
 	        this.completedParts = source["completedParts"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }

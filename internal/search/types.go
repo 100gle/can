@@ -13,8 +13,8 @@ type SearchQuery struct {
 
 	MinSize   int64             `json:"minSize"`
 	MaxSize   int64             `json:"maxSize"`
-	StartTime *time.Time        `json:"startTime"`
-	EndTime   *time.Time        `json:"endTime"`
+	StartTime *time.Time        `json:"startTime" ts_type:"string"`
+	EndTime   *time.Time        `json:"endTime" ts_type:"string"`
 	FileTypes []string          `json:"fileTypes"`
 	Tags      map[string]string `json:"tags"`
 
@@ -27,7 +27,7 @@ type SearchResult struct {
 	Key          string            `json:"key"`
 	Bucket       string            `json:"bucket"`
 	Size         int64             `json:"size"`
-	LastModified time.Time         `json:"lastModified"`
+	LastModified time.Time         `json:"lastModified" ts_type:"string"`
 	ETag         string            `json:"etag"`
 	ContentType  string            `json:"contentType"`
 	StorageClass string            `json:"storageClass"`

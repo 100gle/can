@@ -404,7 +404,7 @@ export const AccountFormDrawer = ({
                     <AlertTitle>危险操作</AlertTitle>
                     <AlertDescription>删除账户将移除所有本地配置，操作不可恢复。</AlertDescription>
                   </div>
-                  <div className="flex justify-end">
+                  <div className="col-span-2 flex justify-end">
                     <Button
                       type="button"
                       variant="destructive"

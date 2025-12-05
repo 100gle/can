@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { isBridgeAvailable } from "@/lib/bridge";
 import {
   ActiveAccount,
   CreateAccount,
@@ -6,19 +6,17 @@ import {
   ExportAccounts,
   ImportAccounts,
   ListAccounts,
+  ProviderCapabilities,
   SetActiveAccount,
   SupportedProviders,
-  ProviderCapabilities,
   TestAccountConnection,
   TestAccountConnectionPreview,
   UpdateAccount,
-} from "../../wailsjs/go/main/App";
-import type { accounts as AccountModels, types as ProviderModels } from "../../wailsjs/go/models";
-import { isBridgeAvailable } from "@/lib/bridge";
+} from "@wailsjs/go/main/App";
+import type { accounts as AccountModels, types as ProviderModels } from "@wailsjs/go/models";
+import { create } from "zustand";
 
-export type AccountModel = Omit<AccountModels.Account, "convertValues"> & {
-  convertValues?: AccountModels.Account["convertValues"];
-};
+export type AccountModel = AccountModels.Account;
 export type ProviderMetadata = ProviderModels.ProviderMetadata;
 export type ProviderCapability = ProviderModels.ProviderCapability;
 

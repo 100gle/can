@@ -37,8 +37,8 @@ type TransferTask struct {
 	Total          int64          `json:"total"`
 	Speed          int64          `json:"speed"`
 	EstimatedTime  int64          `json:"estimatedTime"`
-	StartTime      time.Time      `json:"startTime"`
-	EndTime        *time.Time     `json:"endTime,omitempty"`
+	StartTime      time.Time      `json:"startTime" ts_type:"string"`
+	EndTime        *time.Time     `json:"endTime,omitempty" ts_type:"string"`
 	Error          *string        `json:"error,omitempty"`
 	Retries        int            `json:"retries"`
 	MaxRetries     int            `json:"maxRetries"`

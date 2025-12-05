@@ -6,7 +6,7 @@ import "time"
 type BucketVersioning struct {
 	Status string `json:"status"`
 	// Updated indicates when the status was last fetched or changed.
-	Updated time.Time `json:"updated"`
+	Updated time.Time `json:"updated" ts_type:"string"`
 }
 
 // BucketEncryption describes default server-side encryption rules.
@@ -14,7 +14,7 @@ type BucketEncryption struct {
 	Enabled   bool      `json:"enabled"`
 	Algorithm string    `json:"algorithm"`
 	KmsKeyID  string    `json:"kmsKeyId"`
-	Updated   time.Time `json:"updated"`
+	Updated   time.Time `json:"updated" ts_type:"string"`
 }
 
 // LifecycleRule wraps a subset of the AWS lifecycle configuration.

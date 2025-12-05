@@ -1,4 +1,3 @@
-import { create } from "zustand";
 import { isBridgeAvailable } from "@/lib/bridge";
 import {
   AbortMultipartUpload,
@@ -9,8 +8,9 @@ import {
   PauseTransferTask,
   ResumeTransferTask,
   UploadPart,
-} from "../../wailsjs/go/main/App";
-import type { transfer } from "../../wailsjs/go/models";
+} from "@wailsjs/go/main/App";
+import type { transfer } from "@wailsjs/go/models";
+import { create } from "zustand";
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 const BACKEND_POLL_INTERVAL = 5000;

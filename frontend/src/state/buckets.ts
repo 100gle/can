@@ -1,11 +1,9 @@
-import { create } from "zustand";
-import { CreateBucket, DeleteBucket, ListBuckets } from "../../wailsjs/go/main/App";
-import type { buckets as BucketModels } from "../../wailsjs/go/models";
 import { isBridgeAvailable } from "@/lib/bridge";
+import { CreateBucket, DeleteBucket, ListBuckets } from "@wailsjs/go/main/App";
+import type { buckets as BucketModels } from "@wailsjs/go/models";
+import { create } from "zustand";
 
-export type BucketModel = Omit<BucketModels.BucketInfo, "convertValues"> & {
-  convertValues?: BucketModels.BucketInfo["convertValues"];
-};
+export type BucketModel = BucketModels.BucketInfo;
 
 export type BucketsState = {
   accountId?: string;

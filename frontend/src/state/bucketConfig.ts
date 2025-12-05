@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { isBridgeAvailable } from "@/lib/bridge";
 import {
   DeleteBucketCORS,
   DeleteBucketEncryption,
@@ -12,9 +12,9 @@ import {
   SetBucketEncryption,
   SetBucketLifecycle,
   SuspendBucketVersioning,
-} from "../../wailsjs/go/main/App";
-import type { config as ConfigModels } from "../../wailsjs/go/models";
-import { isBridgeAvailable } from "@/lib/bridge";
+} from "@wailsjs/go/main/App";
+import type { config as ConfigModels } from "@wailsjs/go/models";
+import { create } from "zustand";
 
 export type BucketVersioningModel = {
   status?: string;

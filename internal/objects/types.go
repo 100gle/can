@@ -6,7 +6,7 @@ import "time"
 type ObjectInfo struct {
 	Key          string    `json:"key"`
 	Size         int64     `json:"size"`
-	LastModified time.Time `json:"lastModified"`
+	LastModified time.Time `json:"lastModified" ts_type:"string"`
 	ETag         string    `json:"etag"`
 	ContentType  string    `json:"contentType"`
 	IsDir        bool      `json:"isDir"`

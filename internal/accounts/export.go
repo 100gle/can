@@ -17,7 +17,7 @@ const exportFormatVersion = "can.accounts/v1"
 type exportEnvelope struct {
 	FormatVersion string    `json:"formatVersion"`
 	Cipher        string    `json:"cipher"`
-	ExportedAt    time.Time `json:"exportedAt"`
+	ExportedAt    time.Time `json:"exportedAt" ts_type:"string"`
 	Count         int       `json:"count"`
 	Payload       string    `json:"payload"`
 }

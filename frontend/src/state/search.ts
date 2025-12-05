@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import { ExportSearchResults, SearchObjects } from "../../wailsjs/go/main/App";
 import { isBridgeAvailable } from "@/lib/bridge";
+import { ExportSearchResults, SearchObjects } from "@wailsjs/go/main/App";
+import { create } from "zustand";
 
 export type SearchQueryModel = {
   accountId: string;
