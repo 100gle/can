@@ -1,8 +1,9 @@
-import { ArrowLeft, Settings2 } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
+import { cn } from "@/lib/utils";
 
 type DashboardLayoutProps = {
   sidebar: ReactNode;
@@ -11,6 +12,7 @@ type DashboardLayoutProps = {
 
 export const DashboardLayout = ({ sidebar, children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const handleBack = useBackNavigation(() => {
     navigate({ to: "/" });
   });
@@ -19,21 +21,55 @@ export const DashboardLayout = ({ sidebar, children }: DashboardLayoutProps) => 
     navigate({ to: "/settings" });
   };
 
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden w-[260px] border-r border-border/40 bg-card/30 lg:flex">
-        {sidebar}
+      <aside
+        className={cn(
+          "hidden border-r border-border/40 bg-card/30 transition-[width,opacity] duration-300 ease-in-out lg:flex",
+          isSidebarCollapsed
+            ? "w-0 overflow-hidden border-transparent opacity-0"
+            : "w-[260px] lg:w-[260px]",
+        )}
+        aria-hidden={isSidebarCollapsed}
+      >
+        <div
+          className={cn(
+            "w-[260px] transition-opacity duration-300",
+            isSidebarCollapsed && "pointer-events-none opacity-0",
+          )}
+        >
+          {sidebar}
+        </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-border/40 bg-card/60 px-4 py-3 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="gap-2" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4" />
-              返回
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden lg:inline-flex"
+              onClick={handleToggleSidebar}
+              aria-label={isSidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
             </Button>
-            <span className="hidden text-xs text-muted-foreground sm:inline-flex">
-              回到上一页或账户中心
-            </span>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" className="gap-2" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4" />
+                返回
+              </Button>
+              <span className="hidden text-xs text-muted-foreground sm:inline-flex">
+                回到上一页或账户中心
+              </span>
+            </div>
           </div>
           <Button
             variant="outline"
