@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,20 +10,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"can/internal/accounts"
 	"can/internal/providers"
+	"can/internal/transfer"
 )
 
 // Service exposes object CRUD operations.
 type Service struct {
-	accounts *accounts.Service
-	factory  providers.StorageFactory
+	accounts  *accounts.Service
+	factory   providers.StorageFactory
+	transfers *transfer.Service
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, factory providers.StorageFactory) *Service {
-	return &Service{accounts: accounts, factory: factory}
+func NewService(accounts *accounts.Service, factory providers.StorageFactory, transfers *transfer.Service) *Service {
+	return &Service{accounts: accounts, factory: factory, transfers: transfers}
 }
 
 // ListObjects returns a single page of objects for the requested prefix.
@@ -61,7 +65,7 @@ func (s *Service) ListObjects(ctx context.Context, accountID string, input ListO
 }
 
 // UploadObject streams the local file to the selected bucket.
-func (s *Service) UploadObject(ctx context.Context, accountID, bucket, key, filePath string) error {
+func (s *Service) UploadObject(ctx context.Context, accountID, bucket, key, filePath string) (err error) {
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
@@ -84,14 +88,43 @@ func (s *Service) UploadObject(ctx context.Context, accountID, bucket, key, file
 		return fmt.Errorf("stat file: %w", err)
 	}
 	contentType := detectContentType(key)
-	if err := client.Objects().UploadObject(ctx, bucket, key, file, stat.Size(), contentType); err != nil {
+
+	var task *transfer.TransferTask
+	var cancel context.CancelFunc
+	if s.transfers != nil {
+		task = s.transfers.CreateUploadTask(accountID, bucket, key, stat.Size())
+		var taskCtx context.Context
+		taskCtx, cancel = context.WithCancel(ctx)
+		ctx = taskCtx
+		s.transfers.BindTaskContext(task.ID, cancel)
+		s.transfers.MarkTaskRunning(task.ID)
+		defer func() {
+			if cancel != nil {
+				cancel()
+			}
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
+				s.transfers.FailTask(task.ID, err)
+				return
+			}
+			s.transfers.CompleteTask(task.ID)
+		}()
+	}
+	reader := newProgressReader(file, func(n int64) {
+		if task != nil {
+			s.transfers.UpdateTaskProgress(task.ID, n)
+		}
+	})
+	if err = client.Objects().UploadObject(ctx, bucket, key, reader, stat.Size(), contentType); err != nil {
 		return err
 	}
 	return nil
 }
 
 // DownloadObject saves the remote object into the provided path.
-func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, savePath string) error {
+func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, savePath string) (err error) {
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
@@ -104,11 +137,37 @@ func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, sa
 	if key == "" {
 		return errors.New("object key is required")
 	}
+	var task *transfer.TransferTask
+	var cancel context.CancelFunc
+	if s.transfers != nil {
+		task = s.transfers.CreateDownloadTask(accountID, bucket, key, 0)
+		var taskCtx context.Context
+		taskCtx, cancel = context.WithCancel(ctx)
+		ctx = taskCtx
+		s.transfers.BindTaskContext(task.ID, cancel)
+		s.transfers.MarkTaskRunning(task.ID)
+		defer func() {
+			if cancel != nil {
+				cancel()
+			}
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
+				s.transfers.FailTask(task.ID, err)
+				return
+			}
+			s.transfers.CompleteTask(task.ID)
+		}()
+	}
 	download, err := client.Objects().DownloadObject(ctx, bucket, key)
 	if err != nil {
 		return err
 	}
 	defer download.Body.Close()
+	if task != nil && download.ContentLength > 0 {
+		s.transfers.SetTaskTotal(task.ID, download.ContentLength)
+	}
 	target := strings.TrimSpace(savePath)
 	if target == "" {
 		target = filepath.Join(os.TempDir(), filepath.Base(key))
@@ -127,7 +186,12 @@ func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, sa
 		return fmt.Errorf("create file: %w", err)
 	}
 	defer file.Close()
-	if _, err := io.Copy(file, download.Body); err != nil {
+	reader := newProgressReader(download.Body, func(n int64) {
+		if task != nil {
+			s.transfers.UpdateTaskProgress(task.ID, n)
+		}
+	})
+	if _, err = io.Copy(file, reader); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
@@ -231,6 +295,130 @@ func (s *Service) HeadObject(ctx context.Context, accountID, bucket, key string)
 	return info, nil
 }
 
+// GetPresignedURL generates a time-bound URL for downloading or uploading objects.
+func (s *Service) GetPresignedURL(
+	ctx context.Context,
+	accountID, bucket, key string,
+	expirationSeconds int64,
+	method string,
+) (string, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return "", errors.New("bucket is required")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", errors.New("object key is required")
+	}
+	if expirationSeconds <= 0 {
+		expirationSeconds = int64(time.Hour / time.Second)
+	}
+	maxTTL := int64((7 * 24 * time.Hour) / time.Second)
+	if expirationSeconds > maxTTL {
+		expirationSeconds = maxTTL
+	}
+	duration := time.Duration(expirationSeconds) * time.Second
+	url, err := client.Objects().PresignURL(ctx, bucket, key, duration, method)
+	if err != nil {
+		return "", err
+	}
+	return url, nil
+}
+
+// InitiateMultipartUpload starts a multipart upload session.
+func (s *Service) InitiateMultipartUpload(ctx context.Context, accountID, bucket, key string) (string, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return "", errors.New("bucket is required")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", errors.New("object key is required")
+	}
+	return client.Objects().InitiateMultipartUpload(ctx, bucket, key)
+}
+
+// UploadPart uploads a single part for a multipart session.
+func (s *Service) UploadPart(
+	ctx context.Context,
+	accountID, bucket, key, uploadID string,
+	partNumber int,
+	data []byte,
+) (string, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(bucket) == "" {
+		return "", errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return "", errors.New("upload id is required")
+	}
+	if partNumber <= 0 {
+		return "", errors.New("part number must be greater than zero")
+	}
+	if len(data) == 0 {
+		return "", errors.New("part payload is empty")
+	}
+	reader := bytes.NewReader(data)
+	return client.Objects().UploadPart(ctx, bucket, key, uploadID, partNumber, reader, int64(len(data)))
+}
+
+// CompleteMultipartUpload finalises the multipart upload with the collected ETags.
+func (s *Service) CompleteMultipartUpload(
+	ctx context.Context,
+	accountID, bucket, key, uploadID string,
+	parts map[int]string,
+) error {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return errors.New("upload id is required")
+	}
+	if len(parts) == 0 {
+		return errors.New("at least one part is required")
+	}
+	return client.Objects().CompleteMultipartUpload(ctx, bucket, key, uploadID, parts)
+}
+
+// AbortMultipartUpload cancels an in-progress multipart upload.
+func (s *Service) AbortMultipartUpload(ctx context.Context, accountID, bucket, key, uploadID string) error {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return errors.New("upload id is required")
+	}
+	return client.Objects().AbortMultipartUpload(ctx, bucket, key, uploadID)
+}
+
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
 	if strings.TrimSpace(accountID) == "" {
 		return nil, errors.New("account id is required")
@@ -270,4 +458,23 @@ func isNotFoundError(err error) bool {
 		strings.Contains(msg, "nosuchobject") ||
 		strings.Contains(msg, "no such object") ||
 		strings.Contains(msg, "不存在")
+
+type progressReader struct {
+	reader io.Reader
+	notify func(int64)
+}
+
+func newProgressReader(r io.Reader, notify func(int64)) io.Reader {
+	if notify == nil {
+		return r
+	}
+	return &progressReader{reader: r, notify: notify}
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 && r.notify != nil {
+		r.notify(int64(n))
+	}
+	return n, err
 }

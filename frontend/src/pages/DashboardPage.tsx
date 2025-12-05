@@ -1,4 +1,12 @@
-import { DownloadCloud, Loader2, Plus, RefreshCcw, Sparkles, UploadCloud } from "lucide-react";
+import {
+  DownloadCloud,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Share2,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -9,8 +17,10 @@ import { AccountFormDrawer } from "@/components/accounts/AccountFormDrawer";
 import { ConnectionTestButton } from "@/components/accounts/ConnectionTestButton";
 import { BucketBrowser } from "@/components/buckets/BucketBrowser";
 import { ObjectBrowser } from "@/components/objects/ObjectBrowser";
+import { UploadProgress } from "@/components/transfer/UploadProgress";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useBucketsStore } from "@/state/buckets";
+import { transfersStore } from "@/state/transfers";
 
 const futureModules = [
   { title: "Bucket 属性与策略", detail: "Versioning · CORS · Policy" },
@@ -37,6 +47,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     void accountsStore.bootstrap();
+  }, []);
+
+  useEffect(() => {
+    transfersStore.startPolling();
   }, []);
 
   useEffect(() => {
@@ -216,6 +230,21 @@ export default function DashboardPage() {
               >
                 编辑账户
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                disabled={!activeAccount}
+                onClick={() =>
+                  navigate({
+                    to: "/accounts/$accountId/transfers",
+                    params: { accountId: activeAccount?.id ?? "" },
+                  })
+                }
+              >
+                <Share2 className="h-4 w-4" />
+                传输队列
+              </Button>
               <Button size="sm" className="gap-1" onClick={() => openDrawer("create")}>
                 <Plus className="h-4 w-4" />
                 新建
@@ -281,6 +310,9 @@ export default function DashboardPage() {
             bucket={selectedBucket}
             className="lg:col-span-2"
           />
+        </section>
+        <section className="p-4">
+          <UploadProgress />
         </section>
       </main>
 

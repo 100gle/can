@@ -316,6 +316,116 @@ func (d *ossObjectDriver) HeadObject(ctx context.Context, bucketName, key string
 	return info, nil
 }
 
+func (d *ossObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	b, err := d.bucket(ctx, bucket)
+	if err != nil {
+		return "", err
+	}
+	if expiration <= 0 {
+		expiration = time.Hour
+	}
+	if strings.TrimSpace(method) == "" {
+		method = http.MethodGet
+	}
+	url, err := b.SignURL(key, oss.HTTPMethod(strings.ToUpper(method)), int64(expiration/time.Second))
+	if err != nil {
+		return "", wrapOSSError("生成预签名链接", err)
+	}
+	return url, nil
+}
+
+func (d *ossObjectDriver) InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error) {
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	b, err := d.bucket(ctx, bucket)
+	if err != nil {
+		return "", err
+	}
+	result, err := b.InitiateMultipartUpload(key)
+	if err != nil {
+		return "", wrapOSSError("初始化分片上传", err)
+	}
+	return result.UploadID, nil
+}
+
+func (d *ossObjectDriver) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error) {
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return "", errors.New("upload id is required")
+	}
+	if partNumber <= 0 {
+		return "", errors.New("part number must be greater than zero")
+	}
+	b, err := d.bucket(ctx, bucket)
+	if err != nil {
+		return "", err
+	}
+	imur := oss.InitiateMultipartUploadResult{
+		Bucket:   bucket,
+		Key:      key,
+		UploadID: uploadID,
+	}
+	part, err := b.UploadPart(imur, body, size, partNumber)
+	if err != nil {
+		return "", wrapOSSError("上传分片", err)
+	}
+	return strings.Trim(part.ETag, `"`), nil
+}
+
+func (d *ossObjectDriver) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error {
+	if len(parts) == 0 {
+		return errors.New("at least one part is required")
+	}
+	b, err := d.bucket(ctx, bucket)
+	if err != nil {
+		return err
+	}
+	imur := oss.InitiateMultipartUploadResult{
+		Bucket:   bucket,
+		Key:      key,
+		UploadID: uploadID,
+	}
+	index := make([]int, 0, len(parts))
+	for num := range parts {
+		index = append(index, num)
+	}
+	sort.Ints(index)
+	uploaded := make([]oss.UploadPart, 0, len(parts))
+	for _, num := range index {
+		uploaded = append(uploaded, oss.UploadPart{
+			PartNumber: num,
+			ETag:       parts[num],
+		})
+	}
+	_, err = b.CompleteMultipartUpload(imur, uploaded)
+	if err != nil {
+		return wrapOSSError("完成分片上传", err)
+	}
+	return nil
+}
+
+func (d *ossObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
+	b, err := d.bucket(ctx, bucket)
+	if err != nil {
+		return err
+	}
+	imur := oss.InitiateMultipartUploadResult{
+		Bucket:   bucket,
+		Key:      key,
+		UploadID: uploadID,
+	}
+	if err := b.AbortMultipartUpload(imur); err != nil {
+		return wrapOSSError("取消分片上传", err)
+	}
+	return nil
+}
+
 func headerValue(header http.Header, key string) string {
 	if header == nil {
 		return ""

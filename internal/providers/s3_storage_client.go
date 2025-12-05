@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -315,6 +317,159 @@ func (d *s3ObjectDriver) HeadObject(ctx context.Context, bucket, key string) (Ob
 		IsDir:        false,
 	}
 	return info, nil
+}
+
+func (d *s3ObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
+	if strings.TrimSpace(bucket) == "" {
+		return "", errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	raw, ok := d.client.(*s3.Client)
+	if !ok {
+		return "", errors.New("presign not supported for this client")
+	}
+	if expiration <= 0 {
+		expiration = time.Hour
+	}
+	if expiration > 7*24*time.Hour {
+		expiration = 7 * 24 * time.Hour
+	}
+	presign := s3.NewPresignClient(raw)
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case "", http.MethodGet:
+		out, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		}, func(opts *s3.PresignOptions) {
+			opts.Expires = expiration
+		})
+		if err != nil {
+			return "", WrapS3Error("生成下载链接", err)
+		}
+		return out.URL, nil
+	case http.MethodPut:
+		out, err := presign.PresignPutObject(ctx, &s3.PutObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		}, func(opts *s3.PresignOptions) {
+			opts.Expires = expiration
+		})
+		if err != nil {
+			return "", WrapS3Error("生成上传链接", err)
+		}
+		return out.URL, nil
+	default:
+		return "", fmt.Errorf("unsupported method %s", method)
+	}
+}
+
+func (d *s3ObjectDriver) InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error) {
+	if strings.TrimSpace(bucket) == "" {
+		return "", errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	out, err := d.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return "", WrapS3Error("初始化分片上传", err)
+	}
+	return aws.ToString(out.UploadId), nil
+}
+
+func (d *s3ObjectDriver) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error) {
+	if strings.TrimSpace(bucket) == "" {
+		return "", errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return "", errors.New("upload id is required")
+	}
+	if partNumber <= 0 {
+		return "", errors.New("part number must be greater than zero")
+	}
+	input := &s3.UploadPartInput{
+		Bucket:     aws.String(bucket),
+		Key:        aws.String(key),
+		UploadId:   aws.String(uploadID),
+		PartNumber: aws.Int32(int32(partNumber)),
+		Body:       body,
+	}
+	if size >= 0 {
+		input.ContentLength = aws.Int64(size)
+	}
+	out, err := d.client.UploadPart(ctx, input)
+	if err != nil {
+		return "", WrapS3Error("上传分片", err)
+	}
+	return strings.Trim(aws.ToString(out.ETag), `"`), nil
+}
+
+func (d *s3ObjectDriver) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error {
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return errors.New("upload id is required")
+	}
+	if len(parts) == 0 {
+		return errors.New("at least one part is required")
+	}
+	indexes := make([]int, 0, len(parts))
+	for part := range parts {
+		indexes = append(indexes, part)
+	}
+	sort.Ints(indexes)
+	completed := make([]s3types.CompletedPart, 0, len(parts))
+	for _, part := range indexes {
+		etag := strings.Trim(parts[part], `"`)
+		completed = append(completed, s3types.CompletedPart{
+			ETag:       aws.String(etag),
+			PartNumber: aws.Int32(int32(part)),
+		})
+	}
+	_, err := d.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(bucket),
+		Key:      aws.String(key),
+		UploadId: aws.String(uploadID),
+		MultipartUpload: &s3types.CompletedMultipartUpload{
+			Parts: completed,
+		},
+	})
+	if err != nil {
+		return WrapS3Error("完成分片上传", err)
+	}
+	return nil
+}
+
+func (d *s3ObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return errors.New("upload id is required")
+	}
+	if _, err := d.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(bucket),
+		Key:      aws.String(key),
+		UploadId: aws.String(uploadID),
+	}); err != nil {
+		return WrapS3Error("取消分片上传", err)
+	}
+	return nil
 }
 
 func shouldIncludeLocationConstraint(provider types.Provider, region string) bool {
