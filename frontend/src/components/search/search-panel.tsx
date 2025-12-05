@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { DownloadCloud, Loader2, Search, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +18,58 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { searchStore, useSearchStore } from "@/state/search";
+import { useForm, useStore } from "@tanstack/react-form";
+import { searchStore, useSearchStore, type SearchQueryModel } from "@/state/search";
+import { getFieldErrorMessage } from "@/lib/forms";
 import { formatBytes } from "@/lib/utils";
+import { z } from "zod";
 
 type SearchPanelProps = {
   buckets: string[];
 };
+
+const formatDateInputValue = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const searchFormSchema = z
+  .object({
+    accountId: z.string(),
+    bucket: z.string(),
+    prefix: z.string(),
+    searchText: z.string(),
+    sortBy: z.enum(["name", "size", "time", "score"]),
+    sortOrder: z.enum(["asc", "desc"]),
+    minSize: z.number().min(0, "最小大小需大于等于 0"),
+    maxSize: z.number().min(0, "最大大小需大于等于 0"),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    fileTypes: z.array(z.string()),
+    tags: z.record(z.string()),
+    limit: z.number().int().positive(),
+    offset: z.number().int().nonnegative(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.maxSize > 0 && data.maxSize < data.minSize) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["maxSize"],
+        message: "最大大小需大于最小大小",
+      });
+    }
+    if (data.startTime && data.endTime) {
+      if (new Date(data.startTime) > new Date(data.endTime)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["endTime"],
+          message: "结束日期需不早于起始日期",
+        });
+      }
+    }
+  });
 
 export const SearchPanel = ({ buckets }: SearchPanelProps) => {
   const query = useSearchStore((state) => state.query);
@@ -34,174 +80,273 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
   const hasMore = useSearchStore((state) => state.hasMore);
   const error = useSearchStore((state) => state.error);
   const total = useSearchStore((state) => state.total);
-  const [draft, setDraft] = useState(query);
+
+  const form = useForm<SearchQueryModel>({
+    defaultValues: query,
+    validators: {
+      onSubmit: ({ value }) => {
+        searchFormSchema.parse(value);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      await searchStore.search(value);
+    },
+  });
+
+  const formValues = useStore(form.store, (state) => state.values);
+  const formSubmitted = useStore(form.store, (state) => state.isSubmitted);
 
   useEffect(() => {
-    setDraft(query);
-  }, [query]);
+    form.reset(query);
+  }, [query, form]);
 
   const bucketOptions = useMemo(() => {
     const uniques = new Set(buckets);
-    if (query.bucket && !uniques.has(query.bucket)) {
-      uniques.add(query.bucket);
+    const activeBucket = formValues.bucket || query.bucket;
+    if (activeBucket && !uniques.has(activeBucket)) {
+      uniques.add(activeBucket);
     }
     return Array.from(uniques);
-  }, [buckets, query.bucket]);
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    searchStore.search(draft);
-  };
+  }, [buckets, formValues.bucket, query.bucket]);
 
   const handleExport = (format: "csv" | "json") => {
     void searchStore.exportResults(format);
   };
 
-  const bucketValue = draft.bucket || "all";
-
   return (
     <div className="space-y-5">
       <form
-        onSubmit={handleSubmit}
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void form.handleSubmit();
+        }}
         className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4 shadow-sm"
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>搜索范围</Label>
-            <Select
-              value={bucketValue}
-              onValueChange={(value) =>
-                setDraft((prev) => ({ ...prev, bucket: value === "all" ? "" : value }))
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="全局" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全局</SelectItem>
-                {bucketOptions.map((bucket) => (
-                  <SelectItem key={bucket} value={bucket}>
-                    {bucket}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <form.Field name="bucket">
+              {(field) => {
+                const value = field.state.value || "all";
+                return (
+                  <Select
+                    value={value}
+                    onValueChange={(nextValue) => {
+                      field.handleChange(nextValue === "all" ? "" : nextValue);
+                      field.handleBlur();
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="全局" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全局</SelectItem>
+                      {bucketOptions.map((bucket) => (
+                        <SelectItem key={bucket} value={bucket}>
+                          {bucket}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              }}
+            </form.Field>
           </div>
           <div className="space-y-2">
             <Label htmlFor="prefix">前缀</Label>
-            <Input
-              id="prefix"
-              placeholder="logs/2025/"
-              value={draft.prefix || ""}
-              onChange={(event) => setDraft((prev) => ({ ...prev, prefix: event.target.value }))}
-            />
+            <form.Field name="prefix">
+              {(field) => (
+                <Input
+                  id="prefix"
+                  placeholder="logs/2025/"
+                  value={field.state.value ?? ""}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              )}
+            </form.Field>
           </div>
           <div className="space-y-2">
             <Label htmlFor="keyword">关键字</Label>
-            <Input
-              id="keyword"
-              placeholder="报告、合同等"
-              value={draft.searchText || ""}
-              onChange={(event) =>
-                setDraft((prev) => ({ ...prev, searchText: event.target.value }))
-              }
-            />
+            <form.Field name="searchText">
+              {(field) => (
+                <Input
+                  id="keyword"
+                  placeholder="报告、合同等"
+                  value={field.state.value ?? ""}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              )}
+            </form.Field>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="min-size">最小大小 (MB)</Label>
-            <Input
-              id="min-size"
-              type="number"
-              min={0}
-              value={draft.minSize ? draft.minSize / (1024 * 1024) : ""}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                setDraft((prev) => ({ ...prev, minSize: value ? value * 1024 * 1024 : 0 }));
+            <form.Field name="minSize">
+              {(field) => {
+                const errorMessage = getFieldErrorMessage(field.state.meta.errors);
+                const showError = Boolean(
+                  errorMessage && (field.state.meta.isTouched || formSubmitted),
+                );
+                const displayValue =
+                  field.state.value && field.state.value > 0
+                    ? String(field.state.value / (1024 * 1024))
+                    : "";
+                return (
+                  <div className="space-y-1">
+                    <Input
+                      id="min-size"
+                      type="number"
+                      min={0}
+                      value={displayValue}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        field.handleChange(value ? value * 1024 * 1024 : 0);
+                      }}
+                      onBlur={field.handleBlur}
+                      aria-invalid={showError}
+                    />
+                    {showError ? (
+                      <p className="text-xs text-destructive">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
               }}
-            />
+            </form.Field>
           </div>
           <div className="space-y-2">
             <Label htmlFor="max-size">最大大小 (MB)</Label>
-            <Input
-              id="max-size"
-              type="number"
-              min={0}
-              value={draft.maxSize ? draft.maxSize / (1024 * 1024) : ""}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                setDraft((prev) => ({ ...prev, maxSize: value ? value * 1024 * 1024 : 0 }));
+            <form.Field name="maxSize">
+              {(field) => {
+                const errorMessage = getFieldErrorMessage(field.state.meta.errors);
+                const showError = Boolean(
+                  errorMessage && (field.state.meta.isTouched || formSubmitted),
+                );
+                const displayValue =
+                  field.state.value && field.state.value > 0
+                    ? String(field.state.value / (1024 * 1024))
+                    : "";
+                return (
+                  <div className="space-y-1">
+                    <Input
+                      id="max-size"
+                      type="number"
+                      min={0}
+                      value={displayValue}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        field.handleChange(value ? value * 1024 * 1024 : 0);
+                      }}
+                      onBlur={field.handleBlur}
+                      aria-invalid={showError}
+                    />
+                    {showError ? (
+                      <p className="text-xs text-destructive">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
               }}
-            />
+            </form.Field>
           </div>
           <div className="space-y-2">
             <Label htmlFor="file-types">文件类型 (.扩展)</Label>
-            <Input
-              id="file-types"
-              placeholder=".pdf,.png"
-              value={draft.fileTypes?.join(", ") || ""}
-              onChange={(event) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  fileTypes: event.target.value
-                    .split(",")
-                    .map((item) => item.trim())
-                    .filter(Boolean),
-                }))
-              }
-            />
+            <form.Field name="fileTypes">
+              {(field) => (
+                <Input
+                  id="file-types"
+                  placeholder=".pdf,.png"
+                  value={field.state.value?.join(", ") ?? ""}
+                  onChange={(event) =>
+                    field.handleChange(
+                      event.target.value
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    )
+                  }
+                  onBlur={field.handleBlur}
+                />
+              )}
+            </form.Field>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="start-date">起始日期</Label>
-            <Input
-              id="start-date"
-              type="date"
-              value={draft.startTime ? new Date(draft.startTime).toISOString().slice(0, 10) : ""}
-              onChange={(event) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  startTime: event.target.value
-                    ? new Date(event.target.value).toISOString()
-                    : undefined,
-                }))
-              }
-            />
+            <form.Field name="startTime">
+              {(field) => (
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={formatDateInputValue(field.state.value)}
+                  onChange={(event) =>
+                    field.handleChange(
+                      event.target.value ? new Date(event.target.value).toISOString() : undefined,
+                    )
+                  }
+                  onBlur={field.handleBlur}
+                />
+              )}
+            </form.Field>
           </div>
           <div className="space-y-2">
             <Label htmlFor="end-date">结束日期</Label>
-            <Input
-              id="end-date"
-              type="date"
-              value={draft.endTime ? new Date(draft.endTime).toISOString().slice(0, 10) : ""}
-              onChange={(event) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  endTime: event.target.value
-                    ? new Date(event.target.value).toISOString()
-                    : undefined,
-                }))
-              }
-            />
+            <form.Field name="endTime">
+              {(field) => {
+                const errorMessage = getFieldErrorMessage(field.state.meta.errors);
+                const showError = Boolean(
+                  errorMessage && (field.state.meta.isTouched || formSubmitted),
+                );
+                return (
+                  <div className="space-y-1">
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={formatDateInputValue(field.state.value)}
+                      onChange={(event) =>
+                        field.handleChange(
+                          event.target.value
+                            ? new Date(event.target.value).toISOString()
+                            : undefined,
+                        )
+                      }
+                      onBlur={field.handleBlur}
+                      aria-invalid={showError}
+                    />
+                    {showError ? (
+                      <p className="text-xs text-destructive">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
           </div>
           <div className="space-y-2">
             <Label>排序方式</Label>
-            <Select
-              value={draft.sortBy}
-              onValueChange={(value) => setDraft((prev) => ({ ...prev, sortBy: value }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">名称</SelectItem>
-                <SelectItem value="size">大小</SelectItem>
-                <SelectItem value="time">时间</SelectItem>
-                <SelectItem value="score">匹配度</SelectItem>
-              </SelectContent>
-            </Select>
+            <form.Field name="sortBy">
+              {(field) => (
+                <Select
+                  value={field.state.value}
+                  onValueChange={(value) => {
+                    field.handleChange(value);
+                    field.handleBlur();
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">名称</SelectItem>
+                    <SelectItem value="size">大小</SelectItem>
+                    <SelectItem value="time">时间</SelectItem>
+                    <SelectItem value="score">匹配度</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </form.Field>
           </div>
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -281,13 +426,9 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       {formatBytes(item.size)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {item.lastModified
-                        ? new Date(item.lastModified as any).toLocaleString()
-                        : "-"}
+                      {item.lastModified ? new Date(item.lastModified as any).toLocaleString() : "-"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.storageClass || "-"}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground">{item.storageClass || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
