@@ -13,6 +13,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PresignedURLDialog } from "@/components/transfer/presigned-url-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore } from "@/state/objects";
@@ -225,32 +241,41 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
             </Button>
           </div>
         </div>
-        <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          {breadcrumbs.map((crumb, index) => (
-            <button
-              key={crumb.path}
-              className={cn(
-                "text-left",
-                index === breadcrumbs.length - 1
-                  ? "font-semibold text-foreground"
-                  : "hover:underline",
-              )}
-              disabled={index === breadcrumbs.length - 1}
-              onClick={() => {
-                if (index === breadcrumbs.length - 1) return;
-                objectsStore.enterPrefix(crumb.path);
-              }}
-            >
-              {crumb.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Breadcrumb>
+            <BreadcrumbList>
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                return (
+                  <BreadcrumbItem key={crumb.path} className="flex items-center">
+                    {isLast ? (
+                      <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <button
+                          type="button"
+                          className="text-left"
+                          onClick={() => {
+                            objectsStore.enterPrefix(crumb.path);
+                          }}
+                        >
+                          {crumb.label}
+                        </button>
+                      </BreadcrumbLink>
+                    )}
+                    {!isLast ? <BreadcrumbSeparator /> : null}
+                  </BreadcrumbItem>
+                );
+              })}
+            </BreadcrumbList>
+          </Breadcrumb>
           {prefix ? (
             <Button variant="ghost" size="sm" className="gap-1" onClick={handleGoUp}>
               <ArrowLeft className="h-3 w-3" />
-              返回
+              返回上级
             </Button>
           ) : null}
-        </nav>
+        </div>
       </div>
       {error ? <p className="px-4 pt-2 text-sm text-destructive">{error}</p> : null}
       <div
@@ -276,19 +301,19 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
         ) : objects.length === 0 ? (
           <p className="text-sm text-muted-foreground">当前路径下暂无对象。</p>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="py-2 text-left">名称</th>
-                <th className="py-2 text-left">大小</th>
-                <th className="py-2 text-left">最近更新</th>
-                <th className="py-2 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1/3 min-w-40">名称</TableHead>
+                <TableHead>大小</TableHead>
+                <TableHead>最近更新</TableHead>
+                <TableHead className="text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {objects.map((object) => (
-                <tr key={object.key} className="border-b border-border/40 text-sm">
-                  <td className="py-2">
+                <TableRow key={object.key}>
+                  <TableCell>
                     {object.isDir ? (
                       <button
                         className="flex items-center gap-2 font-medium text-primary hover:underline"
@@ -299,14 +324,16 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                     ) : (
                       <span className="font-medium">{deriveLabel(object, prefix)}</span>
                     )}
-                  </td>
-                  <td className="py-2 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {object.isDir ? "-" : formatSize(object.size)}
-                  </td>
-                  <td className="py-2 text-muted-foreground">{formatDate(object.lastModified)}</td>
-                  <td className="py-2 text-right">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(object.lastModified)}
+                  </TableCell>
+                  <TableCell className="text-right">
                     {object.isDir ? null : (
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -359,11 +386,11 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                         </Button>
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
       {truncated ? (

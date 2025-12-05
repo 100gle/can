@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Loader2, Share2, X } from "lucide-react";
+import { Copy, Loader2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { GetPresignedDownloadURL, GetPresignedUploadURL } from "../../../wailsjs/go/main/App";
 import { isBridgeAvailable } from "@/lib/bridge";
@@ -86,28 +97,25 @@ export const PresignedURLDialog = ({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4">
-      <div className="w-full max-w-xl rounded-2xl border border-border/40 bg-background p-6 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">预签名链接</p>
-            <h3 className="text-xl font-semibold">生成{modeLabel}链接</h3>
-            <p className="text-sm text-muted-foreground">
-              {bucket ? `${bucket} · ${objectKey}` : "请选择对象"}
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>生成{modeLabel}链接</DialogTitle>
+          <DialogDescription>
+            {bucket ? `${bucket} · ${objectKey}` : "请选择对象后再生成链接"}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="mt-6 space-y-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">有效期</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">有效期</Label>
+            <div className="flex flex-wrap gap-2">
               {presets.map((preset) => (
                 <Button
                   key={preset.minutes}
@@ -122,59 +130,58 @@ export const PresignedURLDialog = ({
                   {preset.label}
                 </Button>
               ))}
-              <input
+              <Input
                 type="number"
+                min={1}
                 placeholder="自定义(分钟)"
                 value={custom}
                 onChange={(event) => setCustom(event.target.value)}
-                className="h-9 w-32 rounded-lg border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary"
+                className="w-32"
               />
             </div>
           </div>
 
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              生成的链接可直接用于 {modeLabel}。请谨慎分享，{modeLabel}权限将在到期后自动失效。
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            生成的链接可直接用于 {modeLabel}。请谨慎分享，权限将在到期后自动失效。
+          </p>
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
           {link ? (
-            <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">链接</p>
-              <p className="line-clamp-2 break-all text-sm text-foreground">{link}</p>
-              <div className="mt-2 flex gap-2">
+            <div className="space-y-2">
+              <Label htmlFor="presigned-link">链接</Label>
+              <Textarea id="presigned-link" value={link} readOnly rows={3} />
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="gap-2" onClick={handleCopy}>
                   <Copy className="h-4 w-4" />
                   复制
                 </Button>
-                <a
-                  href={link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-lg border border-border/40 px-3 py-2 text-sm transition hover:bg-accent",
-                  )}
-                >
-                  <Share2 className="h-4 w-4" />
-                  打开链接
-                </a>
+                <Button asChild variant="ghost" size="sm" className="gap-2">
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    打开链接
+                  </a>
+                </Button>
               </div>
             </div>
           ) : null}
-
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              取消
-            </Button>
-            <Button onClick={handleGenerate} disabled={loading || !bridgeReady}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              生成链接
-            </Button>
-          </div>
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            取消
+          </Button>
+          <Button onClick={handleGenerate} disabled={loading || !bridgeReady}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            生成链接
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

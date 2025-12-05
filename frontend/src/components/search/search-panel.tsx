@@ -1,6 +1,23 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DownloadCloud, Loader2, Search, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { searchStore, useSearchStore } from "@/state/search";
 import { formatBytes } from "@/lib/utils";
 
@@ -40,80 +57,88 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
     void searchStore.exportResults(format);
   };
 
+  const bucketValue = draft.bucket || "all";
+
   return (
     <div className="space-y-5">
       <form
         onSubmit={handleSubmit}
         className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4 shadow-sm"
       >
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-sm font-medium">
-            搜索范围
-            <select
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
-              value={draft.bucket || ""}
-              onChange={(event) => setDraft((prev) => ({ ...prev, bucket: event.target.value }))}
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label>搜索范围</Label>
+            <Select
+              value={bucketValue}
+              onValueChange={(value) =>
+                setDraft((prev) => ({ ...prev, bucket: value === "all" ? "" : value }))
+              }
             >
-              <option value="">全局</option>
-              {bucketOptions.map((bucket) => (
-                <option key={bucket} value={bucket}>
-                  {bucket}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium">
-            前缀
-            <input
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="全局" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全局</SelectItem>
+                {bucketOptions.map((bucket) => (
+                  <SelectItem key={bucket} value={bucket}>
+                    {bucket}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prefix">前缀</Label>
+            <Input
+              id="prefix"
               placeholder="logs/2025/"
               value={draft.prefix || ""}
               onChange={(event) => setDraft((prev) => ({ ...prev, prefix: event.target.value }))}
             />
-          </label>
-          <label className="text-sm font-medium">
-            关键字
-            <input
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="keyword">关键字</Label>
+            <Input
+              id="keyword"
               placeholder="报告、合同等"
               value={draft.searchText || ""}
               onChange={(event) =>
                 setDraft((prev) => ({ ...prev, searchText: event.target.value }))
               }
             />
-          </label>
+          </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-sm font-medium">
-            最小大小 (MB)
-            <input
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="min-size">最小大小 (MB)</Label>
+            <Input
+              id="min-size"
               type="number"
               min={0}
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
               value={draft.minSize ? draft.minSize / (1024 * 1024) : ""}
               onChange={(event) => {
                 const value = Number(event.target.value);
                 setDraft((prev) => ({ ...prev, minSize: value ? value * 1024 * 1024 : 0 }));
               }}
             />
-          </label>
-          <label className="text-sm font-medium">
-            最大大小 (MB)
-            <input
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="max-size">最大大小 (MB)</Label>
+            <Input
+              id="max-size"
               type="number"
               min={0}
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
               value={draft.maxSize ? draft.maxSize / (1024 * 1024) : ""}
               onChange={(event) => {
                 const value = Number(event.target.value);
                 setDraft((prev) => ({ ...prev, maxSize: value ? value * 1024 * 1024 : 0 }));
               }}
             />
-          </label>
-          <label className="text-sm font-medium">
-            文件类型 (.扩展)
-            <input
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="file-types">文件类型 (.扩展)</Label>
+            <Input
+              id="file-types"
               placeholder=".pdf,.png"
               value={draft.fileTypes?.join(", ") || ""}
               onChange={(event) =>
@@ -126,14 +151,14 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                 }))
               }
             />
-          </label>
+          </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-sm font-medium">
-            起始日期
-            <input
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="start-date">起始日期</Label>
+            <Input
+              id="start-date"
               type="date"
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
               value={draft.startTime ? new Date(draft.startTime).toISOString().slice(0, 10) : ""}
               onChange={(event) =>
                 setDraft((prev) => ({
@@ -144,12 +169,12 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                 }))
               }
             />
-          </label>
-          <label className="text-sm font-medium">
-            结束日期
-            <input
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="end-date">结束日期</Label>
+            <Input
+              id="end-date"
               type="date"
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
               value={draft.endTime ? new Date(draft.endTime).toISOString().slice(0, 10) : ""}
               onChange={(event) =>
                 setDraft((prev) => ({
@@ -160,20 +185,24 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                 }))
               }
             />
-          </label>
-          <label className="text-sm font-medium">
-            排序方式
-            <select
-              className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+          </div>
+          <div className="space-y-2">
+            <Label>排序方式</Label>
+            <Select
               value={draft.sortBy}
-              onChange={(event) => setDraft((prev) => ({ ...prev, sortBy: event.target.value }))}
+              onValueChange={(value) => setDraft((prev) => ({ ...prev, sortBy: value }))}
             >
-              <option value="name">名称</option>
-              <option value="size">大小</option>
-              <option value="time">时间</option>
-              <option value="score">匹配度</option>
-            </select>
-          </label>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">名称</SelectItem>
+                <SelectItem value="size">大小</SelectItem>
+                <SelectItem value="time">时间</SelectItem>
+                <SelectItem value="score">匹配度</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex flex-wrap gap-3">
@@ -229,36 +258,40 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
             </div>
           ) : null}
         </div>
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4">
           {results.length === 0 ? (
             <p className="text-sm text-muted-foreground">尚无可显示的对象，请调整搜索条件。</p>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="py-2 text-left">对象</th>
-                  <th className="py-2 text-left">Bucket</th>
-                  <th className="py-2 text-left">大小</th>
-                  <th className="py-2 text-left">更新时间</th>
-                  <th className="py-2 text-left">存储类型</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>对象</TableHead>
+                  <TableHead>Bucket</TableHead>
+                  <TableHead>大小</TableHead>
+                  <TableHead>更新时间</TableHead>
+                  <TableHead>存储类型</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {results.map((item) => (
-                  <tr key={`${item.bucket}/${item.key}`} className="border-b border-border/30">
-                    <td className="py-2 font-medium">{item.key}</td>
-                    <td className="py-2 text-muted-foreground">{item.bucket}</td>
-                    <td className="py-2 text-muted-foreground">{formatBytes(item.size)}</td>
-                    <td className="py-2 text-muted-foreground">
+                  <TableRow key={`${item.bucket}/${item.key}`}>
+                    <TableCell className="font-medium">{item.key}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.bucket}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatBytes(item.size)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {item.lastModified
                         ? new Date(item.lastModified as any).toLocaleString()
                         : "-"}
-                    </td>
-                    <td className="py-2 text-muted-foreground">{item.storageClass || "-"}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.storageClass || "-"}
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </div>
         {hasMore ? (

@@ -1,6 +1,25 @@
-import { Loader2, Plus, RefreshCcw, Save, Trash2, X } from "lucide-react";
+import { AlertCircle, Loader2, Plus, RefreshCcw, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import {
   AccountFormInput,
   accountsStore,
@@ -186,28 +205,31 @@ export const AccountFormDrawer = ({
         ? "text-destructive"
         : "text-muted-foreground";
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/40 backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-xl flex-col border-l border-border bg-background/95 p-6 shadow-2xl backdrop-blur">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              {mode === "create" ? "新建账户" : "账户设置"}
-            </p>
-            <h3 className="text-2xl font-semibold">{title}</h3>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭弹窗">
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <form onSubmit={handleSubmit} className="mt-6 space-y-6 overflow-y-auto">
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <SheetContent side="right" className="w-full max-w-xl p-0 sm:max-w-xl">
+        <SheetHeader className="space-y-1 border-b border-border/60 px-6 py-5">
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>
+            {mode === "create" ? "配置并连接一个新的 S3 兼容账户" : "更新当前账户的信息"}
+          </SheetDescription>
+        </SheetHeader>
+        <form
+          onSubmit={handleSubmit}
+          className="flex h-full flex-col gap-6 overflow-y-auto px-6 py-5"
+        >
           <div className="grid gap-4">
-            <label className="text-sm font-medium">
-              账户名称<span className="text-destructive">*</span>
-              <input
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            <div className="space-y-2">
+              <Label htmlFor="account-name">
+                账户名称<span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="account-name"
                 placeholder="如：AWS 主账户"
                 value={form.name}
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
@@ -215,28 +237,36 @@ export const AccountFormDrawer = ({
                 }
                 required
               />
-            </label>
-            <label className="text-sm font-medium">
-              服务商<span className="text-destructive">*</span>
-              <select
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
+            </div>
+            <div className="space-y-2">
+              <Label>
+                服务商<span className="text-destructive">*</span>
+              </Label>
+              <Select
                 value={form.provider}
-                onChange={(event) => handleChange("provider", event.target.value)}
+                onValueChange={(value) => handleChange("provider", value)}
               >
-                {providerOptions.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择服务商" />
+                </SelectTrigger>
+                <SelectContent>
+                  {providerOptions.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <label className="text-sm font-medium lg:col-span-2">
-              Endpoint<span className="text-destructive">*</span>
-              <input
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
+            <div className="lg:col-span-2 space-y-2">
+              <Label htmlFor="endpoint">
+                Endpoint<span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="endpoint"
                 placeholder="https://s3.amazonaws.com"
                 value={form.endpoint}
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
@@ -244,80 +274,90 @@ export const AccountFormDrawer = ({
                 }
                 required
               />
-            </label>
-            <label className="text-sm font-medium">
-              默认区域
-              <input
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="region">默认区域</Label>
+              <Input
+                id="region"
                 placeholder="us-east-1 / cn-hangzhou"
                 value={form.region}
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
                   handleChange("region", event.target.value)
                 }
               />
-            </label>
-            <label className="text-sm font-medium">
-              端口
-              <input
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="port">端口</Label>
+              <Input
+                id="port"
                 type="number"
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
-                value={form.port}
                 min={1}
                 max={65535}
+                value={form.port}
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
                   handleChange("port", Number(event.target.value) || 0)
                 }
               />
-            </label>
+            </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <label className="text-sm font-medium">
-              Access Key ID{mode === "create" ? <span className="text-destructive">*</span> : null}
-              <input
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
-                placeholder="AKIA...."
+            <div className="space-y-2">
+              <Label htmlFor="access-key">
+                Access Key ID
+                {mode === "create" ? <span className="text-destructive">*</span> : null}
+              </Label>
+              <Input
+                id="access-key"
+                placeholder="AKIA..."
                 value={form.accessKeyId ?? ""}
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
                   handleChange("accessKeyId", event.target.value)
                 }
                 required={mode === "create"}
               />
-            </label>
-            <label className="text-sm font-medium">
-              Secret Access Key
-              {mode === "create" ? <span className="text-destructive">*</span> : null}
-              <input
-                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm"
-                placeholder={mode === "create" ? "仅本机加密存储" : "留空则保持不变"}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secret-key">
+                Secret Access Key
+                {mode === "create" ? <span className="text-destructive">*</span> : null}
+              </Label>
+              <Input
+                id="secret-key"
                 type="password"
+                placeholder={mode === "create" ? "仅本机加密存储" : "留空则保持不变"}
                 value={form.secretAccessKey ?? ""}
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
                   handleChange("secretAccessKey", event.target.value)
                 }
                 required={mode === "create"}
               />
-            </label>
+            </div>
           </div>
 
-          <label className="flex items-center gap-3 text-sm font-medium">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-border accent-primary"
+          <div className="flex items-center justify-between rounded-xl border border-border/60 p-4">
+            <div>
+              <Label className="text-sm font-medium">启用 SSL/TLS 访问</Label>
+              <p className="text-xs text-muted-foreground">推荐开启以保障凭证与对象传输安全。</p>
+            </div>
+            <Switch
               checked={form.useSSL}
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                handleChange("useSSL", event.target.checked)
-              }
+              onCheckedChange={(checked) => handleChange("useSSL", checked)}
+              aria-label="切换 SSL/TLS"
             />
-            启用 SSL/TLS 访问
-          </label>
+          </div>
 
-          <div className="rounded-2xl border border-border/60 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold">连接检测</p>
-                <p className={`mt-1 text-xs ${testMessageClass}`}>{testMessage}</p>
-              </div>
+          <Alert variant={testStatus === "error" ? "destructive" : "default"} className="space-y-3">
+            {testStatus === "error" ? (
+              <AlertCircle className="text-destructive" />
+            ) : (
+              <ShieldCheck />
+            )}
+            <div>
+              <AlertTitle>连接检测</AlertTitle>
+              <AlertDescription className={testMessageClass}>{testMessage}</AlertDescription>
+            </div>
+            <div className="flex justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -334,45 +374,58 @@ export const AccountFormDrawer = ({
                 测试连接
               </Button>
             </div>
-          </div>
+          </Alert>
 
-          {localError ? <p className="text-sm text-destructive">{localError}</p> : null}
+          {localError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="text-destructive" />
+              <div>
+                <AlertTitle>提交失败</AlertTitle>
+                <AlertDescription>{localError}</AlertDescription>
+              </div>
+            </Alert>
+          ) : null}
 
-          <div className="flex flex-col gap-4 border-t border-border/40 pt-4">
-            <div className="flex items-center justify-end gap-3">
-              <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
-                取消
-              </Button>
-              <Button type="submit" className="gap-2" disabled={submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : submitIcon}
-                {submitLabel}
-              </Button>
-            </div>
-            {mode === "edit" && initialAccount ? (
-              <div className="rounded-2xl border border-destructive/50 bg-destructive/5 p-4">
-                <p className="text-sm font-semibold text-destructive">危险操作</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  删除账户将移除所有本地配置，操作不可恢复。
-                </p>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="mt-3 gap-2"
-                  onClick={handleDelete}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  删除账户
+          <SheetFooter className="gap-4 border-t border-border/60 pt-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
+                  取消
+                </Button>
+                <Button type="submit" className="gap-2" disabled={submitting}>
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : submitIcon}
+                  {submitLabel}
                 </Button>
               </div>
-            ) : null}
-          </div>
+              {mode === "edit" && initialAccount ? (
+                <Alert variant="destructive" className="gap-3">
+                  <Trash2 className="text-destructive" />
+                  <div className="space-y-1">
+                    <AlertTitle>危险操作</AlertTitle>
+                    <AlertDescription>删除账户将移除所有本地配置，操作不可恢复。</AlertDescription>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="gap-2"
+                      onClick={handleDelete}
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      删除账户
+                    </Button>
+                  </div>
+                </Alert>
+              ) : null}
+            </div>
+          </SheetFooter>
         </form>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 };
