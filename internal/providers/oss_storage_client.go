@@ -199,6 +199,7 @@ func (d *ossObjectDriver) ListObjects(ctx context.Context, input ListObjectsInpu
 			LastModified: obj.LastModified,
 			ETag:         strings.Trim(obj.ETag, `"`),
 			ContentType:  "",
+			StorageClass: "",
 			IsDir:        false,
 		})
 	}
@@ -311,6 +312,7 @@ func (d *ossObjectDriver) HeadObject(ctx context.Context, bucketName, key string
 		LastModified: parseTime(headerValue(meta, "Last-Modified")),
 		ETag:         strings.Trim(headerValue(meta, "ETag"), `"`),
 		ContentType:  headerValue(meta, "Content-Type"),
+		StorageClass: headerValue(meta, "x-oss-storage-class"),
 		IsDir:        false,
 	}
 	return info, nil
@@ -424,6 +426,8 @@ func (d *ossObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key,
 		return wrapOSSError("取消分片上传", err)
 	}
 	return nil
+func (d *ossObjectDriver) GetObjectTags(ctx context.Context, bucketName, key string) (map[string]string, error) {
+	return nil, ErrUnsupportedCapability
 }
 
 func headerValue(header http.Header, key string) string {

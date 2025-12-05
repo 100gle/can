@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
+import { Route as AccountsAccountIdSearchRouteImport } from './routes/accounts/$accountId/search'
 import { Route as AccountsAccountIdDashboardRouteImport } from './routes/accounts/$accountId/dashboard'
+import { Route as AccountsAccountIdBucketsBucketIdSettingsRouteImport } from './routes/accounts/$accountId/buckets/$bucketId/settings'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -30,10 +32,21 @@ const AccountsAccountIdTransfersRoute =
     path: '/accounts/$accountId/transfers',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AccountsAccountIdSearchRoute = AccountsAccountIdSearchRouteImport.update({
+  id: '/accounts/$accountId/search',
+  path: '/accounts/$accountId/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountsAccountIdDashboardRoute =
   AccountsAccountIdDashboardRouteImport.update({
     id: '/accounts/$accountId/dashboard',
     path: '/accounts/$accountId/dashboard',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AccountsAccountIdBucketsBucketIdSettingsRoute =
+  AccountsAccountIdBucketsBucketIdSettingsRouteImport.update({
+    id: '/accounts/$accountId/buckets/$bucketId/settings',
+    path: '/accounts/$accountId/buckets/$bucketId/settings',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -42,12 +55,16 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
+  '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
+  '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
+  '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
+  '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -55,6 +72,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
+  '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
+  '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -63,18 +82,24 @@ export interface FileRouteTypes {
     | '/settings'
     | '/accounts/$accountId/dashboard'
     | '/accounts/$accountId/transfers'
+    | '/accounts/$accountId/search'
+    | '/accounts/$accountId/buckets/$bucketId/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/settings'
     | '/accounts/$accountId/dashboard'
     | '/accounts/$accountId/transfers'
+    | '/accounts/$accountId/search'
+    | '/accounts/$accountId/buckets/$bucketId/settings'
   id:
     | '__root__'
     | '/'
     | '/settings'
     | '/accounts/$accountId/dashboard'
     | '/accounts/$accountId/transfers'
+    | '/accounts/$accountId/search'
+    | '/accounts/$accountId/buckets/$bucketId/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -82,6 +107,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   AccountsAccountIdDashboardRoute: typeof AccountsAccountIdDashboardRoute
   AccountsAccountIdTransfersRoute: typeof AccountsAccountIdTransfersRoute
+  AccountsAccountIdSearchRoute: typeof AccountsAccountIdSearchRoute
+  AccountsAccountIdBucketsBucketIdSettingsRoute: typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -106,12 +133,26 @@ declare module '@tanstack/react-router' {
       fullPath: '/accounts/$accountId/transfers'
       preLoaderRoute: typeof AccountsAccountIdTransfersRouteImport
       parentRoute: typeof rootRouteImport
+    },
+    '/accounts/$accountId/search': {
+      id: '/accounts/$accountId/search'
+      path: '/accounts/$accountId/search'
+      fullPath: '/accounts/$accountId/search'
+      preLoaderRoute: typeof AccountsAccountIdSearchRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/accounts/$accountId/dashboard': {
       id: '/accounts/$accountId/dashboard'
       path: '/accounts/$accountId/dashboard'
       fullPath: '/accounts/$accountId/dashboard'
       preLoaderRoute: typeof AccountsAccountIdDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts/$accountId/buckets/$bucketId/settings': {
+      id: '/accounts/$accountId/buckets/$bucketId/settings'
+      path: '/accounts/$accountId/buckets/$bucketId/settings'
+      fullPath: '/accounts/$accountId/buckets/$bucketId/settings'
+      preLoaderRoute: typeof AccountsAccountIdBucketsBucketIdSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -122,6 +163,9 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   AccountsAccountIdDashboardRoute: AccountsAccountIdDashboardRoute,
   AccountsAccountIdTransfersRoute: AccountsAccountIdTransfersRoute,
+  AccountsAccountIdSearchRoute: AccountsAccountIdSearchRoute,
+  AccountsAccountIdBucketsBucketIdSettingsRoute:
+    AccountsAccountIdBucketsBucketIdSettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

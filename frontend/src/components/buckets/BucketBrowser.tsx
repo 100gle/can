@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Folder, FolderPlus, Loader2, RefreshCcw, Trash2 } from "lucide-react";
+import { Folder, FolderPlus, Loader2, RefreshCcw, Settings2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ export type BucketBrowserProps = {
   providerId?: string;
   capabilities?: ProviderCapability[];
   onSelectBucket?: (bucket: string | undefined) => void;
+  onOpenSettings?: (bucket: string) => void;
   className?: string;
 };
 
@@ -22,6 +23,7 @@ export function BucketBrowser({
   providerId,
   capabilities,
   onSelectBucket,
+  onOpenSettings,
   className,
 }: BucketBrowserProps) {
   const { buckets, loading, creating, deleting, error, selectedBucket } = useBucketsStore(
@@ -206,6 +208,17 @@ export function BucketBrowser({
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{formatDate(bucket.createdAt)}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenSettings?.(bucket.name);
+                    }}
+                    aria-label={`打开 ${bucket.name} 设置`}
+                  >
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

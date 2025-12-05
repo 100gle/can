@@ -1,0 +1,95 @@
+package config
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
+)
+
+// GetPolicy returns the bucket access policy if any.
+func (s *BucketConfigService) GetPolicy(ctx context.Context, accountID, bucket string) (*BucketPolicy, error) {
+	client, _, err := s.client(ctx, accountID, bucket)
+	if err != nil {
+		return nil, err
+	}
+	output, err := client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
+		Bucket: aws.String(strings.TrimSpace(bucket)),
+	})
+	if err != nil {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy" {
+			return &BucketPolicy{}, nil
+		}
+		return nil, fmt.Errorf("get bucket policy: %w", err)
+	}
+	raw := aws.ToString(output.Policy)
+	if strings.TrimSpace(raw) == "" {
+		return &BucketPolicy{}, nil
+	}
+	var decoded BucketPolicy
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		decoded = BucketPolicy{}
+	}
+	decoded.Raw = raw
+	return &decoded, nil
+}
+
+// SetPolicy replaces the bucket policy. Passing nil clears the policy.
+func (s *BucketConfigService) SetPolicy(ctx context.Context, accountID, bucket string, policy *BucketPolicy) error {
+	client, _, err := s.client(ctx, accountID, bucket)
+	if err != nil {
+		return err
+	}
+	if policy == nil || (strings.TrimSpace(policy.Raw) == "" && len(policy.Statement) == 0) {
+		return s.DeletePolicy(ctx, accountID, bucket)
+	}
+	payload := strings.TrimSpace(policy.Raw)
+	if payload == "" {
+		body := map[string]interface{}{
+			"Version":   policy.VersionOrDefault(),
+			"Statement": policy.Statement,
+		}
+		blob, marshalErr := json.Marshal(body)
+		if marshalErr != nil {
+			return fmt.Errorf("marshal policy: %w", marshalErr)
+		}
+		payload = string(blob)
+	}
+	_, err = client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+		Bucket: aws.String(strings.TrimSpace(bucket)),
+		Policy: aws.String(payload),
+	})
+	if err != nil {
+		return fmt.Errorf("put bucket policy: %w", err)
+	}
+	return nil
+}
+
+// DeletePolicy removes the bucket policy.
+func (s *BucketConfigService) DeletePolicy(ctx context.Context, accountID, bucket string) error {
+	client, _, err := s.client(ctx, accountID, bucket)
+	if err != nil {
+		return err
+	}
+	_, err = client.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
+		Bucket: aws.String(strings.TrimSpace(bucket)),
+	})
+	if err != nil {
+		return fmt.Errorf("delete bucket policy: %w", err)
+	}
+	return nil
+}
+
+// VersionOrDefault returns the policy version preferring AWS defaults.
+func (p *BucketPolicy) VersionOrDefault() string {
+	if strings.TrimSpace(p.Version) == "" {
+		return "2012-10-17"
+	}
+	return p.Version
+}

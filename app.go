@@ -13,8 +13,10 @@ import (
 
 	"can/internal/accounts"
 	"can/internal/buckets"
+	"can/internal/config"
 	"can/internal/objects"
 	"can/internal/providers"
+	"can/internal/search"
 	"can/internal/security"
 	"can/internal/transfer"
 	"can/internal/types"
@@ -27,6 +29,8 @@ type App struct {
 	buckets   *buckets.Service
 	objects   *objects.Service
 	transfers *transfer.Service
+	config    *config.BucketConfigService
+	search    *search.Service
 }
 
 // NewApp creates a new App application struct
@@ -40,8 +44,16 @@ func NewApp() *App {
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	bucketSvc := buckets.NewService(accountSvc, storageFactory)
 	transferSvc := transfer.NewService(accountSvc, storageFactory)
-	objectSvc := objects.NewService(accountSvc, storageFactory, transferSvc)
-	return &App{accounts: accountSvc, buckets: bucketSvc, objects: objectSvc, transfers: transferSvc}
+	objectSvc := objects.NewService(accountSvc, storageFactory)
+	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
+	searchSvc := search.NewService(accountSvc, storageFactory)
+	return &App{
+		accounts: accountSvc,
+		buckets:  bucketSvc,
+		objects:  objectSvc,
+		config:   configSvc,
+		search:   searchSvc,
+	}
 }
 
 // startup is called when the app starts. The context is saved
@@ -121,6 +133,96 @@ func (a *App) BucketLocation(accountID, name string) (string, error) {
 // HeadBucket checks whether a bucket exists.
 func (a *App) HeadBucket(accountID, name string) error {
 	return a.buckets.HeadBucket(a.ctx, accountID, name)
+}
+
+// GetBucketVersioning returns versioning status for a bucket.
+func (a *App) GetBucketVersioning(accountID, bucket string) (*config.BucketVersioning, error) {
+	return a.config.GetVersioning(a.ctx, accountID, bucket)
+}
+
+// EnableBucketVersioning enables versioning for a bucket.
+func (a *App) EnableBucketVersioning(accountID, bucket string) error {
+	return a.config.EnableVersioning(a.ctx, accountID, bucket)
+}
+
+// SuspendBucketVersioning suspends versioning for a bucket.
+func (a *App) SuspendBucketVersioning(accountID, bucket string) error {
+	return a.config.SuspendVersioning(a.ctx, accountID, bucket)
+}
+
+// GetBucketEncryption fetches the default encryption configuration.
+func (a *App) GetBucketEncryption(accountID, bucket string) (*config.BucketEncryption, error) {
+	return a.config.GetEncryption(a.ctx, accountID, bucket)
+}
+
+// SetBucketEncryption updates default encryption configuration.
+func (a *App) SetBucketEncryption(accountID, bucket string, encryption *config.BucketEncryption) error {
+	return a.config.SetEncryption(a.ctx, accountID, bucket, encryption)
+}
+
+// DeleteBucketEncryption clears default encryption settings.
+func (a *App) DeleteBucketEncryption(accountID, bucket string) error {
+	return a.config.DeleteEncryption(a.ctx, accountID, bucket)
+}
+
+// GetBucketLifecycle lists lifecycle rules.
+func (a *App) GetBucketLifecycle(accountID, bucket string) ([]*config.LifecycleRule, error) {
+	return a.config.GetLifecycle(a.ctx, accountID, bucket)
+}
+
+// SetBucketLifecycle replaces lifecycle rules.
+func (a *App) SetBucketLifecycle(accountID, bucket string, rules []*config.LifecycleRule) error {
+	return a.config.SetLifecycle(a.ctx, accountID, bucket, rules)
+}
+
+// DeleteBucketLifecycle removes lifecycle rules.
+func (a *App) DeleteBucketLifecycle(accountID, bucket string) error {
+	return a.config.DeleteLifecycle(a.ctx, accountID, bucket)
+}
+
+// GetBucketCORS returns CORS rules.
+func (a *App) GetBucketCORS(accountID, bucket string) (*config.BucketCORS, error) {
+	return a.config.GetCORS(a.ctx, accountID, bucket)
+}
+
+// SetBucketCORS upserts CORS rules.
+func (a *App) SetBucketCORS(accountID, bucket string, cors *config.BucketCORS) error {
+	return a.config.SetCORS(a.ctx, accountID, bucket, cors)
+}
+
+// DeleteBucketCORS removes all CORS rules.
+func (a *App) DeleteBucketCORS(accountID, bucket string) error {
+	return a.config.DeleteCORS(a.ctx, accountID, bucket)
+}
+
+// GetBucketWebsite returns static website configuration.
+func (a *App) GetBucketWebsite(accountID, bucket string) (*config.BucketWebsite, error) {
+	return a.config.GetWebsite(a.ctx, accountID, bucket)
+}
+
+// SetBucketWebsite updates static website configuration.
+func (a *App) SetBucketWebsite(accountID, bucket string, website *config.BucketWebsite) error {
+	return a.config.SetWebsite(a.ctx, accountID, bucket, website)
+}
+
+// DeleteBucketWebsite removes the static website configuration.
+func (a *App) DeleteBucketWebsite(accountID, bucket string) error {
+	return a.config.DeleteWebsite(a.ctx, accountID, bucket)
+}
+
+// GetBucketPolicy returns the bucket policy.
+func (a *App) GetBucketPolicy(accountID, bucket string) (*config.BucketPolicy, error) {
+	return a.config.GetPolicy(a.ctx, accountID, bucket)
+}
+
+// SetBucketPolicy upserts the policy document.
+func (a *App) SetBucketPolicy(accountID, bucket string, policy *config.BucketPolicy) error {
+	return a.config.SetPolicy(a.ctx, accountID, bucket, policy)
+}
+
+// DeleteBucketPolicy removes the policy document.
+func (a *App) DeleteBucketPolicy(accountID, bucket string) error {
+	return a.config.DeletePolicy(a.ctx, accountID, bucket)
 }
 
 // ListObjects enumerates objects under the given prefix.
@@ -212,6 +314,14 @@ func (a *App) PauseTransferTask(taskID string) error {
 // ResumeTransferTask marks a paused transfer as running again.
 func (a *App) ResumeTransferTask(taskID string) error {
 	return a.transfers.ResumeTask(a.ctx, taskID)
+// SearchObjects performs bucket-wide search with filters.
+func (a *App) SearchObjects(accountID string, query *search.SearchQuery) (*search.SearchResponse, error) {
+	return a.search.SearchObjects(a.ctx, accountID, query)
+}
+
+// ExportSearchResults exports search outcomes into csv/json formats.
+func (a *App) ExportSearchResults(accountID string, query *search.SearchQuery, format string) ([]byte, error) {
+	return a.search.ExportSearchResults(a.ctx, accountID, query, format)
 }
 
 // ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.
