@@ -68,6 +68,11 @@ type ObjectDriver interface {
 	DeleteObject(ctx context.Context, bucket, key string) error
 	CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error
 	HeadObject(ctx context.Context, bucket, key string) (ObjectDescriptor, error)
+	PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error)
+	InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error)
+	UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error)
+	CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error
+	AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error
 }
 
 // StorageClient bundles bucket/object drivers plus capability metadata.

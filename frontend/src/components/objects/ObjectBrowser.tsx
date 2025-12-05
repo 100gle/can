@@ -1,11 +1,22 @@
-import { useEffect, useMemo } from "react";
-import { ArrowLeft, DownloadCloud, Loader2, RefreshCcw, UploadCloud } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  DownloadCloud,
+  FolderPlus,
+  Link2,
+  Loader2,
+  RefreshCcw,
+  UploadCloud,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { openFileDialog, saveFileDialog } from "@/lib/bridge";
+import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
+import { PresignedURLDialog } from "@/components/transfer/PresignedURLDialog";
+import { transfersStore } from "@/state/transfers";
 import { objectsStore, useObjectsStore } from "@/state/objects";
+import { GetPresignedDownloadURL } from "../../../wailsjs/go/main/App";
 
 export type ObjectBrowserProps = {
   accountId?: string;
@@ -16,12 +27,31 @@ export type ObjectBrowserProps = {
 export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserProps) {
   const { objects, loading, loadingMore, uploading, error, prefix, truncated, pendingKeys } =
     useObjectsStore((state) => state);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [dialogState, setDialogState] = useState<{
+    open: boolean;
+    mode: "download" | "upload";
+    key?: string;
+  }>({
+    open: false,
+    mode: "download",
+  });
+  const [copyingKey, setCopyingKey] = useState<string>();
 
   useEffect(() => {
     void objectsStore.setContext(accountId, bucket);
   }, [accountId, bucket]);
 
+  useEffect(() => {
+    if (folderInputRef.current) {
+      folderInputRef.current.setAttribute("webkitdirectory", "true");
+    }
+  }, []);
+
   const breadcrumbs = useMemo(() => buildBreadcrumbs(prefix), [prefix]);
+  const canUpload = Boolean(accountId && bucket);
 
   const handleEnterDir = (key: string) => {
     void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
@@ -31,20 +61,71 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
     void objectsStore.goUp();
   };
 
-  const handleUpload = async () => {
-    const filePath = await openFileDialog({ Title: "选择上传文件" });
-    if (!filePath) return;
-    const fileName = filePath.split(/[/\\]/).pop() ?? `object-${Date.now()}`;
-    const base = prefix ? (prefix.endsWith("/") ? prefix : `${prefix}/`) : "";
-    const defaultKey = `${base}${fileName}`;
-    const key = window.prompt?.("确认对象 Key", defaultKey) || defaultKey;
-    if (!key) return;
+  const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { files } = event.target;
+    if (!files?.length) return;
+    if (!accountId || !bucket) {
+      window.alert?.("请选择账户与 Bucket 后再上传文件");
+      return;
+    }
+    await transfersStore.uploadFiles(Array.from(files), { accountId, bucket, prefix });
+    event.target.value = "";
+  };
+
+  const handleFoldersSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { files } = event.target;
+    if (!files?.length) return;
+    if (!accountId || !bucket) return;
+    await transfersStore.uploadFiles(Array.from(files), { accountId, bucket, prefix });
+    event.target.value = "";
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!bucket || !accountId) return;
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!bucket || !accountId) {
+      setDragActive(false);
+      return;
+    }
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length) {
+      void transfersStore.uploadFiles(files, { accountId, bucket, prefix });
+    }
+    setDragActive(false);
+  };
+
+  const handleCopyLink = async (objectKey: string) => {
+    if (!accountId || !bucket) return;
+    setCopyingKey(objectKey);
     try {
-      await objectsStore.uploadFromPath(filePath, key);
+      const url = await GetPresignedDownloadURL(accountId, bucket, objectKey, 60);
+      await navigator.clipboard.writeText(url);
     } catch (error) {
       console.error(error);
+      window.alert?.("复制失败，请稍后重试");
+    } finally {
+      setCopyingKey(undefined);
     }
   };
+
+  const openPresignDialog = (mode: "download" | "upload", key: string) => {
+    setDialogState({ open: true, mode, key });
+  };
+
+  const closeDialog = () => setDialogState((current) => ({ ...current, open: false }));
 
   const handleDownload = async (objectKey: string) => {
     const defaultName = objectKey.split("/").filter(Boolean).pop() || "object";
@@ -69,6 +150,20 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
 
   return (
     <Card className={cn("flex h-full flex-col", className)}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        multiple
+        onChange={handleFilesSelected}
+      />
+      <input
+        ref={folderInputRef}
+        type="file"
+        className="hidden"
+        multiple
+        onChange={handleFoldersSelected}
+      />
       <div className="flex flex-col gap-3 border-b border-border/40 p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -96,15 +191,25 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
               variant="secondary"
               size="sm"
               className="gap-1"
-              onClick={handleUpload}
-              disabled={!bucket || uploading}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!canUpload || uploading}
             >
               {uploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <UploadCloud className="h-4 w-4" />
               )}
-              上传
+              上传文件
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1"
+              onClick={() => folderInputRef.current?.click()}
+              disabled={!canUpload || uploading}
+            >
+              <FolderPlus className="h-4 w-4" />
+              上传文件夹
             </Button>
           </div>
         </div>
@@ -136,7 +241,20 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
         </nav>
       </div>
       {error ? <p className="px-4 pt-2 text-sm text-destructive">{error}</p> : null}
-      <div className="flex-1 overflow-x-auto p-4">
+      <div
+        className="relative flex-1 overflow-x-auto p-4"
+        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragActive ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-background/80 text-center text-primary">
+            <UploadCloud className="h-8 w-8" />
+            <p className="mt-2 text-sm font-semibold">释放以上传文件</p>
+            <p className="text-xs text-muted-foreground">支持多文件与目录拖拽</p>
+          </div>
+        ) : null}
         {!bucket ? (
           <p className="text-sm text-muted-foreground">请选择 Bucket 以查看对象。</p>
         ) : loading && objects.length === 0 ? (
@@ -192,6 +310,29 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
                           下载
                         </Button>
                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => handleCopyLink(object.key)}
+                          disabled={!canUpload || copyingKey === object.key}
+                        >
+                          {copyingKey === object.key ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Link2 className="h-4 w-4" />
+                          )}
+                          复制链接
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => openPresignDialog("download", object.key)}
+                          disabled={!canUpload}
+                        >
+                          分享
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="sm"
                           className="gap-1 text-destructive"
@@ -225,6 +366,14 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
           </Button>
         </div>
       ) : null}
+      <PresignedURLDialog
+        open={dialogState.open}
+        mode={dialogState.mode}
+        accountId={accountId}
+        bucket={bucket}
+        objectKey={dialogState.key}
+        onClose={closeDialog}
+      />
     </Card>
   );
 }

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
 import { Route as AccountsAccountIdDashboardRouteImport } from './routes/accounts/$accountId/dashboard'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -23,6 +24,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountsAccountIdTransfersRoute =
+  AccountsAccountIdTransfersRouteImport.update({
+    id: '/accounts/$accountId/transfers',
+    path: '/accounts/$accountId/transfers',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AccountsAccountIdDashboardRoute =
   AccountsAccountIdDashboardRouteImport.update({
     id: '/accounts/$accountId/dashboard',
@@ -34,30 +41,47 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
+  '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
+  '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
+  '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings' | '/accounts/$accountId/dashboard'
+  fullPaths:
+    | '/'
+    | '/settings'
+    | '/accounts/$accountId/dashboard'
+    | '/accounts/$accountId/transfers'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings' | '/accounts/$accountId/dashboard'
-  id: '__root__' | '/' | '/settings' | '/accounts/$accountId/dashboard'
+  to:
+    | '/'
+    | '/settings'
+    | '/accounts/$accountId/dashboard'
+    | '/accounts/$accountId/transfers'
+  id:
+    | '__root__'
+    | '/'
+    | '/settings'
+    | '/accounts/$accountId/dashboard'
+    | '/accounts/$accountId/transfers'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
   AccountsAccountIdDashboardRoute: typeof AccountsAccountIdDashboardRoute
+  AccountsAccountIdTransfersRoute: typeof AccountsAccountIdTransfersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -76,6 +100,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounts/$accountId/transfers': {
+      id: '/accounts/$accountId/transfers'
+      path: '/accounts/$accountId/transfers'
+      fullPath: '/accounts/$accountId/transfers'
+      preLoaderRoute: typeof AccountsAccountIdTransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/accounts/$accountId/dashboard': {
       id: '/accounts/$accountId/dashboard'
       path: '/accounts/$accountId/dashboard'
@@ -90,6 +121,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
   AccountsAccountIdDashboardRoute: AccountsAccountIdDashboardRoute,
+  AccountsAccountIdTransfersRoute: AccountsAccountIdTransfersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

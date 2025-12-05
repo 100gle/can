@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -360,6 +361,108 @@ func (d *cosObjectDriver) HeadObject(ctx context.Context, bucket, key string) (O
 		IsDir:        false,
 	}
 	return info, nil
+}
+
+func (d *cosObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
+	client, err := d.clientFor(bucket)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	if expiration <= 0 {
+		expiration = time.Hour
+	}
+	if expiration > 7*24*time.Hour {
+		expiration = 7 * 24 * time.Hour
+	}
+	if strings.TrimSpace(method) == "" {
+		method = http.MethodGet
+	}
+	u, err := client.Object.GetPresignedURL2(ctx, strings.ToUpper(method), key, expiration, nil)
+	if err != nil {
+		return "", wrapCOSError("生成预签名链接", err)
+	}
+	return u.String(), nil
+}
+
+func (d *cosObjectDriver) InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error) {
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	client, err := d.clientFor(bucket)
+	if err != nil {
+		return "", err
+	}
+	result, _, err := client.Object.InitiateMultipartUpload(ctx, key, nil)
+	if err != nil {
+		return "", wrapCOSError("初始化分片上传", err)
+	}
+	return result.UploadID, nil
+}
+
+func (d *cosObjectDriver) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error) {
+	if strings.TrimSpace(key) == "" {
+		return "", errors.New("object key is required")
+	}
+	if strings.TrimSpace(uploadID) == "" {
+		return "", errors.New("upload id is required")
+	}
+	if partNumber <= 0 {
+		return "", errors.New("part number must be greater than zero")
+	}
+	client, err := d.clientFor(bucket)
+	if err != nil {
+		return "", err
+	}
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		return "", fmt.Errorf("读取分片数据失败: %w", err)
+	}
+	resp, err := client.Object.UploadPart(ctx, key, uploadID, partNumber, bytes.NewReader(raw), nil)
+	if err != nil {
+		return "", wrapCOSError("上传分片", err)
+	}
+	return strings.Trim(resp.Header.Get("Etag"), `"`), nil
+}
+
+func (d *cosObjectDriver) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error {
+	if len(parts) == 0 {
+		return errors.New("at least one part is required")
+	}
+	client, err := d.clientFor(bucket)
+	if err != nil {
+		return err
+	}
+	index := make([]int, 0, len(parts))
+	for part := range parts {
+		index = append(index, part)
+	}
+	sort.Ints(index)
+	opt := &cos.CompleteMultipartUploadOptions{}
+	for _, part := range index {
+		opt.Parts = append(opt.Parts, cos.Object{
+			PartNumber: part,
+			ETag:       parts[part],
+		})
+	}
+	_, _, err = client.Object.CompleteMultipartUpload(ctx, key, uploadID, opt)
+	if err != nil {
+		return wrapCOSError("完成分片上传", err)
+	}
+	return nil
+}
+
+func (d *cosObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
+	client, err := d.clientFor(bucket)
+	if err != nil {
+		return err
+	}
+	if _, err := client.Object.AbortMultipartUpload(ctx, key, uploadID); err != nil {
+		return wrapCOSError("取消分片上传", err)
+	}
+	return nil
 }
 
 func buildCOSBucketURL(bucket string, serviceURL *url.URL) (*url.URL, error) {

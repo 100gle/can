@@ -3,11 +3,18 @@
 import {accounts} from '../models';
 import {objects} from '../models';
 import {buckets} from '../models';
+import {transfer} from '../models';
 import {types} from '../models';
+
+export function AbortMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function ActiveAccount():Promise<accounts.Account>;
 
 export function BucketLocation(arg1:string,arg2:string):Promise<string>;
+
+export function CancelTransferTask(arg1:string):Promise<void>;
+
+export function CompleteMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string,arg5:Record<number, string>):Promise<void>;
 
 export function CopyObject(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
 
@@ -25,6 +32,10 @@ export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):
 
 export function ExportAccounts():Promise<accounts.ExportSummary>;
 
+export function GetPresignedDownloadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
+
+export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function HeadBucket(arg1:string,arg2:string):Promise<void>;
@@ -33,13 +44,21 @@ export function HeadObject(arg1:string,arg2:string,arg3:string):Promise<objects.
 
 export function ImportAccounts():Promise<accounts.ImportSummary>;
 
+export function InitiateMultipartUpload(arg1:string,arg2:string,arg3:string):Promise<string>;
+
 export function ListAccounts():Promise<Array<accounts.Account>>;
 
 export function ListBuckets(arg1:string):Promise<Array<buckets.BucketInfo>>;
 
 export function ListObjects(arg1:string,arg2:objects.ListObjectsInput):Promise<objects.ListObjectsResult>;
 
+export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
+
+export function PauseTransferTask(arg1:string):Promise<void>;
+
 export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
+
+export function ResumeTransferTask(arg1:string):Promise<void>;
 
 export function SetActiveAccount(arg1:string):Promise<accounts.Account>;
 
@@ -50,3 +69,5 @@ export function TestAccountConnection(arg1:string):Promise<accounts.ConnectionTe
 export function UpdateAccount(arg1:string,arg2:accounts.UpdateAccountInput):Promise<accounts.Account>;
 
 export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function UploadPart(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number,arg6:Array<number>):Promise<string>;

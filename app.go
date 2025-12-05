@@ -16,15 +16,17 @@ import (
 	"can/internal/objects"
 	"can/internal/providers"
 	"can/internal/security"
+	"can/internal/transfer"
 	"can/internal/types"
 )
 
 // App struct
 type App struct {
-	ctx      context.Context
-	accounts *accounts.Service
-	buckets  *buckets.Service
-	objects  *objects.Service
+	ctx       context.Context
+	accounts  *accounts.Service
+	buckets   *buckets.Service
+	objects   *objects.Service
+	transfers *transfer.Service
 }
 
 // NewApp creates a new App application struct
@@ -37,8 +39,9 @@ func NewApp() *App {
 	sessionStore := initSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	bucketSvc := buckets.NewService(accountSvc, storageFactory)
-	objectSvc := objects.NewService(accountSvc, storageFactory)
-	return &App{accounts: accountSvc, buckets: bucketSvc, objects: objectSvc}
+	transferSvc := transfer.NewService(accountSvc, storageFactory)
+	objectSvc := objects.NewService(accountSvc, storageFactory, transferSvc)
+	return &App{accounts: accountSvc, buckets: bucketSvc, objects: objectSvc, transfers: transferSvc}
 }
 
 // startup is called when the app starts. The context is saved
@@ -153,6 +156,62 @@ func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
 // HeadObject fetches metadata for a specific key.
 func (a *App) HeadObject(accountID, bucket, key string) (objects.ObjectInfo, error) {
 	return a.objects.HeadObject(a.ctx, accountID, bucket, key)
+}
+
+// GetPresignedDownloadURL returns a GET URL valid for the requested duration in minutes.
+func (a *App) GetPresignedDownloadURL(accountID, bucket, key string, expirationMinutes int64) (string, error) {
+	if expirationMinutes <= 0 {
+		expirationMinutes = 60
+	}
+	return a.objects.GetPresignedURL(a.ctx, accountID, bucket, key, expirationMinutes*60, "GET")
+}
+
+// GetPresignedUploadURL returns a PUT URL for direct uploads.
+func (a *App) GetPresignedUploadURL(accountID, bucket, key string, expirationMinutes int64) (string, error) {
+	if expirationMinutes <= 0 {
+		expirationMinutes = 60
+	}
+	return a.objects.GetPresignedURL(a.ctx, accountID, bucket, key, expirationMinutes*60, "PUT")
+}
+
+// InitiateMultipartUpload creates a multipart upload session.
+func (a *App) InitiateMultipartUpload(accountID, bucket, key string) (string, error) {
+	return a.objects.InitiateMultipartUpload(a.ctx, accountID, bucket, key)
+}
+
+// UploadPart uploads a single chunk to an existing multipart session.
+func (a *App) UploadPart(accountID, bucket, key, uploadID string, partNumber int, data []byte) (string, error) {
+	return a.objects.UploadPart(a.ctx, accountID, bucket, key, uploadID, partNumber, data)
+}
+
+// CompleteMultipartUpload finalises all parts for a key.
+func (a *App) CompleteMultipartUpload(accountID, bucket, key, uploadID string, parts map[int]string) error {
+	return a.objects.CompleteMultipartUpload(a.ctx, accountID, bucket, key, uploadID, parts)
+}
+
+// AbortMultipartUpload cancels an in-flight multipart upload.
+func (a *App) AbortMultipartUpload(accountID, bucket, key, uploadID string) error {
+	return a.objects.AbortMultipartUpload(a.ctx, accountID, bucket, key, uploadID)
+}
+
+// ListTransferTasks returns current transfer queue snapshot.
+func (a *App) ListTransferTasks() ([]*transfer.TransferTask, error) {
+	return a.transfers.ListTasks(a.ctx)
+}
+
+// CancelTransferTask stops an in-progress transfer.
+func (a *App) CancelTransferTask(taskID string) error {
+	return a.transfers.CancelTask(a.ctx, taskID)
+}
+
+// PauseTransferTask requests the transfer to pause.
+func (a *App) PauseTransferTask(taskID string) error {
+	return a.transfers.PauseTask(a.ctx, taskID)
+}
+
+// ResumeTransferTask marks a paused transfer as running again.
+func (a *App) ResumeTransferTask(taskID string) error {
+	return a.transfers.ResumeTask(a.ctx, taskID)
 }
 
 // ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.
