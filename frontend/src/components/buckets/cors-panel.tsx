@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 
 type EditableCORSRule = {
@@ -88,60 +91,56 @@ export const CORSPanel = () => {
       </header>
       <div className="space-y-4">
         {rules.map((rule, index) => (
-          <div key={index} className="space-y-3 rounded-lg border border-border/50 p-4">
+          <div key={index} className="space-y-4 rounded-lg border border-border/50 p-4">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-sm">规则 #{index + 1}</p>
+              <p className="text-sm font-semibold">规则 #{index + 1}</p>
               <Button variant="ghost" size="icon" onClick={() => handleDelete(index)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm font-medium">
-                允许域名
-                <textarea
-                  className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label>允许域名</Label>
+                <Textarea
                   rows={2}
                   value={rule.allowedOrigins}
                   onChange={(event) => updateRule(index, "allowedOrigins", event.target.value)}
                   placeholder="https://example.com, https://*.domain.com"
                 />
-              </label>
-              <label className="text-sm font-medium">
-                允许方法
-                <input
-                  className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+              </div>
+              <div className="space-y-2">
+                <Label>允许方法</Label>
+                <Input
                   value={rule.allowedMethods}
                   onChange={(event) => updateRule(index, "allowedMethods", event.target.value)}
                   placeholder="GET, PUT, POST"
                 />
-              </label>
-              <label className="text-sm font-medium">
-                允许头
-                <input
-                  className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+              </div>
+              <div className="space-y-2">
+                <Label>允许头</Label>
+                <Input
                   value={rule.allowedHeaders}
                   onChange={(event) => updateRule(index, "allowedHeaders", event.target.value)}
                   placeholder="Authorization, Content-Type"
                 />
-              </label>
-              <label className="text-sm font-medium">
-                暴露头
-                <input
-                  className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+              </div>
+              <div className="space-y-2">
+                <Label>暴露头</Label>
+                <Input
                   value={rule.exposeHeaders}
                   onChange={(event) => updateRule(index, "exposeHeaders", event.target.value)}
                   placeholder="ETag, x-amz-meta-*"
                 />
-              </label>
-              <label className="text-sm font-medium">
-                Max-Age (秒)
-                <input
+              </div>
+              <div className="space-y-2">
+                <Label>Max-Age (秒)</Label>
+                <Input
                   type="number"
-                  className="mt-1 w-full rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+                  min={0}
                   value={rule.maxAgeSeconds}
                   onChange={(event) => updateRule(index, "maxAgeSeconds", event.target.value)}
                 />
-              </label>
+              </div>
             </div>
           </div>
         ))}

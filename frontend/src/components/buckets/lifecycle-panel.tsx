@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 
 type EditableRule = {
@@ -74,72 +83,71 @@ export const LifecyclePanel = () => {
       </header>
       <div className="space-y-4">
         {rules.map((rule, index) => (
-          <div key={rule.id} className="space-y-3 rounded-lg border border-border/50 p-4">
+          <div key={rule.id} className="space-y-4 rounded-lg border border-border/50 p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">规则 #{index + 1}</p>
               <Button variant="ghost" size="icon" onClick={() => handleDelete(index)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="flex flex-col text-sm font-medium">
-                规则 ID
-                <input
-                  className="mt-1 rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>规则 ID</Label>
+                <Input
                   value={rule.id}
                   onChange={(event) => updateRule(index, "id", event.target.value)}
                 />
-              </label>
-              <label className="flex flex-col text-sm font-medium">
-                前缀匹配
-                <input
-                  className="mt-1 rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+              </div>
+              <div className="space-y-2">
+                <Label>前缀匹配</Label>
+                <Input
                   placeholder="logs/ 或留空"
                   value={rule.prefix}
                   onChange={(event) => updateRule(index, "prefix", event.target.value)}
                 />
-              </label>
-              <label className="flex flex-col text-sm font-medium">
-                过期天数
-                <input
+              </div>
+              <div className="space-y-2">
+                <Label>过期天数</Label>
+                <Input
                   type="number"
                   min={0}
-                  className="mt-1 rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
                   value={rule.expirationDays}
                   onChange={(event) => updateRule(index, "expirationDays", event.target.value)}
                 />
-              </label>
-              <label className="flex flex-col text-sm font-medium">
-                转换为低频（天）
-                <input
+              </div>
+              <div className="space-y-2">
+                <Label>转换为低频（天）</Label>
+                <Input
                   type="number"
                   min={0}
-                  className="mt-1 rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
                   value={rule.transitionDays}
                   onChange={(event) => updateRule(index, "transitionDays", event.target.value)}
                 />
-              </label>
-              <label className="flex flex-col text-sm font-medium">
-                非当前版本保留天数
-                <input
+              </div>
+              <div className="space-y-2">
+                <Label>非当前版本保留天数</Label>
+                <Input
                   type="number"
                   min={0}
-                  className="mt-1 rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
                   value={rule.noncurrentDays}
                   onChange={(event) => updateRule(index, "noncurrentDays", event.target.value)}
                 />
-              </label>
-              <label className="flex flex-col text-sm font-medium">
-                状态
-                <select
-                  className="mt-1 rounded-md border border-border/50 bg-background px-3 py-2 text-sm"
+              </div>
+              <div className="space-y-2">
+                <Label>状态</Label>
+                <Select
                   value={rule.status}
-                  onChange={(event) => updateRule(index, "status", event.target.value)}
+                  onValueChange={(value) => updateRule(index, "status", value)}
                 >
-                  <option value="Enabled">启用</option>
-                  <option value="Disabled">禁用</option>
-                </select>
-              </label>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Enabled">启用</SelectItem>
+                    <SelectItem value="Disabled">禁用</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         ))}

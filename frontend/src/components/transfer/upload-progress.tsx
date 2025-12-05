@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Pause, Play, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { useTransfersStore, transfersStore } from "@/state/transfers";
 
 const activeStatuses = new Set<TaskStatus>(["pending", "running", "paused"]);
@@ -59,11 +60,8 @@ export const UploadProgress = () => {
           </Button>
         </div>
       </div>
-      <div className="mt-4 h-2 rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-primary transition-all"
-          style={{ width: `${percent}%` }}
-        />
+      <div className="mt-4">
+        <Progress value={percent} />
       </div>
       <div className="mt-4 space-y-3">
         {topTasks.map((task) => {
@@ -109,11 +107,8 @@ export const UploadProgress = () => {
                   </Button>
                 </div>
               </div>
-              <div className="mt-2 h-1.5 rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${taskPercent}%` }}
-                />
+              <div className="mt-2">
+                <Progress value={taskPercent} className="h-1.5" />
               </div>
               <div className="mt-1 flex justify-between text-xs text-muted-foreground">
                 <span>
