@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   DownloadCloud,
@@ -6,25 +5,28 @@ import {
   Link2,
   Loader2,
   RefreshCcw,
+  Search,
   UploadCloud,
 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { PresignedURLDialog } from "@/components/transfer/PresignedURLDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
-import { PresignedURLDialog } from "@/components/transfer/PresignedURLDialog";
-import { transfersStore } from "@/state/transfers";
 import { objectsStore, useObjectsStore } from "@/state/objects";
+import { transfersStore } from "@/state/transfers";
 import { GetPresignedDownloadURL } from "../../../wailsjs/go/main/App";
 
 export type ObjectBrowserProps = {
   accountId?: string;
   bucket?: string;
+  onOpenSearch?: () => void;
   className?: string;
 };
 
-export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserProps) {
+export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: ObjectBrowserProps) {
   const { objects, loading, loadingMore, uploading, error, prefix, truncated, pendingKeys } =
     useObjectsStore((state) => state);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -186,6 +188,16 @@ export function ObjectBrowser({ accountId, bucket, className }: ObjectBrowserPro
                 <RefreshCcw className="h-4 w-4" />
               )}
               刷新
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => onOpenSearch?.()}
+              disabled={!accountId}
+            >
+              <Search className="h-4 w-4" />
+              搜索
             </Button>
             <Button
               variant="secondary"

@@ -2,7 +2,7 @@ package providers
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"can/internal/types"
 )
@@ -30,5 +30,5 @@ func (f *storageFactory) NewClient(ctx context.Context, creds ConnectionCredenti
 	}
 }
 
-// errUnsupportedCapability helps drivers communicate unsupported operations.
-var errUnsupportedCapability = fmt.Errorf("feature not supported for this provider")
+// ErrUnsupportedCapability helps drivers communicate unsupported operations.
+var ErrUnsupportedCapability = errors.New("feature not supported for this provider")

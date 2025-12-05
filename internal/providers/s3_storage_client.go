@@ -198,6 +198,7 @@ func (d *s3ObjectDriver) ListObjects(ctx context.Context, input ListObjectsInput
 			LastModified: aws.ToTime(obj.LastModified),
 			ETag:         strings.Trim(aws.ToString(obj.ETag), `"`),
 			ContentType:  "",
+			StorageClass: string(obj.StorageClass),
 			IsDir:        false,
 		})
 	}
@@ -314,6 +315,7 @@ func (d *s3ObjectDriver) HeadObject(ctx context.Context, bucket, key string) (Ob
 		LastModified: aws.ToTime(out.LastModified),
 		ETag:         strings.Trim(aws.ToString(out.ETag), `"`),
 		ContentType:  aws.ToString(out.ContentType),
+		StorageClass: string(out.StorageClass),
 		IsDir:        false,
 	}
 	return info, nil
@@ -373,6 +375,14 @@ func (d *s3ObjectDriver) InitiateMultipartUpload(ctx context.Context, bucket, ke
 		return "", errors.New("object key is required")
 	}
 	out, err := d.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+func (d *s3ObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error) {
+	if strings.TrimSpace(bucket) == "" {
+		return nil, errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return nil, errors.New("object key is required")
+	}
+	out, err := d.client.GetObjectTagging(ctx, &s3.GetObjectTaggingInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
@@ -470,6 +480,13 @@ func (d *s3ObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, 
 		return WrapS3Error("取消分片上传", err)
 	}
 	return nil
+		return nil, WrapS3Error("获取对象标签", err)
+	}
+	result := make(map[string]string, len(out.TagSet))
+	for _, tag := range out.TagSet {
+		result[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+	}
+	return result, nil
 }
 
 func shouldIncludeLocationConstraint(provider types.Provider, region string) bool {

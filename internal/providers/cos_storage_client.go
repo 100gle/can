@@ -247,6 +247,7 @@ func (d *cosObjectDriver) ListObjects(ctx context.Context, input ListObjectsInpu
 			LastModified: parseCOSTime(obj.LastModified),
 			ETag:         strings.Trim(obj.ETag, `"`),
 			ContentType:  "",
+			StorageClass: obj.StorageClass,
 			IsDir:        false,
 		})
 	}
@@ -358,6 +359,7 @@ func (d *cosObjectDriver) HeadObject(ctx context.Context, bucket, key string) (O
 		LastModified: parseCOSTime(resp.Header.Get("Last-Modified")),
 		ETag:         strings.Trim(resp.Header.Get("Etag"), `"`),
 		ContentType:  resp.Header.Get("Content-Type"),
+		StorageClass: resp.Header.Get("x-cos-storage-class"),
 		IsDir:        false,
 	}
 	return info, nil
@@ -463,6 +465,8 @@ func (d *cosObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key,
 		return wrapCOSError("取消分片上传", err)
 	}
 	return nil
+func (d *cosObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error) {
+	return nil, ErrUnsupportedCapability
 }
 
 func buildCOSBucketURL(bucket string, serviceURL *url.URL) (*url.URL, error) {

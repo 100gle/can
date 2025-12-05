@@ -145,6 +145,23 @@ export default function DashboardPage() {
     navigate({ to: "/settings" });
   };
 
+  const handleOpenBucketSettings = (bucketName: string) => {
+    if (!activeAccount) return;
+    navigate({
+      to: "/accounts/$accountId/buckets/$bucketId/settings",
+      params: { accountId: activeAccount.id, bucketId: bucketName },
+    });
+  };
+
+  const handleOpenSearch = () => {
+    if (!activeAccount) return;
+    navigate({
+      to: "/accounts/$accountId/search",
+      params: { accountId: activeAccount.id },
+      search: { bucket: selectedBucket },
+    });
+  };
+
   const sidebar = (
     <Sidebar onCreateAccount={() => openDrawer("create")} onOpenSettings={handleOpenSettings} />
   );
@@ -303,11 +320,13 @@ export default function DashboardPage() {
             accountId={activeAccount.id}
             providerId={activeAccount.provider}
             capabilities={activeCapabilities}
+            onOpenSettings={handleOpenBucketSettings}
             className="lg:col-span-1"
           />
           <ObjectBrowser
             accountId={activeAccount.id}
             bucket={selectedBucket}
+            onOpenSearch={handleOpenSearch}
             className="lg:col-span-2"
           />
         </section>

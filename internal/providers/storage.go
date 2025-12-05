@@ -24,6 +24,7 @@ type ObjectDescriptor struct {
 	LastModified time.Time `json:"lastModified"`
 	ETag         string    `json:"etag"`
 	ContentType  string    `json:"contentType"`
+	StorageClass string    `json:"storageClass"`
 	IsDir        bool      `json:"isDir"`
 }
 
@@ -73,6 +74,7 @@ type ObjectDriver interface {
 	UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error)
 	CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error
 	AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error
+	GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error)
 }
 
 // StorageClient bundles bucket/object drivers plus capability metadata.
