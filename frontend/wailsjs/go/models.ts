@@ -3,6 +3,7 @@ export namespace accounts {
 	export class Account {
 	    id: string;
 	    name: string;
+	    tag: string;
 	    provider: string;
 	    providerLabel: string;
 	    endpoint: string;
@@ -22,6 +23,7 @@ export namespace accounts {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
+	        this.tag = source["tag"];
 	        this.provider = source["provider"];
 	        this.providerLabel = source["providerLabel"];
 	        this.endpoint = source["endpoint"];
@@ -56,6 +58,7 @@ export namespace accounts {
 	}
 	export class CreateAccountInput {
 	    name: string;
+	    tag: string;
 	    provider: string;
 	    endpoint: string;
 	    accessKeyId: string;
@@ -71,6 +74,7 @@ export namespace accounts {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
+	        this.tag = source["tag"];
 	        this.provider = source["provider"];
 	        this.endpoint = source["endpoint"];
 	        this.accessKeyId = source["accessKeyId"];
@@ -127,6 +131,7 @@ export namespace accounts {
 	export class UpdateAccountInput {
 	    provider?: string;
 	    name?: string;
+	    tag?: string;
 	    endpoint?: string;
 	    accessKeyId?: string;
 	    secretAccessKey?: string;
@@ -142,6 +147,7 @@ export namespace accounts {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.provider = source["provider"];
 	        this.name = source["name"];
+	        this.tag = source["tag"];
 	        this.endpoint = source["endpoint"];
 	        this.accessKeyId = source["accessKeyId"];
 	        this.secretAccessKey = source["secretAccessKey"];

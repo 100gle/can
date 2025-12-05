@@ -19,6 +19,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Account A",
+		Tag:             "primary",
 		Provider:        types.ProviderAWS,
 		Endpoint:        "https://s3.amazonaws.com",
 		AccessKeyID:     "AKIA-A",
@@ -31,6 +32,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 	}
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Account B",
+		Tag:             "backup",
 		Provider:        types.ProviderOSS,
 		Endpoint:        "https://oss-cn-hangzhou.aliyuncs.com",
 		AccessKeyID:     "LTAI-B",
@@ -69,6 +71,16 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 	if len(accounts) != 2 {
 		t.Fatalf("expected 2 accounts after import, got %d", len(accounts))
 	}
+	expectedTags := map[string]string{"Account A": "primary", "Account B": "backup"}
+	for _, account := range accounts {
+		expectedTag, ok := expectedTags[account.Name]
+		if !ok {
+			t.Fatalf("unexpected account imported: %s", account.Name)
+		}
+		if account.Tag != expectedTag {
+			t.Fatalf("account %s expected tag %s, got %s", account.Name, expectedTag, account.Tag)
+		}
+	}
 }
 
 func TestImportSkipsDuplicates(t *testing.T) {
@@ -77,6 +89,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 	exporter := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
 	input := CreateAccountInput{
 		Name:            "Duplicate",
+		Tag:             "dup",
 		Provider:        types.ProviderCOS,
 		Endpoint:        "https://cos.ap-beijing.myqcloud.com",
 		AccessKeyID:     "COS-A",

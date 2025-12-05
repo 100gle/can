@@ -10,6 +10,7 @@ import (
 type StorageAccount struct {
 	ID              string         `json:"id" gorm:"primaryKey;size:64"`
 	Name            string         `json:"name" gorm:"size:128;index"`
+	Tag             string         `json:"tag" gorm:"size:64"`
 	Provider        types.Provider `json:"provider" gorm:"size:32;index"`
 	Endpoint        string         `json:"endpoint" gorm:"size:512"`
 	AccessKeyID     string         `json:"accessKeyId" gorm:"size:256"`
@@ -30,6 +31,7 @@ func (StorageAccount) TableName() string {
 type Account struct {
 	ID               string         `json:"id"`
 	Name             string         `json:"name"`
+	Tag              string         `json:"tag"`
 	Provider         types.Provider `json:"provider"`
 	ProviderLabel    string         `json:"providerLabel"`
 	Endpoint         string         `json:"endpoint"`
@@ -45,6 +47,7 @@ type Account struct {
 // CreateAccountInput captures data needed to create a new account.
 type CreateAccountInput struct {
 	Name            string         `json:"name"`
+	Tag             string         `json:"tag"`
 	Provider        types.Provider `json:"provider"`
 	Endpoint        string         `json:"endpoint"`
 	AccessKeyID     string         `json:"accessKeyId"`
@@ -58,6 +61,7 @@ type CreateAccountInput struct {
 type UpdateAccountInput struct {
 	Provider        *types.Provider `json:"provider"`
 	Name            *string         `json:"name"`
+	Tag             *string         `json:"tag"`
 	Endpoint        *string         `json:"endpoint"`
 	AccessKeyID     *string         `json:"accessKeyId"`
 	SecretAccessKey *string         `json:"secretAccessKey"`

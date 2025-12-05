@@ -28,6 +28,7 @@ type exportPayload struct {
 
 type exportAccount struct {
 	Name            string         `json:"name"`
+	Tag             string         `json:"tag"`
 	Provider        types.Provider `json:"provider"`
 	Endpoint        string         `json:"endpoint"`
 	Region          string         `json:"region"`
@@ -51,6 +52,7 @@ func (s *Service) ExportData(ctx context.Context) (ExportData, error) {
 		}
 		payload.Accounts = append(payload.Accounts, exportAccount{
 			Name:            record.Name,
+			Tag:             record.Tag,
 			Provider:        record.Provider,
 			Endpoint:        record.Endpoint,
 			Region:          record.Region,
@@ -127,6 +129,7 @@ func (s *Service) ImportData(ctx context.Context, blob []byte) (ImportResult, er
 		}
 		input := CreateAccountInput{
 			Name:            strings.TrimSpace(item.Name),
+			Tag:             strings.TrimSpace(item.Tag),
 			Provider:        types.ParseProvider(string(item.Provider)),
 			Endpoint:        strings.TrimSpace(item.Endpoint),
 			AccessKeyID:     strings.TrimSpace(item.AccessKeyID),

@@ -30,7 +30,7 @@ export const Sidebar = ({ onCreateAccount, onOpenSettings }: SidebarProps) => {
       <button
         type="button"
         onClick={() => navigate({ to: "/" })}
-        className="flex items-center gap-3 rounded-xl border border-transparent p-2 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center gap-3 rounded-xl border border-transparent p-2 transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:cursor-pointer"
         aria-label="返回首页"
       >
         <img

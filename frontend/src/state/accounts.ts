@@ -38,6 +38,7 @@ export type AccountsState = {
 
 export type AccountFormInput = {
   name: string;
+  tag?: string;
   provider: string;
   endpoint: string;
   region: string;
@@ -100,6 +101,7 @@ const buildLocalAccount = (input: AccountFormInput, providerLabel: string): Acco
   return {
     id: `local-${Date.now()}`,
     name: input.name,
+    tag: input.tag ?? "",
     provider: input.provider,
     providerLabel: providerLabel || input.provider.toUpperCase(),
     endpoint: input.endpoint,
@@ -117,6 +119,7 @@ const FALLBACK_ACCOUNTS: AccountModel[] = [
   {
     id: "seed-aws",
     name: "AWS 主账户",
+    tag: "主集群",
     provider: "aws",
     providerLabel: "AWS S3",
     endpoint: "https://s3.amazonaws.com",
@@ -131,6 +134,7 @@ const FALLBACK_ACCOUNTS: AccountModel[] = [
   {
     id: "seed-oss",
     name: "阿里云杭州",
+    tag: "备份",
     provider: "oss",
     providerLabel: "Aliyun OSS",
     endpoint: "https://oss-cn-hangzhou.aliyuncs.com",
@@ -285,6 +289,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     const useBridge = isBridgeAvailable();
     const accessKey = input.accessKeyId?.trim();
     const secret = input.secretAccessKey?.trim();
+    const tag = input.tag?.trim() ?? "";
     if (!accessKey) {
       throw new Error("accessKeyId is required");
     }
@@ -297,6 +302,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
       if (useBridge) {
         const payload: WailsCreateInput = {
           name: input.name,
+          tag,
           provider: input.provider,
           endpoint: input.endpoint,
           region: input.region,
@@ -311,7 +317,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
       } else {
         const providerLabel =
           get().providers.find((item) => item.id === input.provider)?.label ?? input.provider;
-        created = buildLocalAccount({ ...input, accessKeyId: accessKey }, providerLabel);
+        created = buildLocalAccount({ ...input, accessKeyId: accessKey, tag }, providerLabel);
       }
       if (!created) {
         throw new Error("创建账户失败");
@@ -410,6 +416,9 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
           port: input.port,
           useSSL: input.useSSL,
         };
+        if (typeof input.tag === "string") {
+          payload.tag = input.tag.trim();
+        }
         if (input.accessKeyId && input.accessKeyId.trim() !== "") {
           payload.accessKeyId = input.accessKeyId.trim();
         }
@@ -424,6 +433,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
         updated = {
           id: accountId,
           name: input.name,
+          tag: input.tag ?? existing.tag,
           provider: input.provider,
           providerLabel,
           endpoint: input.endpoint,

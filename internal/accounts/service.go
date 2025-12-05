@@ -73,6 +73,7 @@ func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (
 	record := StorageAccount{
 		ID:              uuid.NewString(),
 		Name:            strings.TrimSpace(input.Name),
+		Tag:             strings.TrimSpace(input.Tag),
 		Provider:        provider,
 		Endpoint:        strings.TrimSpace(input.Endpoint),
 		AccessKeyID:     strings.TrimSpace(input.AccessKeyID),
@@ -101,6 +102,9 @@ func (s *Service) UpdateAccount(ctx context.Context, id string, input UpdateAcco
 	}
 	if input.Name != nil {
 		record.Name = strings.TrimSpace(*input.Name)
+	}
+	if input.Tag != nil {
+		record.Tag = strings.TrimSpace(*input.Tag)
 	}
 	if input.Endpoint != nil {
 		record.Endpoint = strings.TrimSpace(*input.Endpoint)
@@ -353,6 +357,7 @@ func toAccount(record StorageAccount) Account {
 	return Account{
 		ID:               record.ID,
 		Name:             record.Name,
+		Tag:              record.Tag,
 		Provider:         record.Provider,
 		ProviderLabel:    record.Provider.Label(),
 		Endpoint:         record.Endpoint,

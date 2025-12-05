@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
 import { LayoutGrid, Loader2, Plus, RefreshCcw, Rows, Sparkles } from "lucide-react";
@@ -23,6 +24,16 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
     void accountsStore.bootstrap();
   }, []);
 
+  useEffect(() => {
+    if (loading || accounts.length === 0) return;
+    accounts.forEach((account) => {
+      const status = connectionTests[account.id]?.status;
+      if (!status || status === "idle") {
+        void accountsStore.testConnection(account.id);
+      }
+    });
+  }, [accounts, connectionTests, loading]);
+
   const handleSelectAccount = async (account: AccountModel) => {
     await accountsStore.setActiveAccount(account.id);
     navigate({
@@ -33,6 +44,14 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
 
   const handleRetry = () => {
     void accountsStore.refresh();
+  };
+
+  const handleDeleteAccount = async (account: AccountModel) => {
+    const confirmed = window.confirm?.(`确定删除账户“${account.name}”吗？此操作不可恢复。`);
+    if (!confirmed) return;
+    await accountsStore.deleteAccount(account.id).catch(() => {
+      /* error handled in store */
+    });
   };
 
   const statusByAccount = useMemo(() => {
@@ -51,7 +70,17 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
     }, {});
   }, [accounts, connectionTests]);
 
-  const renderGrid = () => {
+  const statusMessageByAccount = useMemo(() => {
+    return accounts.reduce<Record<string, string | undefined>>((acc, account) => {
+      const probe = connectionTests[account.id];
+      if (probe?.message) {
+        acc[account.id] = probe.message;
+      }
+      return acc;
+    }, {});
+  }, [accounts, connectionTests]);
+
+  const renderGrid = (layout: "cards" | "list") => {
     if (loading) {
       return (
         <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
@@ -81,55 +110,61 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
       <AccountCardGrid
         accounts={accounts}
         getStatus={(account) => statusByAccount[account.id] ?? "pending"}
+        getStatusMessage={(account) => statusMessageByAccount[account.id]}
         onSelectAccount={handleSelectAccount}
-        layout={viewMode}
+        onEditAccount={onEditAccount}
+        onDeleteAccount={handleDeleteAccount}
+        layout={layout}
       />
     );
   };
 
   return (
-    <section className="space-y-8 rounded-3xl border border-border/40 bg-background/70 p-6 shadow-2xl shadow-primary/5 backdrop-blur-xl">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
-            <Sparkles className="h-3 w-3" />
-            Multi-Account
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold">选择你的云存储账户</h2>
-          <p className="text-sm text-muted-foreground">
-            集中管理 S3 兼容服务，快速切换并查看连接状态。
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/70 p-1">
-            <Button
-              type="button"
-              variant={viewMode === "cards" ? "default" : "ghost"}
-              size="icon"
-              aria-pressed={viewMode === "cards"}
-              aria-label="卡片视图"
-              onClick={() => setViewMode("cards")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="icon"
-              aria-pressed={viewMode === "list"}
-              aria-label="列表视图"
-              onClick={() => setViewMode("list")}
-            >
-              <Rows className="h-4 w-4" />
+    <section className="rounded-3xl border border-border/40 bg-background/70 p-6 shadow-2xl shadow-primary/5 backdrop-blur-xl">
+      <Tabs
+        value={viewMode}
+        onValueChange={(value) => setViewMode(value as "cards" | "list")}
+        className="gap-8"
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
+              <Sparkles className="h-3 w-3" />
+              Multi-Account
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">选择你的云存储账户</h2>
+            <p className="text-sm text-muted-foreground">
+              集中管理 S3 兼容服务，快速切换并查看连接状态。
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <TabsList className="flex rounded-2xl border border-border/60 bg-muted/20 p-1 text-muted-foreground shadow-inner shadow-black/5 backdrop-blur-sm">
+              <TabsTrigger
+                value="cards"
+                aria-label="卡片视图"
+                className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                卡片
+              </TabsTrigger>
+              <TabsTrigger
+                value="list"
+                aria-label="列表视图"
+                className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
+              >
+                <Rows className="h-4 w-4" />
+                列表
+              </TabsTrigger>
+            </TabsList>
+            <Button size="sm" className="gap-2" onClick={onCreateAccount}>
+              <Plus className="h-4 w-4" />
+              新建账户
             </Button>
           </div>
-          <Button size="sm" className="gap-2" onClick={onCreateAccount}>
-            <Plus className="h-4 w-4" />
-            新建账户
-          </Button>
         </div>
-      </div>
-      {renderGrid()}
+        <TabsContent value="cards">{renderGrid("cards")}</TabsContent>
+        <TabsContent value="list">{renderGrid("list")}</TabsContent>
+      </Tabs>
     </section>
   );
 };

@@ -40,6 +40,7 @@ export type AccountFormDrawerProps = {
 
 const createDefaultForm = (providerId?: string): AccountFormInput => ({
   name: "",
+  tag: "",
   provider: providerId ?? "aws",
   endpoint: "",
   region: "",
@@ -51,6 +52,7 @@ const createDefaultForm = (providerId?: string): AccountFormInput => ({
 
 const accountFormBaseSchema = z.object({
   name: z.string().trim().min(1, "账户名称不能为空"),
+  tag: z.string().trim().max(64, "标签最多 64 个字符").optional().or(z.literal("")),
   provider: z.string().trim().min(1, "请选择服务商"),
   endpoint: z.string().trim().min(1, "Endpoint 不能为空"),
   region: z.string().trim(),
@@ -76,6 +78,7 @@ export const AccountFormDrawer = ({
     if (mode === "edit" && initialAccount) {
       return {
         name: initialAccount.name,
+        tag: initialAccount.tag ?? "",
         provider: initialAccount.provider,
         endpoint: initialAccount.endpoint,
         region: initialAccount.region,
@@ -280,7 +283,7 @@ export const AccountFormDrawer = ({
           }}
           className="flex h-full flex-col gap-6 overflow-y-auto px-6 py-5"
         >
-          <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="account-name">
                 账户名称<span className="text-destructive">*</span>
@@ -311,10 +314,8 @@ export const AccountFormDrawer = ({
               </form.Field>
             </div>
             <div className="space-y-2">
-              <Label>
-                服务商<span className="text-destructive">*</span>
-              </Label>
-              <form.Field name="provider">
+              <Label htmlFor="account-tag">标签</Label>
+              <form.Field name="tag">
                 {(field) => {
                   const errorMessage = getFieldErrorMessage(field.state.meta.errors);
                   const showError = Boolean(
@@ -322,24 +323,14 @@ export const AccountFormDrawer = ({
                   );
                   return (
                     <div className="space-y-1">
-                      <Select
-                        value={field.state.value}
-                        onValueChange={(value) => {
-                          field.handleChange(value);
-                          field.handleBlur();
-                        }}
-                      >
-                        <SelectTrigger className="w-full" aria-invalid={showError}>
-                          <SelectValue placeholder="选择服务商" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {providerOptions.map((provider) => (
-                            <SelectItem key={provider.id} value={provider.id}>
-                              {provider.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        id="account-tag"
+                        placeholder="如：生产集群 A"
+                        value={field.state.value ?? ""}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                        onBlur={field.handleBlur}
+                        aria-invalid={showError}
+                      />
                       {showError ? (
                         <p className="text-xs text-destructive">{errorMessage}</p>
                       ) : null}
@@ -348,6 +339,42 @@ export const AccountFormDrawer = ({
                 }}
               </form.Field>
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>
+              服务商<span className="text-destructive">*</span>
+            </Label>
+            <form.Field name="provider">
+              {(field) => {
+                const errorMessage = getFieldErrorMessage(field.state.meta.errors);
+                const showError = Boolean(
+                  errorMessage && (field.state.meta.isTouched || formSubmitted),
+                );
+                return (
+                  <div className="space-y-1">
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(value) => {
+                        field.handleChange(value);
+                        field.handleBlur();
+                      }}
+                    >
+                      <SelectTrigger className="w-full" aria-invalid={showError}>
+                        <SelectValue placeholder="选择服务商" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {providerOptions.map((provider) => (
+                          <SelectItem key={provider.id} value={provider.id}>
+                            {provider.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
+                  </div>
+                );
+              }}
+            </form.Field>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">

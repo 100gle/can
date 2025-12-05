@@ -4,14 +4,20 @@ import type { AccountModel } from "@/state/accounts";
 type AccountCardGridProps = {
   accounts: AccountModel[];
   getStatus?: (account: AccountModel) => AccountCardStatus;
+  getStatusMessage?: (account: AccountModel) => string | undefined;
   onSelectAccount?: (account: AccountModel) => void;
+  onEditAccount?: (account: AccountModel) => void;
+  onDeleteAccount?: (account: AccountModel) => void;
   layout?: "cards" | "list";
 };
 
 export const AccountCardGrid = ({
   accounts,
   getStatus,
+  getStatusMessage,
   onSelectAccount,
+  onEditAccount,
+  onDeleteAccount,
   layout = "cards",
 }: AccountCardGridProps) => {
   if (!accounts.length) return null;
@@ -23,7 +29,11 @@ export const AccountCardGrid = ({
             <AccountCard
               account={account}
               status={getStatus?.(account) ?? "pending"}
+              statusMessage={getStatusMessage?.(account)}
               onSelect={onSelectAccount}
+              onEdit={onEditAccount}
+              onDelete={onDeleteAccount}
+              layout={layout}
             />
           </div>
         ))}
@@ -38,7 +48,11 @@ export const AccountCardGrid = ({
           key={account.id}
           account={account}
           status={getStatus?.(account) ?? "pending"}
+          statusMessage={getStatusMessage?.(account)}
           onSelect={onSelectAccount}
+          onEdit={onEditAccount}
+          onDelete={onDeleteAccount}
+          layout={layout}
         />
       ))}
     </div>
