@@ -338,6 +338,28 @@ export namespace objects {
 
 export namespace types {
 	
+	export class ProviderCapability {
+	    provider: string;
+	    featureId: string;
+	    name: string;
+	    description: string;
+	    supported: boolean;
+	    message?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProviderCapability(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
+	        this.featureId = source["featureId"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.supported = source["supported"];
+	        this.message = source["message"];
+	    }
+	}
 	export class ProviderMetadata {
 	    id: string;
 	    label: string;
@@ -354,27 +376,6 @@ export namespace types {
 	        this.description = source["description"];
 	    }
 	}
-	export class ProviderCapability {
-	    provider: string;
-	    featureId: string;
-	    name: string;
-	    description: string;
-	    supported: boolean;
-	    message: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ProviderCapability(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.provider = source["provider"];
-	        this.featureId = source["featureId"];
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.supported = source["supported"];
-	        this.message = source["message"];
-	    }
-	}
 
 }
+

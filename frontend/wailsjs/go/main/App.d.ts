@@ -39,11 +39,11 @@ export function ListBuckets(arg1:string):Promise<Array<buckets.BucketInfo>>;
 
 export function ListObjects(arg1:string,arg2:objects.ListObjectsInput):Promise<objects.ListObjectsResult>;
 
+export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
+
 export function SetActiveAccount(arg1:string):Promise<accounts.Account>;
 
 export function SupportedProviders():Promise<Array<types.ProviderMetadata>>;
-
-export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
 
 export function TestAccountConnection(arg1:string):Promise<accounts.ConnectionTestResult>;
 

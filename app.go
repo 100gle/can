@@ -36,8 +36,8 @@ func NewApp() *App {
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
 	sessionStore := initSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
-	bucketSvc := buckets.NewService(accountSvc, s3Factory)
-	objectSvc := objects.NewService(accountSvc, s3Factory)
+	bucketSvc := buckets.NewService(accountSvc, storageFactory)
+	objectSvc := objects.NewService(accountSvc, storageFactory)
 	return &App{accounts: accountSvc, buckets: bucketSvc, objects: objectSvc}
 }
 

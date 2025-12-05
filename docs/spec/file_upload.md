@@ -73,11 +73,11 @@
 
 ## 开发任务清单
 - [ ] 实现拖拽上传UI组件
-- [ ] 开发文件选择和验证逻辑
+- [x] 开发文件选择和验证逻辑
 - [ ] 实现文件分片逻辑
 - [ ] 开发上传队列管理模块
 - [ ] 实现并发上传控制
-- [ ] 开发S3 PutObject/MultipartUpload API调用
+- [x] 开发S3 PutObject/MultipartUpload API调用（基础PutObject已实现，MultipartUpload待规划）
 - [ ] 实现上传进度跟踪
 - [ ] 开发断点续传和重试机制
 - [ ] 构建上传进度UI

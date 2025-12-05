@@ -70,16 +70,16 @@ export function ListObjects(arg1, arg2) {
   return window['go']['main']['App']['ListObjects'](arg1, arg2);
 }
 
+export function ProviderCapabilities() {
+  return window['go']['main']['App']['ProviderCapabilities']();
+}
+
 export function SetActiveAccount(arg1) {
   return window['go']['main']['App']['SetActiveAccount'](arg1);
 }
 
 export function SupportedProviders() {
   return window['go']['main']['App']['SupportedProviders']();
-}
-
-export function ProviderCapabilities() {
-  return window['go']['main']['App']['ProviderCapabilities']();
 }
 
 export function TestAccountConnection(arg1) {
