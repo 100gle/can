@@ -165,6 +165,42 @@ func (s *Service) CopyObject(ctx context.Context, accountID, sourceBucket, sourc
 	return client.Objects().CopyObject(ctx, sourceBucket, sourceKey, targetBucket, targetKey)
 }
 
+// RenameObject renames an object by copying it to the new key and deleting the old key.
+func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, newKey string) error {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return errors.New("bucket is required")
+	}
+	oldKey = strings.TrimSpace(oldKey)
+	if oldKey == "" {
+		return errors.New("current object key is required")
+	}
+	newKey = strings.TrimSpace(newKey)
+	if newKey == "" {
+		return errors.New("new object key is required")
+	}
+	if oldKey == newKey {
+		return errors.New("new object key must be different from the current key")
+	}
+	driver := client.Objects()
+	if _, err := driver.HeadObject(ctx, bucket, newKey); err == nil {
+		return fmt.Errorf("object %q already exists", newKey)
+	} else if err != nil && !isNotFoundError(err) {
+		return err
+	}
+	if err := driver.CopyObject(ctx, bucket, oldKey, bucket, newKey); err != nil {
+		return err
+	}
+	if err := driver.DeleteObject(ctx, bucket, oldKey); err != nil {
+		return err
+	}
+	return nil
+}
+
 // HeadObject fetches metadata for a single object.
 func (s *Service) HeadObject(ctx context.Context, accountID, bucket, key string) (ObjectInfo, error) {
 	var info ObjectInfo
@@ -219,4 +255,19 @@ func detectContentType(key string) string {
 		return mimeType
 	}
 	return "application/octet-stream"
+}
+
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "notfound") ||
+		strings.Contains(msg, "not found") ||
+		strings.Contains(msg, "not exist") ||
+		strings.Contains(msg, "nosuchkey") ||
+		strings.Contains(msg, "no such key") ||
+		strings.Contains(msg, "nosuchobject") ||
+		strings.Contains(msg, "no such object") ||
+		strings.Contains(msg, "不存在")
 }

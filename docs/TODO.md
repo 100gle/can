@@ -5,7 +5,7 @@
 
 **关联文档**:
 - 🚀 [三分支启动指南](QUICKSTART-3BRANCHES.md) - **从这里开始**
-- 📋 [Branch 1: 对象操作核心增强](TODO-Branch-1-Object-Operations.md) - 1-1.5 周 | P0
+- 📋 Branch 1: 对象操作核心增强（需求合并至 `docs/spec/object_basic_operations.md`） - 1-1.5 周 | P0
 - 📋 [Branch 2: 文件传输与预签名 URL](TODO-Branch-2-Transfer-Management.md) - 2-2.5 周 | P1
 - 📋 [Branch 3: 存储桶配置与搜索](TODO-Branch-3-Bucket-Config-Search.md) - 2-2.5 周 | P3+P4
 

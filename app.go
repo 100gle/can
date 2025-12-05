@@ -145,6 +145,11 @@ func (a *App) CopyObject(accountID, sourceBucket, sourceKey, targetBucket, targe
 	return a.objects.CopyObject(a.ctx, accountID, sourceBucket, sourceKey, targetBucket, targetKey)
 }
 
+// RenameObject renames an object inside the same bucket.
+func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
+	return a.objects.RenameObject(a.ctx, accountID, bucket, oldKey, newKey)
+}
+
 // HeadObject fetches metadata for a specific key.
 func (a *App) HeadObject(accountID, bucket, key string) (objects.ObjectInfo, error) {
 	return a.objects.HeadObject(a.ctx, accountID, bucket, key)
