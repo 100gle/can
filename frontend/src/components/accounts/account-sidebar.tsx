@@ -1,4 +1,4 @@
-import { Sun, Moon } from "lucide-react";
+import { Moon, Server, Sun } from "lucide-react";
 import logo from "@/assets/images/logo-universal.png";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +108,10 @@ const SidebarAccountItem = ({
       </div>
       {active ? <Badge variant="success">Active</Badge> : null}
     </div>
-    <p className="mt-3 truncate text-xs text-muted-foreground">Endpoint · {account.endpoint}</p>
+    <div className="mt-3 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+      <Server className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+      <span className="shrink-0 text-foreground/80">Endpoint:</span>
+      <span className="truncate text-foreground">{account.endpoint}</span>
+    </div>
   </button>
 );

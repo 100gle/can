@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
-import { Loader2, Plus, RefreshCcw, Sparkles } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { LayoutGrid, Loader2, Plus, RefreshCcw, Rows, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { AccountCardStatus } from "./account-card";
 import { AccountCardGrid } from "./account-card-grid";
 
@@ -17,6 +17,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
   const loading = useAccountsStore((state) => state.loading);
   const error = useAccountsStore((state) => state.error);
   const connectionTests = useAccountsStore((state) => state.connectionTests);
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
 
   useEffect(() => {
     void accountsStore.bootstrap();
@@ -81,6 +82,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
         accounts={accounts}
         getStatus={(account) => statusByAccount[account.id] ?? "pending"}
         onSelectAccount={handleSelectAccount}
+        layout={viewMode}
       />
     );
   };
@@ -98,7 +100,29 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
             集中管理 S3 兼容服务，快速切换并查看连接状态。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-2xl border border-border/60 bg-background/70 p-1">
+            <Button
+              type="button"
+              variant={viewMode === "cards" ? "default" : "ghost"}
+              size="icon"
+              aria-pressed={viewMode === "cards"}
+              aria-label="卡片视图"
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="icon"
+              aria-pressed={viewMode === "list"}
+              aria-label="列表视图"
+              onClick={() => setViewMode("list")}
+            >
+              <Rows className="h-4 w-4" />
+            </Button>
+          </div>
           <Button size="sm" className="gap-2" onClick={onCreateAccount}>
             <Plus className="h-4 w-4" />
             新建账户
