@@ -78,6 +78,10 @@ export function SupportedProviders() {
   return window['go']['main']['App']['SupportedProviders']();
 }
 
+export function ProviderCapabilities() {
+  return window['go']['main']['App']['ProviderCapabilities']();
+}
+
 export function TestAccountConnection(arg1) {
   return window['go']['main']['App']['TestAccountConnection'](arg1);
 }

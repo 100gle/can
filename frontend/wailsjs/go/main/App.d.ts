@@ -43,6 +43,8 @@ export function SetActiveAccount(arg1:string):Promise<accounts.Account>;
 
 export function SupportedProviders():Promise<Array<types.ProviderMetadata>>;
 
+export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
+
 export function TestAccountConnection(arg1:string):Promise<accounts.ConnectionTestResult>;
 
 export function UpdateAccount(arg1:string,arg2:accounts.UpdateAccountInput):Promise<accounts.Account>;

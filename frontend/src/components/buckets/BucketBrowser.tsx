@@ -5,14 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
+import type { ProviderCapability } from "@/state/accounts";
 
 export type BucketBrowserProps = {
   accountId?: string;
+  providerId?: string;
+  capabilities?: ProviderCapability[];
   onSelectBucket?: (bucket: string | undefined) => void;
   className?: string;
 };
 
-export function BucketBrowser({ accountId, onSelectBucket, className }: BucketBrowserProps) {
+const bucketFeatureIds = new Set(["bucket.storage_class", "bucket.multi_az", "bucket.custom_domain"]);
+
+export function BucketBrowser({
+  accountId,
+  providerId,
+  capabilities,
+  onSelectBucket,
+  className,
+}: BucketBrowserProps) {
   const { buckets, loading, creating, deleting, error, selectedBucket } = useBucketsStore(
     (state) => state,
   );
@@ -36,6 +47,14 @@ export function BucketBrowser({ accountId, onSelectBucket, className }: BucketBr
 
   const isReady = Boolean(accountId);
   const bucketList = useMemo(() => buckets ?? [], [buckets]);
+  const capabilityHints = useMemo(() => {
+    if (!capabilities?.length) return [];
+    return capabilities.filter((cap) => {
+      if (!bucketFeatureIds.has(cap.featureId)) return false;
+      if (providerId && cap.provider !== providerId) return false;
+      return true;
+    });
+  }, [capabilities, providerId]);
 
   const handleCreate = async () => {
     if (!accountId) return;
@@ -119,6 +138,33 @@ export function BucketBrowser({ accountId, onSelectBucket, className }: BucketBr
               onChange={(event) => setRegion(event.target.value)}
             />
           </div>
+          {capabilityHints.length ? (
+            <div className="rounded-md border border-border/60 p-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                供应商特性
+              </p>
+              <ul className="mt-2 space-y-2">
+                {capabilityHints.map((capability) => (
+                  <li key={capability.featureId} className="text-xs text-muted-foreground">
+                    <span
+                      className={cn(
+                        "mr-2 inline-flex items-center font-medium",
+                        capability.supported ? "text-emerald-600" : "text-destructive",
+                      )}
+                    >
+                      {capability.supported ? "支持" : "不支持"}
+                    </span>
+                    <span className="font-medium text-foreground">{capability.name}</span>
+                    <p>
+                      {capability.supported
+                        ? capability.description
+                        : capability.message || capability.description}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <Button
               size="sm"

@@ -8,6 +8,7 @@ import {
   ListAccounts,
   SetActiveAccount,
   SupportedProviders,
+  ProviderCapabilities,
   TestAccountConnection,
   UpdateAccount,
 } from "../../wailsjs/go/main/App";
@@ -18,6 +19,7 @@ export type AccountModel = Omit<AccountModels.Account, "convertValues"> & {
   convertValues?: AccountModels.Account["convertValues"];
 };
 export type ProviderMetadata = ProviderModels.ProviderMetadata;
+export type ProviderCapability = ProviderModels.ProviderCapability;
 
 export type ConnectionProbe = {
   status: "idle" | "running" | "ok" | "error";
@@ -28,6 +30,7 @@ export type ConnectionProbe = {
 export type AccountsState = {
   accounts: AccountModel[];
   providers: ProviderMetadata[];
+  capabilities: ProviderCapability[];
   loading: boolean;
   error?: string;
   activeAccountId: string | null;
@@ -148,10 +151,47 @@ const FALLBACK_PROVIDERS: ProviderMetadata[] = [
   { id: "r2", label: "Cloudflare R2", description: "Durable object storage" },
 ];
 
+const FALLBACK_CAPABILITIES: ProviderCapability[] = [
+  {
+    provider: "aws",
+    featureId: "bucket.storage_class",
+    name: "自定义存储类型",
+    description: "标准、低频、归档等",
+    supported: true,
+    message: "",
+  },
+  {
+    provider: "cos",
+    featureId: "bucket.multi_az",
+    name: "多 AZ 冗余",
+    description: "跨可用区冗余策略",
+    supported: true,
+    message: "",
+  },
+  {
+    provider: "oss",
+    featureId: "bucket.multi_az",
+    name: "多 AZ 冗余",
+    description: "跨可用区冗余策略",
+    supported: false,
+    message: "阿里云 OSS 暂未开放跨可用区开关。",
+  },
+  {
+    provider: "r2",
+    featureId: "object.symlink",
+    name: "对象软链接",
+    description: "为对象创建软链接引用",
+    supported: false,
+    message: "Cloudflare R2 暂不支持软链接。",
+  },
+];
+
 const initialState: AccountsState = {
   accounts: [],
   providers: [],
+  capabilities: [],
   loading: false,
+  error: undefined,
   activeAccountId: null,
   connectionTests: {},
 };
@@ -177,20 +217,24 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     try {
       let accounts: AccountModel[] = [];
       let providers: ProviderMetadata[] = [];
+      let capabilities: ProviderCapability[] = [];
       let active: AccountModel | null = null;
 
       if (useBridge) {
-        const [rawAccounts, providerPayload, activePayload] = await Promise.all([
+        const [rawAccounts, providerPayload, capabilityPayload, activePayload] = await Promise.all([
           ListAccounts(),
           SupportedProviders(),
+          ProviderCapabilities(),
           ActiveAccount(),
         ]);
         accounts = normalizeAccountList(rawAccounts);
         providers = providerPayload;
+        capabilities = capabilityPayload;
         active = normalizeAccount(activePayload as WailsAccount | null);
       } else {
         accounts = clone(FALLBACK_ACCOUNTS);
         providers = clone(FALLBACK_PROVIDERS);
+        capabilities = clone(FALLBACK_CAPABILITIES);
         active = accounts[0] ?? null;
       }
 
@@ -203,6 +247,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
       set({
         accounts,
         providers,
+        capabilities,
         activeAccountId: derivedId,
         loading: false,
         error: undefined,
