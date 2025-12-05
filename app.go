@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"can/internal/accounts"
 	"can/internal/buckets"
 	"can/internal/config"
+	"can/internal/configfacade"
 	"can/internal/objects"
 	"can/internal/providers"
 	"can/internal/search"
@@ -24,13 +26,14 @@ import (
 
 // App struct
 type App struct {
-	ctx       context.Context
-	accounts  *accounts.Service
-	buckets   *buckets.Service
-	objects   *objects.Service
-	transfers *transfer.Service
-	config    *config.BucketConfigService
-	search    *search.Service
+	ctx            context.Context
+	requestTimeout time.Duration
+	accounts       *accounts.Service
+	buckets        *buckets.Service
+	objects        *objects.Service
+	transfers      *transfer.Service
+	config         *configfacade.Service
+	search         *search.Service
 }
 
 // NewApp creates a new App application struct
@@ -39,21 +42,26 @@ func NewApp() *App {
 	cipher := security.DefaultCipher()
 	s3Factory := providers.NewS3ClientFactory()
 	storageFactory := providers.NewStorageFactory(s3Factory)
+	clientPool := providers.NewClientPool(storageFactory)
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
 	sessionStore := initSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
-	bucketSvc := buckets.NewService(accountSvc, storageFactory)
-	transferSvc := transfer.NewService(accountSvc, storageFactory)
-	objectSvc := objects.NewService(accountSvc, storageFactory, transferSvc)
+	accountSvc.SetClientPool(clientPool)
+	bucketSvc := buckets.NewService(accountSvc, clientPool)
+	transferStore := initTransferStore()
+	transferSvc := transfer.NewService(accountSvc, clientPool, transferStore)
+	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc)
 	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
-	searchSvc := search.NewService(accountSvc, storageFactory)
+	configFacade := configfacade.NewService(accountSvc, configSvc)
+	searchSvc := search.NewService(accountSvc, clientPool)
 	return &App{
-		accounts:  accountSvc,
-		buckets:   bucketSvc,
-		objects:   objectSvc,
-		transfers: transferSvc,
-		config:    configSvc,
-		search:    searchSvc,
+		requestTimeout: resolveRequestTimeout(),
+		accounts:       accountSvc,
+		buckets:        bucketSvc,
+		objects:        objectSvc,
+		transfers:      transferSvc,
+		config:         configFacade,
+		search:         searchSvc,
 	}
 }
 
@@ -61,7 +69,9 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	if err := a.accounts.EnsureSeed(ctx); err != nil {
+	reqCtx, cancel := a.requestContext(ctx)
+	defer cancel()
+	if err := a.accounts.EnsureSeed(reqCtx); err != nil {
 		runtime.LogErrorf(ctx, "seed sample accounts: %v", err)
 	}
 }
@@ -78,192 +88,268 @@ func (a *App) ProviderCapabilities() []types.ProviderCapability {
 
 // ListAccounts returns all configured accounts.
 func (a *App) ListAccounts() ([]accounts.Account, error) {
-	return a.accounts.ListAccounts(a.ctx)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.ListAccounts(ctx)
 }
 
 // CreateAccount registers a new account configuration.
 func (a *App) CreateAccount(input accounts.CreateAccountInput) (accounts.Account, error) {
-	return a.accounts.CreateAccount(a.ctx, input)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.CreateAccount(ctx, input)
 }
 
 // UpdateAccount updates an existing account configuration.
 func (a *App) UpdateAccount(id string, input accounts.UpdateAccountInput) (accounts.Account, error) {
-	return a.accounts.UpdateAccount(a.ctx, id, input)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.UpdateAccount(ctx, id, input)
 }
 
 // DeleteAccount removes the account with the given ID.
 func (a *App) DeleteAccount(id string) error {
-	return a.accounts.DeleteAccount(a.ctx, id)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.DeleteAccount(ctx, id)
 }
 
 // SetActiveAccount marks an account as active for the current session.
 func (a *App) SetActiveAccount(id string) (accounts.Account, error) {
-	return a.accounts.SetActiveAccount(a.ctx, id)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.SetActiveAccount(ctx, id)
 }
 
 // ActiveAccount returns the current active account if set.
 func (a *App) ActiveAccount() (*accounts.Account, error) {
-	return a.accounts.ActiveAccount(a.ctx)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.ActiveAccount(ctx)
 }
 
 // TestAccountConnection validates the credentials for an account.
 func (a *App) TestAccountConnection(id string) (accounts.ConnectionTestResult, error) {
-	return a.accounts.TestConnection(a.ctx, id)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.TestConnection(ctx, id)
 }
 
 // TestAccountConnectionPreview validates credentials before persisting.
 func (a *App) TestAccountConnectionPreview(input accounts.CreateAccountInput) (accounts.ConnectionTestResult, error) {
-	return a.accounts.TestConnectionWithInput(a.ctx, input)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.accounts.TestConnectionWithInput(ctx, input)
 }
 
 // ListBuckets returns all buckets for the given account.
 func (a *App) ListBuckets(accountID string) ([]buckets.BucketInfo, error) {
-	return a.buckets.ListBuckets(a.ctx, accountID)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.buckets.ListBuckets(ctx, accountID)
 }
 
 // CreateBucket provisions a new bucket under the provided account.
 func (a *App) CreateBucket(accountID, name, region string) error {
-	return a.buckets.CreateBucket(a.ctx, accountID, name, region)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.buckets.CreateBucket(ctx, accountID, name, region)
 }
 
 // DeleteBucket removes the selected bucket.
 func (a *App) DeleteBucket(accountID, name string) error {
-	return a.buckets.DeleteBucket(a.ctx, accountID, name)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.buckets.DeleteBucket(ctx, accountID, name)
 }
 
 // BucketLocation resolves the region for a bucket.
 func (a *App) BucketLocation(accountID, name string) (string, error) {
-	return a.buckets.BucketLocation(a.ctx, accountID, name)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.buckets.BucketLocation(ctx, accountID, name)
 }
 
 // HeadBucket checks whether a bucket exists.
 func (a *App) HeadBucket(accountID, name string) error {
-	return a.buckets.HeadBucket(a.ctx, accountID, name)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.buckets.HeadBucket(ctx, accountID, name)
 }
 
 // GetBucketVersioning returns versioning status for a bucket.
 func (a *App) GetBucketVersioning(accountID, bucket string) (*config.BucketVersioning, error) {
-	return a.config.GetVersioning(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetVersioning(ctx, accountID, bucket)
 }
 
 // EnableBucketVersioning enables versioning for a bucket.
 func (a *App) EnableBucketVersioning(accountID, bucket string) error {
-	return a.config.EnableVersioning(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.EnableVersioning(ctx, accountID, bucket)
 }
 
 // SuspendBucketVersioning suspends versioning for a bucket.
 func (a *App) SuspendBucketVersioning(accountID, bucket string) error {
-	return a.config.SuspendVersioning(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SuspendVersioning(ctx, accountID, bucket)
 }
 
 // GetBucketEncryption fetches the default encryption configuration.
 func (a *App) GetBucketEncryption(accountID, bucket string) (*config.BucketEncryption, error) {
-	return a.config.GetEncryption(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetEncryption(ctx, accountID, bucket)
 }
 
 // SetBucketEncryption updates default encryption configuration.
 func (a *App) SetBucketEncryption(accountID, bucket string, encryption *config.BucketEncryption) error {
-	return a.config.SetEncryption(a.ctx, accountID, bucket, encryption)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetEncryption(ctx, accountID, bucket, encryption)
 }
 
 // DeleteBucketEncryption clears default encryption settings.
 func (a *App) DeleteBucketEncryption(accountID, bucket string) error {
-	return a.config.DeleteEncryption(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.DeleteEncryption(ctx, accountID, bucket)
 }
 
 // GetBucketLifecycle lists lifecycle rules.
 func (a *App) GetBucketLifecycle(accountID, bucket string) ([]*config.LifecycleRule, error) {
-	return a.config.GetLifecycle(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetLifecycle(ctx, accountID, bucket)
 }
 
 // SetBucketLifecycle replaces lifecycle rules.
 func (a *App) SetBucketLifecycle(accountID, bucket string, rules []*config.LifecycleRule) error {
-	return a.config.SetLifecycle(a.ctx, accountID, bucket, rules)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetLifecycle(ctx, accountID, bucket, rules)
 }
 
 // DeleteBucketLifecycle removes lifecycle rules.
 func (a *App) DeleteBucketLifecycle(accountID, bucket string) error {
-	return a.config.DeleteLifecycle(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.DeleteLifecycle(ctx, accountID, bucket)
 }
 
 // GetBucketCORS returns CORS rules.
 func (a *App) GetBucketCORS(accountID, bucket string) (*config.BucketCORS, error) {
-	return a.config.GetCORS(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetCORS(ctx, accountID, bucket)
 }
 
 // SetBucketCORS upserts CORS rules.
 func (a *App) SetBucketCORS(accountID, bucket string, cors *config.BucketCORS) error {
-	return a.config.SetCORS(a.ctx, accountID, bucket, cors)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetCORS(ctx, accountID, bucket, cors)
 }
 
 // DeleteBucketCORS removes all CORS rules.
 func (a *App) DeleteBucketCORS(accountID, bucket string) error {
-	return a.config.DeleteCORS(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.DeleteCORS(ctx, accountID, bucket)
 }
 
 // GetBucketWebsite returns static website configuration.
 func (a *App) GetBucketWebsite(accountID, bucket string) (*config.BucketWebsite, error) {
-	return a.config.GetWebsite(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetWebsite(ctx, accountID, bucket)
 }
 
 // SetBucketWebsite updates static website configuration.
 func (a *App) SetBucketWebsite(accountID, bucket string, website *config.BucketWebsite) error {
-	return a.config.SetWebsite(a.ctx, accountID, bucket, website)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetWebsite(ctx, accountID, bucket, website)
 }
 
 // DeleteBucketWebsite removes the static website configuration.
 func (a *App) DeleteBucketWebsite(accountID, bucket string) error {
-	return a.config.DeleteWebsite(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.DeleteWebsite(ctx, accountID, bucket)
 }
 
 // GetBucketPolicy returns the bucket policy.
 func (a *App) GetBucketPolicy(accountID, bucket string) (*config.BucketPolicy, error) {
-	return a.config.GetPolicy(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetPolicy(ctx, accountID, bucket)
 }
 
 // SetBucketPolicy upserts the policy document.
 func (a *App) SetBucketPolicy(accountID, bucket string, policy *config.BucketPolicy) error {
-	return a.config.SetPolicy(a.ctx, accountID, bucket, policy)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetPolicy(ctx, accountID, bucket, policy)
 }
 
 // DeleteBucketPolicy removes the policy document.
 func (a *App) DeleteBucketPolicy(accountID, bucket string) error {
-	return a.config.DeletePolicy(a.ctx, accountID, bucket)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.DeletePolicy(ctx, accountID, bucket)
 }
 
 // ListObjects enumerates objects under the given prefix.
 func (a *App) ListObjects(accountID string, input objects.ListObjectsInput) (objects.ListObjectsResult, error) {
-	return a.objects.ListObjects(a.ctx, accountID, input)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.ListObjects(ctx, accountID, input)
 }
 
 // UploadObject uploads a local file to the target bucket.
-func (a *App) UploadObject(accountID, bucket, key, filePath string) error {
-	return a.objects.UploadObject(a.ctx, accountID, bucket, key, filePath)
+func (a *App) UploadObject(accountID, bucket, key, filePath string) (*transfer.TransferTask, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.UploadObject(ctx, accountID, bucket, key, filePath)
 }
 
 // DownloadObject downloads an object to the provided path.
-func (a *App) DownloadObject(accountID, bucket, key, savePath string) error {
-	return a.objects.DownloadObject(a.ctx, accountID, bucket, key, savePath)
+func (a *App) DownloadObject(accountID, bucket, key, savePath string) (*transfer.TransferTask, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.DownloadObject(ctx, accountID, bucket, key, savePath)
 }
 
 // DeleteObject removes an object from the bucket.
 func (a *App) DeleteObject(accountID, bucket, key string) error {
-	return a.objects.DeleteObject(a.ctx, accountID, bucket, key)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.DeleteObject(ctx, accountID, bucket, key)
 }
 
 // CopyObject duplicates an object to a new location.
 func (a *App) CopyObject(accountID, sourceBucket, sourceKey, targetBucket, targetKey string) error {
-	return a.objects.CopyObject(a.ctx, accountID, sourceBucket, sourceKey, targetBucket, targetKey)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.CopyObject(ctx, accountID, sourceBucket, sourceKey, targetBucket, targetKey)
 }
 
 // RenameObject renames an object inside the same bucket.
 func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
-	return a.objects.RenameObject(a.ctx, accountID, bucket, oldKey, newKey)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
 }
 
 // HeadObject fetches metadata for a specific key.
 func (a *App) HeadObject(accountID, bucket, key string) (objects.ObjectInfo, error) {
-	return a.objects.HeadObject(a.ctx, accountID, bucket, key)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.HeadObject(ctx, accountID, bucket, key)
 }
 
 // GetPresignedDownloadURL returns a GET URL valid for the requested duration in minutes.
@@ -271,7 +357,9 @@ func (a *App) GetPresignedDownloadURL(accountID, bucket, key string, expirationM
 	if expirationMinutes <= 0 {
 		expirationMinutes = 60
 	}
-	return a.objects.GetPresignedURL(a.ctx, accountID, bucket, key, expirationMinutes*60, "GET")
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetPresignedURL(ctx, accountID, bucket, key, expirationMinutes*60, "GET")
 }
 
 // GetPresignedUploadURL returns a PUT URL for direct uploads.
@@ -279,57 +367,79 @@ func (a *App) GetPresignedUploadURL(accountID, bucket, key string, expirationMin
 	if expirationMinutes <= 0 {
 		expirationMinutes = 60
 	}
-	return a.objects.GetPresignedURL(a.ctx, accountID, bucket, key, expirationMinutes*60, "PUT")
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetPresignedURL(ctx, accountID, bucket, key, expirationMinutes*60, "PUT")
 }
 
 // InitiateMultipartUpload creates a multipart upload session.
 func (a *App) InitiateMultipartUpload(accountID, bucket, key string) (string, error) {
-	return a.objects.InitiateMultipartUpload(a.ctx, accountID, bucket, key)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.InitiateMultipartUpload(ctx, accountID, bucket, key)
 }
 
 // UploadPart uploads a single chunk to an existing multipart session.
 func (a *App) UploadPart(accountID, bucket, key, uploadID string, partNumber int, data []byte) (string, error) {
-	return a.objects.UploadPart(a.ctx, accountID, bucket, key, uploadID, partNumber, data)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.UploadPart(ctx, accountID, bucket, key, uploadID, partNumber, data)
 }
 
 // CompleteMultipartUpload finalises all parts for a key.
 func (a *App) CompleteMultipartUpload(accountID, bucket, key, uploadID string, parts map[int]string) error {
-	return a.objects.CompleteMultipartUpload(a.ctx, accountID, bucket, key, uploadID, parts)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.CompleteMultipartUpload(ctx, accountID, bucket, key, uploadID, parts)
 }
 
 // AbortMultipartUpload cancels an in-flight multipart upload.
 func (a *App) AbortMultipartUpload(accountID, bucket, key, uploadID string) error {
-	return a.objects.AbortMultipartUpload(a.ctx, accountID, bucket, key, uploadID)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.AbortMultipartUpload(ctx, accountID, bucket, key, uploadID)
 }
 
 // ListTransferTasks returns current transfer queue snapshot.
 func (a *App) ListTransferTasks() ([]*transfer.TransferTask, error) {
-	return a.transfers.ListTasks(a.ctx)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.transfers.ListTasks(ctx)
 }
 
 // CancelTransferTask stops an in-progress transfer.
 func (a *App) CancelTransferTask(taskID string) error {
-	return a.transfers.CancelTask(a.ctx, taskID)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.transfers.CancelTask(ctx, taskID)
 }
 
 // PauseTransferTask requests the transfer to pause.
 func (a *App) PauseTransferTask(taskID string) error {
-	return a.transfers.PauseTask(a.ctx, taskID)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.transfers.PauseTask(ctx, taskID)
 }
 
 // ResumeTransferTask marks a paused transfer as running again.
 func (a *App) ResumeTransferTask(taskID string) error {
-	return a.transfers.ResumeTask(a.ctx, taskID)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.transfers.ResumeTask(ctx, taskID)
 }
 
 // SearchObjects performs bucket-wide search with filters.
 func (a *App) SearchObjects(accountID string, query *search.SearchQuery) (*search.SearchResponse, error) {
-	return a.search.SearchObjects(a.ctx, accountID, query)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.search.SearchObjects(ctx, accountID, query)
 }
 
 // ExportSearchResults exports search outcomes into csv/json formats.
 func (a *App) ExportSearchResults(accountID string, query *search.SearchQuery, format string) ([]byte, error) {
-	return a.search.ExportSearchResults(a.ctx, accountID, query, format)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.search.ExportSearchResults(ctx, accountID, query, format)
 }
 
 // ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.
@@ -338,7 +448,9 @@ func (a *App) ExportAccounts() (accounts.ExportSummary, error) {
 	if a.ctx == nil {
 		return summary, errors.New("application context not ready")
 	}
-	payload, err := a.accounts.ExportData(a.ctx)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	payload, err := a.accounts.ExportData(ctx)
 	if err != nil {
 		return summary, err
 	}
@@ -392,7 +504,9 @@ func (a *App) ImportAccounts() (accounts.ImportSummary, error) {
 	if err != nil {
 		return summary, err
 	}
-	result, err := a.accounts.ImportData(a.ctx, blob)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	result, err := a.accounts.ImportData(ctx, blob)
 	if err != nil {
 		return summary, err
 	}
@@ -403,6 +517,38 @@ func (a *App) ImportAccounts() (accounts.ImportSummary, error) {
 	summary.Failed = result.Failed
 	summary.Issues = result.Issues
 	return summary, nil
+}
+
+const defaultRequestTimeout = 60 * time.Second
+
+func resolveRequestTimeout() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("CAN_REQUEST_TIMEOUT"))
+	if raw == "" {
+		return defaultRequestTimeout
+	}
+	if duration, err := time.ParseDuration(raw); err == nil && duration > 0 {
+		return duration
+	}
+	if seconds, err := strconv.Atoi(raw); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	fmt.Printf("invalid CAN_REQUEST_TIMEOUT %q, fallback to %s\n", raw, defaultRequestTimeout)
+	return defaultRequestTimeout
+}
+
+func (a *App) requestContext(parent context.Context) (context.Context, context.CancelFunc) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	timeout := a.requestTimeout
+	if timeout <= 0 {
+		timeout = defaultRequestTimeout
+	}
+	return context.WithTimeout(parent, timeout)
+}
+
+func (a *App) backgroundContext() (context.Context, context.CancelFunc) {
+	return a.requestContext(context.Background())
 }
 
 func initStoreFromEnv() accounts.Store {
@@ -437,7 +583,41 @@ func initStoreFromEnv() accounts.Store {
 	return accounts.NewMemoryStore()
 }
 
+func initTransferStore() transfer.Store {
+	path := strings.TrimSpace(os.Getenv("CAN_TRANSFER_DB"))
+	if path == "" {
+		var err error
+		path, err = defaultTransferPath()
+		if err != nil {
+			fmt.Printf("failed to resolve default transfer db path, using memory store: %v\n", err)
+			return transfer.NewMemoryStore()
+		}
+	}
+	store, err := transfer.NewSQLiteStore(path)
+	if err != nil {
+		fmt.Printf("failed to init transfer sqlite store (%s): %v\n", path, err)
+		return transfer.NewMemoryStore()
+	}
+	return store
+}
+
 func defaultSQLitePath() (string, error) {
+	dir, err := defaultDataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "accounts.db"), nil
+}
+
+func defaultTransferPath() (string, error) {
+	dir, err := defaultDataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "transfers.db"), nil
+}
+
+func defaultDataDir() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil || dir == "" {
 		dir = filepath.Join(os.TempDir(), "can")
@@ -447,7 +627,7 @@ func defaultSQLitePath() (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "accounts.db"), nil
+	return dir, nil
 }
 
 func initSessionStore() accounts.ActiveSessionStore {

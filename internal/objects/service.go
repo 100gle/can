@@ -5,10 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"mime"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,13 +16,13 @@ import (
 // Service exposes object CRUD operations.
 type Service struct {
 	accounts  *accounts.Service
-	factory   providers.StorageFactory
+	pool      providers.ClientPool
 	transfers *transfer.Service
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, factory providers.StorageFactory, transfers *transfer.Service) *Service {
-	return &Service{accounts: accounts, factory: factory, transfers: transfers}
+func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service) *Service {
+	return &Service{accounts: accounts, pool: pool, transfers: transfers}
 }
 
 // ListObjects returns a single page of objects for the requested prefix.
@@ -64,137 +60,30 @@ func (s *Service) ListObjects(ctx context.Context, accountID string, input ListO
 	return result, nil
 }
 
-// UploadObject streams the local file to the selected bucket.
-func (s *Service) UploadObject(ctx context.Context, accountID, bucket, key, filePath string) (err error) {
-	client, err := s.client(ctx, accountID)
-	if err != nil {
-		return err
+// UploadObject enqueues an upload task handled by the transfer service.
+func (s *Service) UploadObject(ctx context.Context, accountID, bucket, key, filePath string) (*transfer.TransferTask, error) {
+	if s.transfers == nil {
+		return nil, errors.New("transfer service not configured")
 	}
-	bucket = strings.TrimSpace(bucket)
-	if bucket == "" {
-		return errors.New("bucket is required")
-	}
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return errors.New("object key is required")
-	}
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("open file: %w", err)
-	}
-	defer file.Close()
-	stat, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("stat file: %w", err)
-	}
-	contentType := detectContentType(key)
-
-	var task *transfer.TransferTask
-	var cancel context.CancelFunc
-	if s.transfers != nil {
-		task = s.transfers.CreateUploadTask(accountID, bucket, key, stat.Size())
-		var taskCtx context.Context
-		taskCtx, cancel = context.WithCancel(ctx)
-		ctx = taskCtx
-		s.transfers.BindTaskContext(task.ID, cancel)
-		s.transfers.MarkTaskRunning(task.ID)
-		defer func() {
-			if cancel != nil {
-				cancel()
-			}
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				s.transfers.FailTask(task.ID, err)
-				return
-			}
-			s.transfers.CompleteTask(task.ID)
-		}()
-	}
-	reader := newProgressReader(file, func(n int64) {
-		if task != nil {
-			s.transfers.UpdateTaskProgress(task.ID, n)
-		}
+	return s.transfers.EnqueueUpload(ctx, transfer.UploadRequest{
+		AccountID: accountID,
+		Bucket:    bucket,
+		Key:       key,
+		FilePath:  filePath,
 	})
-	if err = client.Objects().UploadObject(ctx, bucket, key, reader, stat.Size(), contentType); err != nil {
-		return err
-	}
-	return nil
 }
 
-// DownloadObject saves the remote object into the provided path.
-func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, savePath string) (err error) {
-	client, err := s.client(ctx, accountID)
-	if err != nil {
-		return err
+// DownloadObject enqueues a download task handled by the transfer service.
+func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, savePath string) (*transfer.TransferTask, error) {
+	if s.transfers == nil {
+		return nil, errors.New("transfer service not configured")
 	}
-	bucket = strings.TrimSpace(bucket)
-	if bucket == "" {
-		return errors.New("bucket is required")
-	}
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return errors.New("object key is required")
-	}
-	var task *transfer.TransferTask
-	var cancel context.CancelFunc
-	if s.transfers != nil {
-		task = s.transfers.CreateDownloadTask(accountID, bucket, key, 0)
-		var taskCtx context.Context
-		taskCtx, cancel = context.WithCancel(ctx)
-		ctx = taskCtx
-		s.transfers.BindTaskContext(task.ID, cancel)
-		s.transfers.MarkTaskRunning(task.ID)
-		defer func() {
-			if cancel != nil {
-				cancel()
-			}
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				s.transfers.FailTask(task.ID, err)
-				return
-			}
-			s.transfers.CompleteTask(task.ID)
-		}()
-	}
-	download, err := client.Objects().DownloadObject(ctx, bucket, key)
-	if err != nil {
-		return err
-	}
-	defer download.Body.Close()
-	if task != nil && download.ContentLength > 0 {
-		s.transfers.SetTaskTotal(task.ID, download.ContentLength)
-	}
-	target := strings.TrimSpace(savePath)
-	if target == "" {
-		target = filepath.Join(os.TempDir(), filepath.Base(key))
-	}
-	info, err := os.Stat(target)
-	if err == nil && info.IsDir() {
-		target = filepath.Join(target, filepath.Base(key))
-	} else {
-		dir := filepath.Dir(target)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("create parent dir: %w", err)
-		}
-	}
-	file, err := os.Create(target)
-	if err != nil {
-		return fmt.Errorf("create file: %w", err)
-	}
-	defer file.Close()
-	reader := newProgressReader(download.Body, func(n int64) {
-		if task != nil {
-			s.transfers.UpdateTaskProgress(task.ID, n)
-		}
+	return s.transfers.EnqueueDownload(ctx, transfer.DownloadRequest{
+		AccountID: accountID,
+		Bucket:    bucket,
+		Key:       key,
+		SavePath:  savePath,
 	})
-	if _, err = io.Copy(file, reader); err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-	return nil
 }
 
 // DeleteObject removes a single object from the bucket.
@@ -420,29 +309,21 @@ func (s *Service) AbortMultipartUpload(ctx context.Context, accountID, bucket, k
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
-	if strings.TrimSpace(accountID) == "" {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
 		return nil, errors.New("account id is required")
 	}
-	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
-	if err != nil {
-		return nil, err
+	if s.pool == nil {
+		return nil, errors.New("storage client pool not configured")
 	}
-	client, err := s.factory.NewClient(ctx, creds)
+	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+		return s.accounts.ConnectionCredentials(ctx, accountID)
+	}
+	client, _, err := s.pool.Get(ctx, accountID, supplier)
 	if err != nil {
 		return nil, err
 	}
 	return client, nil
-}
-
-func detectContentType(key string) string {
-	ext := strings.ToLower(filepath.Ext(key))
-	if ext == "" {
-		return "application/octet-stream"
-	}
-	if mimeType := mime.TypeByExtension(ext); mimeType != "" {
-		return mimeType
-	}
-	return "application/octet-stream"
 }
 
 func isNotFoundError(err error) bool {
@@ -458,24 +339,4 @@ func isNotFoundError(err error) bool {
 		strings.Contains(msg, "nosuchobject") ||
 		strings.Contains(msg, "no such object") ||
 		strings.Contains(msg, "不存在")
-}
-
-type progressReader struct {
-	reader io.Reader
-	notify func(int64)
-}
-
-func newProgressReader(r io.Reader, notify func(int64)) io.Reader {
-	if notify == nil {
-		return r
-	}
-	return &progressReader{reader: r, notify: notify}
-}
-
-func (r *progressReader) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
-	if n > 0 && r.notify != nil {
-		r.notify(int64(n))
-	}
-	return n, err
 }

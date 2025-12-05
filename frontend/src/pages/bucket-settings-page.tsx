@@ -1,3 +1,4 @@
+import { CapabilityGate } from "@/components/buckets/capability-gate";
 import { BucketSettings, type BucketSettingsSection } from "@/components/buckets/bucket-settings";
 import { CORSPanel } from "@/components/buckets/cors-panel";
 import { EncryptionPanel } from "@/components/buckets/encryption-panel";
@@ -6,30 +7,61 @@ import { VersioningPanel } from "@/components/buckets/versioning-panel";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { Button } from "@/components/ui/button";
-import { accountsStore, useAccountsStore } from "@/state/accounts";
-import { bucketConfigStore } from "@/state/bucketConfig";
+import { accountsStore, useAccountsStore, type ProviderCapability } from "@/state/accounts";
+import { bucketConfigStore, type BucketFeature } from "@/state/bucketConfig";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+
+const FEATURE_CAPABILITY_IDS: Record<BucketFeature, string> = {
+  versioning: "bucket.versioning",
+  encryption: "bucket.encryption",
+  lifecycle: "bucket.lifecycle",
+  cors: "bucket.cors",
+  website: "bucket.website",
+  policy: "bucket.policy",
+};
 
 export const BucketSettingsPage = () => {
   const navigate = useNavigate();
   const params = useParams({ from: "/accounts/$accountId/buckets/$bucketId/settings" });
-  const { accounts, activeAccountId, loading } = useAccountsStore((state) => state);
+  const { accounts, activeAccountId, loading, capabilities } = useAccountsStore((state) => state);
   const [section, setSection] = useState("versioning");
 
   const account = useMemo(() => {
     return accounts.find((item) => item.id === params.accountId);
   }, [accounts, params.accountId]);
 
+  const providerCapabilities = useMemo(() => {
+    if (!account) return [] as ProviderCapability[];
+    return capabilities.filter((capability) => capability.provider === account.provider);
+  }, [account, capabilities]);
+
+  const capabilitiesReady = providerCapabilities.length > 0;
+
+  const featureMatrix = useMemo(() => {
+    const matrix: Partial<Record<BucketFeature, ProviderCapability>> = {};
+    if (!providerCapabilities.length) {
+      return matrix;
+    }
+    const byId = new Map(providerCapabilities.map((capability) => [capability.featureId, capability]));
+    (Object.keys(FEATURE_CAPABILITY_IDS) as BucketFeature[]).forEach((feature) => {
+      const capability = byId.get(FEATURE_CAPABILITY_IDS[feature]);
+      if (capability) {
+        matrix[feature] = capability;
+      }
+    });
+    return matrix;
+  }, [providerCapabilities]);
+
   useEffect(() => {
     void accountsStore.bootstrap();
   }, []);
 
   useEffect(() => {
-    if (params.accountId && params.bucketId) {
-      void bucketConfigStore.loadConfig(params.accountId, params.bucketId);
-    }
-  }, [params.accountId, params.bucketId]);
+    if (!params.accountId || !params.bucketId) return;
+    if (!account || !capabilitiesReady) return;
+    void bucketConfigStore.loadConfig(params.accountId, params.bucketId, featureMatrix);
+  }, [account, capabilitiesReady, params.accountId, params.bucketId, featureMatrix]);
 
   if (!account && (loading || !accounts.length)) {
     return (
@@ -62,10 +94,42 @@ export const BucketSettingsPage = () => {
   }
 
   const sections: BucketSettingsSection[] = [
-    { id: "versioning", label: "版本控制", render: () => <VersioningPanel /> },
-    { id: "encryption", label: "默认加密", render: () => <EncryptionPanel /> },
-    { id: "lifecycle", label: "生命周期", render: () => <LifecyclePanel /> },
-    { id: "cors", label: "CORS 规则", render: () => <CORSPanel /> },
+    {
+      id: "versioning",
+      label: "版本控制",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.versioning}>
+          <VersioningPanel />
+        </CapabilityGate>
+      ),
+    },
+    {
+      id: "encryption",
+      label: "默认加密",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.encryption}>
+          <EncryptionPanel />
+        </CapabilityGate>
+      ),
+    },
+    {
+      id: "lifecycle",
+      label: "生命周期",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.lifecycle}>
+          <LifecyclePanel />
+        </CapabilityGate>
+      ),
+    },
+    {
+      id: "cors",
+      label: "CORS 规则",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.cors}>
+          <CORSPanel />
+        </CapabilityGate>
+      ),
+    },
   ];
 
   return (

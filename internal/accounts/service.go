@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,9 +21,11 @@ type Service struct {
 	cipher   security.Cipher
 	dialer   providers.Dialer
 	session  ActiveSessionStore
+	clients  providers.ClientPool
 	activeID string
 
 	activeLoaded bool
+	mu           sync.RWMutex
 }
 
 // NewService wires dependencies for account management.
@@ -31,6 +34,13 @@ func NewService(store Store, cipher security.Cipher, dialer providers.Dialer, se
 		session = NewMemorySessionStore()
 	}
 	return &Service{store: store, cipher: cipher, dialer: dialer, session: session}
+}
+
+// SetClientPool wires the provider client cache for cross-service invalidation events.
+func (s *Service) SetClientPool(pool providers.ClientPool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.clients = pool
 }
 
 // ListAccounts returns sanitized account views.
@@ -118,17 +128,26 @@ func (s *Service) UpdateAccount(ctx context.Context, id string, input UpdateAcco
 	if err := s.store.Update(ctx, record); err != nil {
 		return Account{}, err
 	}
+	s.invalidateClientPool(id)
 	return toAccount(record), nil
 }
 
 // DeleteAccount removes the given account.
 func (s *Service) DeleteAccount(ctx context.Context, id string) error {
 	s.ensureActiveLoaded(ctx)
+	s.mu.Lock()
 	if s.activeID == id {
 		s.activeID = ""
-		_ = s.session.Clear(ctx)
+		if s.session != nil {
+			_ = s.session.Clear(ctx)
+		}
 	}
-	return s.store.Delete(ctx, id)
+	s.mu.Unlock()
+	if err := s.store.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.invalidateClientPool(id)
+	return nil
 }
 
 // SetActiveAccount marks the provided account as active.
@@ -138,27 +157,50 @@ func (s *Service) SetActiveAccount(ctx context.Context, id string) (Account, err
 	if err != nil {
 		return Account{}, err
 	}
-	s.activeID = id
-	if err := s.session.Save(ctx, id); err != nil {
-		return Account{}, err
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.session != nil {
+		if err := s.session.Save(ctx, id); err != nil {
+			return Account{}, err
+		}
 	}
+	s.activeID = id
+	s.activeLoaded = true
 	return toAccount(record), nil
 }
 
 // ActiveAccount returns actives account if any.
 func (s *Service) ActiveAccount(ctx context.Context) (*Account, error) {
 	s.ensureActiveLoaded(ctx)
-	if s.activeID == "" {
+	s.mu.RLock()
+	activeID := s.activeID
+	s.mu.RUnlock()
+	if activeID == "" {
 		return nil, nil
 	}
-	record, err := s.store.Get(ctx, s.activeID)
+	record, err := s.store.Get(ctx, activeID)
 	if err != nil {
-		_ = s.session.Clear(ctx)
-		s.activeID = ""
+		s.mu.Lock()
+		if s.activeID == activeID {
+			s.activeID = ""
+			if s.session != nil {
+				_ = s.session.Clear(ctx)
+			}
+		}
+		s.mu.Unlock()
 		return nil, err
 	}
 	acc := toAccount(record)
 	return &acc, nil
+}
+
+// AccountProvider returns the provider for the requested account without decrypting secrets.
+func (s *Service) AccountProvider(ctx context.Context, id string) (types.Provider, error) {
+	record, err := s.store.Get(ctx, id)
+	if err != nil {
+		return types.ProviderCustom, err
+	}
+	return record.Provider, nil
 }
 
 // TestConnection verifies provider credentials via injected dialer.
@@ -332,16 +374,40 @@ func maskAccessKey(value string) string {
 	return trimmed[:4] + "***" + trimmed[len(trimmed)-2:]
 }
 
+func (s *Service) invalidateClientPool(accountID string) {
+	id := strings.TrimSpace(accountID)
+	if id == "" {
+		return
+	}
+	s.mu.RLock()
+	pool := s.clients
+	s.mu.RUnlock()
+	if pool != nil {
+		pool.Invalidate(id)
+	}
+}
+
 func (s *Service) ensureActiveLoaded(ctx context.Context) {
+	s.mu.RLock()
+	if s.activeLoaded {
+		s.mu.RUnlock()
+		return
+	}
+	s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.activeLoaded {
 		return
 	}
 	if s.session != nil {
-		if id, err := s.session.Load(ctx); err == nil && id != "" {
-			if _, err := s.store.Get(ctx, id); err == nil {
-				s.activeID = id
-			} else {
-				_ = s.session.Clear(ctx)
+		if id, err := s.session.Load(ctx); err == nil {
+			id = strings.TrimSpace(id)
+			if id != "" {
+				if _, err := s.store.Get(ctx, id); err == nil {
+					s.activeID = id
+				} else {
+					_ = s.session.Clear(ctx)
+				}
 			}
 		}
 	}

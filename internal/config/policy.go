@@ -51,7 +51,7 @@ func (s *BucketConfigService) SetPolicy(ctx context.Context, accountID, bucket s
 	}
 	payload := strings.TrimSpace(policy.Raw)
 	if payload == "" {
-		body := map[string]interface{}{
+		body := map[string]any{
 			"Version":   policy.VersionOrDefault(),
 			"Statement": policy.Statement,
 		}

@@ -40,7 +40,7 @@ export function DeleteBucketWebsite(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteObject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
 export function EnableBucketVersioning(arg1:string,arg2:string):Promise<void>;
 
@@ -114,6 +114,6 @@ export function TestAccountConnectionPreview(arg1:accounts.CreateAccountInput):P
 
 export function UpdateAccount(arg1:string,arg2:accounts.UpdateAccountInput):Promise<accounts.Account>;
 
-export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
 export function UploadPart(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number,arg6:Array<number>):Promise<string>;

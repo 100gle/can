@@ -1,4 +1,5 @@
 import { isBridgeAvailable } from "@/lib/bridge";
+import { transfersStore } from "@/state/transfers";
 import { DeleteObject, DownloadObject, ListObjects, UploadObject } from "@wailsjs/go/main/App";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { create } from "zustand";
@@ -198,8 +199,10 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
-        await UploadObject(accountId, bucket, finalKey, filePath);
-        await get().refresh();
+        const task = await UploadObject(accountId, bucket, finalKey, filePath);
+        if (task?.id) {
+          transfersStore.syncBackendTasks();
+        }
       } else {
         const mock: ObjectModel = {
           key: finalKey,
@@ -228,10 +231,16 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       pendingKeys: { ...state.pendingKeys, [key]: "downloading" },
       error: undefined,
     }));
+    const useBridge = isBridgeAvailable();
     try {
-      if (isBridgeAvailable()) {
-        await DownloadObject(accountId, bucket, key, savePath);
+      if (useBridge) {
+        const task = await DownloadObject(accountId, bucket, key, savePath);
+        if (task?.id) {
+          await transfersStore.syncBackendTasks();
+        }
+        return;
       }
+      // 浏览器模式尚未实现下载
     } catch (error) {
       const message = error instanceof Error ? error.message : "下载失败";
       set({ error: message });

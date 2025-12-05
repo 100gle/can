@@ -57,10 +57,10 @@ type BucketPolicy struct {
 
 // PolicyStatement mirrors AWS policy statements.
 type PolicyStatement struct {
-	Sid       string                 `json:"sid"`
-	Effect    string                 `json:"effect"`
-	Principal interface{}            `json:"principal"`
-	Action    interface{}            `json:"action"`
-	Resource  interface{}            `json:"resource"`
-	Condition map[string]interface{} `json:"condition"`
+	Sid       string         `json:"sid"`
+	Effect    string         `json:"effect"`
+	Principal any            `json:"principal"`
+	Action    any            `json:"action"`
+	Resource  any            `json:"resource"`
+	Condition map[string]any `json:"condition"`
 }

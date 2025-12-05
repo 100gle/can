@@ -1,4 +1,5 @@
 import { isBridgeAvailable } from "@/lib/bridge";
+import type { ProviderCapability } from "@/state/accounts";
 import {
   DeleteBucketCORS,
   DeleteBucketEncryption,
@@ -49,6 +50,8 @@ export type BucketCORSModel = {
 
 type SavingKey = "versioning" | "encryption" | "lifecycle" | "cors";
 
+export type BucketFeature = "versioning" | "encryption" | "lifecycle" | "cors" | "website" | "policy";
+
 export type BucketConfigState = {
   accountId?: string;
   bucket?: string;
@@ -59,10 +62,15 @@ export type BucketConfigState = {
   loading: boolean;
   saving: Partial<Record<SavingKey, boolean>>;
   error?: string;
+  featureSupport: Partial<Record<BucketFeature, ProviderCapability>>;
 };
 
 export type BucketConfigActions = {
-  loadConfig: (accountId: string, bucket: string) => Promise<void>;
+  loadConfig: (
+    accountId: string,
+    bucket: string,
+    features?: Partial<Record<BucketFeature, ProviderCapability>>,
+  ) => Promise<void>;
   refresh: () => Promise<void>;
   saveVersioning: (status: "Enabled" | "Suspended") => Promise<void>;
   saveEncryption: (payload: BucketEncryptionModel) => Promise<void>;
@@ -76,6 +84,7 @@ const createInitialState = (): BucketConfigState => ({
   lifecycle: [],
   loading: false,
   saving: {},
+  featureSupport: {},
 });
 
 const FALLBACK_VERSIONING: BucketVersioningModel = {
@@ -100,6 +109,11 @@ const FALLBACK_CORS: BucketCORSModel = {
       maxAgeSeconds: 300,
     },
   ],
+};
+
+const supportsFeature = (capability?: ProviderCapability): boolean => {
+  if (!capability) return true;
+  return capability.supported !== false;
 };
 
 const clone = <T>(input: T): T => {
@@ -162,39 +176,63 @@ const normalizeCORS = (cors: ConfigModels.BucketCORS | undefined): BucketCORSMod
 
 const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
   ...createInitialState(),
-  loadConfig: async (accountId: string, bucket: string) => {
+  loadConfig: async (
+    accountId: string,
+    bucket: string,
+    features?: Partial<Record<BucketFeature, ProviderCapability>>,
+  ) => {
     if (!accountId || !bucket) {
       set({ ...createInitialState() });
       return;
     }
+    const featureSupport = features ?? {};
+    const canVersioning = supportsFeature(featureSupport.versioning);
+    const canEncryption = supportsFeature(featureSupport.encryption);
+    const canLifecycle = supportsFeature(featureSupport.lifecycle);
+    const canCORS = supportsFeature(featureSupport.cors);
     set({
       loading: true,
       error: undefined,
       accountId,
       bucket,
+      featureSupport,
     });
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
         const [versioning, encryption, lifecycle, cors] = await Promise.all([
-          GetBucketVersioning(accountId, bucket),
-          GetBucketEncryption(accountId, bucket),
-          GetBucketLifecycle(accountId, bucket),
-          GetBucketCORS(accountId, bucket),
+          canVersioning
+            ? GetBucketVersioning(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.BucketVersioning | undefined),
+          canEncryption
+            ? GetBucketEncryption(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.BucketEncryption | undefined),
+          canLifecycle
+            ? GetBucketLifecycle(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.LifecycleRule[] | undefined),
+          canCORS
+            ? GetBucketCORS(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.BucketCORS | undefined),
         ]);
         set({
-          versioning: normalizeVersioning(versioning as ConfigModels.BucketVersioning),
-          encryption: normalizeEncryption(encryption as ConfigModels.BucketEncryption),
-          lifecycle: normalizeLifecycle(lifecycle as ConfigModels.LifecycleRule[]),
-          cors: normalizeCORS(cors as ConfigModels.BucketCORS),
+          versioning: canVersioning
+            ? normalizeVersioning(versioning as ConfigModels.BucketVersioning)
+            : undefined,
+          encryption: canEncryption
+            ? normalizeEncryption(encryption as ConfigModels.BucketEncryption)
+            : undefined,
+          lifecycle: canLifecycle
+            ? normalizeLifecycle(lifecycle as ConfigModels.LifecycleRule[])
+            : [],
+          cors: canCORS ? normalizeCORS(cors as ConfigModels.BucketCORS) : undefined,
           loading: false,
         });
       } else {
         set({
-          versioning: { ...FALLBACK_VERSIONING },
-          encryption: { ...FALLBACK_ENCRYPTION },
-          lifecycle: [],
-          cors: { ...FALLBACK_CORS },
+          versioning: canVersioning ? { ...FALLBACK_VERSIONING } : undefined,
+          encryption: canEncryption ? { ...FALLBACK_ENCRYPTION } : undefined,
+          lifecycle: canLifecycle ? [] : [],
+          cors: canCORS ? { ...FALLBACK_CORS } : undefined,
           loading: false,
         });
       }
@@ -205,14 +243,19 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     }
   },
   refresh: async () => {
-    const { accountId, bucket } = get();
+    const { accountId, bucket, featureSupport } = get();
     if (accountId && bucket) {
-      await get().loadConfig(accountId, bucket);
+      await get().loadConfig(accountId, bucket, featureSupport);
     }
   },
   saveVersioning: async (status: "Enabled" | "Suspended") => {
-    const { accountId, bucket } = get();
+    const { accountId, bucket, featureSupport } = get();
     if (!accountId || !bucket) return;
+    const capability = featureSupport.versioning;
+    if (capability && capability.supported === false) {
+      set({ error: capability.message || "当前供应商不支持版本控制" });
+      return;
+    }
     set((state) => ({ saving: { ...state.saving, versioning: true }, error: undefined }));
     const useBridge = isBridgeAvailable();
     try {
@@ -248,8 +291,13 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     }
   },
   saveEncryption: async (payload: BucketEncryptionModel) => {
-    const { accountId, bucket } = get();
+    const { accountId, bucket, featureSupport } = get();
     if (!accountId || !bucket) return;
+    const capability = featureSupport.encryption;
+    if (capability && capability.supported === false) {
+      set({ error: capability.message || "当前供应商不支持默认加密" });
+      return;
+    }
     set((state) => ({ saving: { ...state.saving, encryption: true }, error: undefined }));
     const useBridge = isBridgeAvailable();
     try {
@@ -278,8 +326,13 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     }
   },
   saveLifecycle: async (rules: LifecycleRuleModel[]) => {
-    const { accountId, bucket } = get();
+    const { accountId, bucket, featureSupport } = get();
     if (!accountId || !bucket) return;
+    const capability = featureSupport.lifecycle;
+    if (capability && capability.supported === false) {
+      set({ error: capability.message || "当前供应商不支持生命周期规则" });
+      return;
+    }
     set((state) => ({ saving: { ...state.saving, lifecycle: true }, error: undefined }));
     const useBridge = isBridgeAvailable();
     try {
@@ -303,8 +356,13 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     }
   },
   saveCORS: async (cors: BucketCORSModel) => {
-    const { accountId, bucket } = get();
+    const { accountId, bucket, featureSupport } = get();
     if (!accountId || !bucket) return;
+    const capability = featureSupport.cors;
+    if (capability && capability.supported === false) {
+      set({ error: capability.message || "当前供应商不支持 CORS 配置" });
+      return;
+    }
     set((state) => ({ saving: { ...state.saving, cors: true }, error: undefined }));
     const useBridge = isBridgeAvailable();
     try {

@@ -1,6 +1,7 @@
 # Backend Architecture TODOs
 
-## 1. Context Lifecycle Hygiene
+## 1. Context Lifecycle Hygiene _(Completed)_
+- **Status**: ✅ `App.requestContext` implemented with env-configurable timeout and every exported binding now derives a request-scoped context (see `app.go`).
 - **Problem**: `App.ctx` from `startup` (`app.go:60-67`) is shared across every backend call (`app.go:79-333`). When the Wails window closes the context is canceled, and long-running S3/OSS operations never get their own timeout.
 - **Actions**
   1. Add a helper such as `func (a *App) requestContext(parent context.Context) (context.Context, context.CancelFunc)` that wraps `context.WithTimeout(parent, defaultTimeout)`; default timeout should be configurable via env (e.g., `CAN_REQUEST_TIMEOUT`) with a sane fallback (60s).
@@ -9,7 +10,8 @@
   4. Update services (`accounts`, `buckets`, `objects`, `search`, `config`, `transfer`) to accept the per-request context and remove any hidden dependency on `App.ctx`.
   5. Definition of Done: closing the Wails window no longer aborts background work immediately, and manual tests show that per-request timeouts emit user-friendly errors rather than hanging indefinitely.
 
-## 2. Account Service Concurrency Safety
+## 2. Account Service Concurrency Safety _(Completed)_
+- **Status**: ✅ `accounts.Service` now uses a `sync.RWMutex`, invalidates the client pool, and ships new race-heavy tests (`internal/accounts/service_test.go`).
 - **Problem**: `internal/accounts/service.go` keeps mutable fields (`activeID`, `activeLoaded`) without locks while multiple goroutines may call `SetActiveAccount`, `ActiveAccount`, or `DeleteAccount`.
 - **Actions**
   1. Introduce a `sync.RWMutex` (e.g., `mu sync.RWMutex`) on the service; wrap all reads/writes to `activeID`/`activeLoaded` plus session store interactions inside the lock.
@@ -17,7 +19,8 @@
   3. Add race-focused tests in `internal/accounts/service_test.go` that concurrently call `SetActiveAccount`, `ActiveAccount`, `DeleteAccount`, and `EnsureSeed`. Run `go test -race ./internal/accounts`.
   4. Definition of Done: race detector passes, and the session state persists correctly even under concurrent switching.
 
-## 3. Provider Client Reuse
+## 3. Provider Client Reuse _(Completed)_
+- **Status**: ✅ Added `providers.ClientPool`, documented in `docs/spec/provider-clients.md`, and updated buckets/objects/search/transfer plus `accounts.Service` invalidation hooks.
 - **Problem**: `buckets.Service`, `objects.Service`, and `search.Service` rebuild storage clients on every call (`NewClient` + credential decryption), leading to repeated TLS handshakes and fragmented retry configuration.
 - **Actions**
   1. Design a cache keyed by `accountID` (or hashed credentials) that stores `{StorageClient, expiresAt}`; expose it via a new `providers.ClientPool`.
@@ -26,7 +29,8 @@
   4. Update `buckets.Service.client`, `objects.Service.client`, `search.Service.client`, and `transfer.Service` to consume the pool rather than instantiating clients ad-hoc; keep credential decryption centralized to avoid redundant KMS calls.
   5. Definition of Done: repeated object listing/uploading reuses a single client (verified by instrumenting connection counts), and credentials updates immediately drop cached clients.
 
-## 4. Bucket Configuration Capability Gating
+## 4. Bucket Configuration Capability Gating _(Completed)_
+- **Status**: ✅ Capability matrix now includes bucket-config features, backend goes through `configfacade.Service`, and the frontend gates panels via `CapabilityGate`/`bucketConfigStore`. Specs updated (`docs/features.md`).
 - **Problem**: UI-facing methods for versioning/encryption/lifecycle/etc. are always bound (`app.go:144-232`), but `BucketConfigService` rejects non-S3 providers with `ErrUnsupportedProvider` (see `internal/config/service.go:24-58`).
 - **Actions**
   1. Extend `types.ProviderCapability` (or add a `BucketConfigCapability` enum) to explicitly mark which providers support versioning/encryption/etc.; expose this via `ProviderCapabilities` and ensure `frontend` consumes it to gate buttons/menus.
@@ -35,7 +39,8 @@
   4. Add integration tests (or at least unit tests with fake providers) that verify OSS/COS accounts bypass these endpoints without surfacing raw `ErrUnsupportedProvider`.
   5. Definition of Done: UI no longer shows unsupported config actions, backend logs contain clearer messages, and specs mention which providers support which features.
 
-## 5. Transfer Service Execution Model
+## 5. Transfer Service Execution Model _(Completed)_
+- **Status**: ✅ Transfer tasks now persist to `transfers.db`, background workers stream uploads/downloads, and pause/resume/cancel operate through the persisted queue with UI polling wired up.
 - **Problem**: Transfers run synchronously inside `objects.Service` (`internal/objects/service.go:205-352`), while `transfer.Service` only tracks in-memory progress; tasks vanish on restart and “pause/cancel” simply cancel the current context.
 - **Actions**
   1. Introduce a persistent task queue (SQLite table or bolt DB) owned by `transfer.Service`, storing metadata (account/bucket/key/status/progress/uploadID/chunks). Migrate existing in-memory managers to read/write through this store.

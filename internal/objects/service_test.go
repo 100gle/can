@@ -228,6 +228,8 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Servic
 		t.Fatalf("create account: %v", err)
 	}
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
-	service := NewService(accountSvc, factory, nil)
+	pool := providers.NewClientPool(factory)
+	accountSvc.SetClientPool(pool)
+	service := NewService(accountSvc, pool, nil)
 	return service, account.ID
 }

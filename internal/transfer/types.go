@@ -32,6 +32,7 @@ type TransferTask struct {
 	AccountID      string         `json:"accountId"`
 	Bucket         string         `json:"bucket"`
 	Key            string         `json:"key"`
+	LocalPath      string         `json:"localPath,omitempty"`
 	Status         TaskStatus     `json:"status"`
 	Progress       int64          `json:"progress"`
 	Total          int64          `json:"total"`
@@ -44,9 +45,12 @@ type TransferTask struct {
 	MaxRetries     int            `json:"maxRetries"`
 	UploadID       string         `json:"uploadId,omitempty"`
 	CompletedParts map[int]string `json:"completedParts,omitempty"`
+	CreatedAt      time.Time      `json:"createdAt" ts_type:"string"`
+	UpdatedAt      time.Time      `json:"updatedAt" ts_type:"string"`
 	cancel         context.CancelFunc
 	lastSampleTime time.Time
 	lastSnapshot   int64
+	lastPersisted  time.Time
 }
 
 // UploadProgress is sent to the UI for incremental updates.
@@ -69,5 +73,6 @@ func (t *TransferTask) clone() *TransferTask {
 			cp.CompletedParts[k] = v
 		}
 	}
+	cp.cancel = nil
 	return &cp
 }

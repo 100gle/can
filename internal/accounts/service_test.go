@@ -2,7 +2,9 @@ package accounts
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"can/internal/providers"
@@ -185,6 +187,117 @@ func TestActiveAccountPersistsViaSessionStore(t *testing.T) {
 	}
 	if active == nil || active.ID != account.ID {
 		t.Fatalf("expected active account %s, got %#v", account.ID, active)
+	}
+}
+
+func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
+	ctx := context.Background()
+	svc := NewService(NewMemoryStore(), testCipher(t), providers.NewStubDialer(), NewMemorySessionStore())
+	accA, err := svc.CreateAccount(ctx, CreateAccountInput{
+		Name:            "Concurrent-A",
+		Provider:        types.ProviderAWS,
+		Endpoint:        "https://s3.amazonaws.com",
+		AccessKeyID:     "AKIA-CONCURRENT-A",
+		SecretAccessKey: "secret-a",
+		Region:          "us-east-1",
+		UseSSL:          true,
+		Port:            443,
+	})
+	if err != nil {
+		t.Fatalf("create account A: %v", err)
+	}
+	accB, err := svc.CreateAccount(ctx, CreateAccountInput{
+		Name:            "Concurrent-B",
+		Provider:        types.ProviderOSS,
+		Endpoint:        "https://oss-cn-hangzhou.aliyuncs.com",
+		AccessKeyID:     "LTAI-CONCURRENT-B",
+		SecretAccessKey: "secret-b",
+		Region:          "cn-hangzhou",
+		UseSSL:          true,
+		Port:            443,
+	})
+	if err != nil {
+		t.Fatalf("create account B: %v", err)
+	}
+
+	recordError := func(ch chan<- error, err error) {
+		if err == nil {
+			return
+		}
+		select {
+		case ch <- err:
+		default:
+		}
+	}
+
+	errCh := make(chan error, 8)
+	var wg sync.WaitGroup
+	ids := []string{accA.ID, accB.ID}
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			if _, err := svc.SetActiveAccount(ctx, ids[i%len(ids)]); err != nil {
+				recordError(errCh, fmt.Errorf("set active: %w", err))
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			if _, err := svc.ActiveAccount(ctx); err != nil {
+				recordError(errCh, fmt.Errorf("active account: %w", err))
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			label := fmt.Sprintf("Temp-%d", i)
+			temp, err := svc.CreateAccount(ctx, CreateAccountInput{
+				Name:            label,
+				Provider:        types.ProviderCustom,
+				Endpoint:        "https://example.com",
+				AccessKeyID:     fmt.Sprintf("TEMP-%d", i),
+				SecretAccessKey: fmt.Sprintf("secret-%d", i),
+				Region:          "auto",
+				UseSSL:          true,
+				Port:            443,
+			})
+			if err != nil {
+				recordError(errCh, fmt.Errorf("create temp: %w", err))
+				return
+			}
+			if _, err := svc.SetActiveAccount(ctx, temp.ID); err != nil {
+				recordError(errCh, fmt.Errorf("activate temp: %w", err))
+				return
+			}
+			if err := svc.DeleteAccount(ctx, temp.ID); err != nil {
+				recordError(errCh, fmt.Errorf("delete temp: %w", err))
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			if err := svc.EnsureSeed(ctx); err != nil {
+				recordError(errCh, fmt.Errorf("ensure seed: %w", err))
+				return
+			}
+		}
+	}()
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("concurrent operations failed: %v", err)
+		}
+	}
+	if _, err := svc.ActiveAccount(ctx); err != nil {
+		t.Fatalf("final active lookup failed: %v", err)
 	}
 }
 

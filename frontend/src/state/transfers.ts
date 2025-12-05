@@ -22,6 +22,7 @@ export type TransferViewModel = {
   accountId: string;
   bucket: string;
   key: string;
+  localPath?: string;
   name: string;
   type: "upload" | "download";
   status: TaskStatus;
@@ -100,6 +101,7 @@ const toViewModel = (task: transfer.TransferTask): TransferViewModel => ({
   accountId: task.accountId,
   bucket: task.bucket,
   key: task.key,
+  localPath: task.localPath || undefined,
   name: deriveName(task.key),
   type: task.type === "download" ? "download" : "upload",
   status: (task.status as TaskStatus) || "pending",

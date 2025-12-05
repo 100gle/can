@@ -135,7 +135,7 @@ func (f *s3ClientFactory) buildAWSConfig(creds ConnectionCredentials) (aws.Confi
 	cfg.HTTPClient = f.httpClient
 	if hasEndpoint {
 		resolvedEndpoint := endpoint
-		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
 			if service == s3.ServiceID {
 				return aws.Endpoint{URL: resolvedEndpoint, HostnameImmutable: true}, nil
 			}

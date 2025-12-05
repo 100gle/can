@@ -13,12 +13,12 @@ import (
 // Service orchestrates bucket level operations via the shared S3 factory.
 type Service struct {
 	accounts *accounts.Service
-	factory  providers.StorageFactory
+	pool     providers.ClientPool
 }
 
 // NewService wires the dependencies required to manage buckets.
-func NewService(accounts *accounts.Service, factory providers.StorageFactory) *Service {
-	return &Service{accounts: accounts, factory: factory}
+func NewService(accounts *accounts.Service, pool providers.ClientPool) *Service {
+	return &Service{accounts: accounts, pool: pool}
 }
 
 // ListBuckets enumerates all buckets accessible by the account credentials.
@@ -107,14 +107,17 @@ func (s *Service) BucketLocation(ctx context.Context, accountID, name string) (s
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, providers.ConnectionCredentials, error) {
-	if strings.TrimSpace(accountID) == "" {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
 		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
 	}
-	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
-	if err != nil {
-		return nil, providers.ConnectionCredentials{}, err
+	if s.pool == nil {
+		return nil, providers.ConnectionCredentials{}, errors.New("storage client pool not configured")
 	}
-	client, err := s.factory.NewClient(ctx, creds)
+	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+		return s.accounts.ConnectionCredentials(ctx, accountID)
+	}
+	client, creds, err := s.pool.Get(ctx, accountID, supplier)
 	if err != nil {
 		return nil, providers.ConnectionCredentials{}, err
 	}

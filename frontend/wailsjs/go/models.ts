@@ -556,6 +556,7 @@ export namespace transfer {
 	    accountId: string;
 	    bucket: string;
 	    key: string;
+	    localPath?: string;
 	    status: string;
 	    progress: number;
 	    total: number;
@@ -568,6 +569,8 @@ export namespace transfer {
 	    maxRetries: number;
 	    uploadId?: string;
 	    completedParts?: Record<number, string>;
+	    createdAt: string;
+	    updatedAt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new TransferTask(source);
@@ -580,6 +583,7 @@ export namespace transfer {
 	        this.accountId = source["accountId"];
 	        this.bucket = source["bucket"];
 	        this.key = source["key"];
+	        this.localPath = source["localPath"];
 	        this.status = source["status"];
 	        this.progress = source["progress"];
 	        this.total = source["total"];
@@ -592,6 +596,8 @@ export namespace transfer {
 	        this.maxRetries = source["maxRetries"];
 	        this.uploadId = source["uploadId"];
 	        this.completedParts = source["completedParts"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
 	    }
 	}
 
@@ -639,4 +645,3 @@ export namespace types {
 	}
 
 }
-

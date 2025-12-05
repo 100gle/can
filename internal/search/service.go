@@ -28,7 +28,7 @@ const (
 // Service provides high-level object search and export utilities.
 type Service struct {
 	accounts *accounts.Service
-	factory  providers.StorageFactory
+	pool     providers.ClientPool
 }
 
 type listTask struct {
@@ -37,10 +37,10 @@ type listTask struct {
 }
 
 // NewService constructs a search service instance.
-func NewService(accounts *accounts.Service, factory providers.StorageFactory) *Service {
+func NewService(accounts *accounts.Service, pool providers.ClientPool) *Service {
 	return &Service{
 		accounts: accounts,
-		factory:  factory,
+		pool:     pool,
 	}
 }
 
@@ -281,11 +281,13 @@ func (s *Service) iterateAll(ctx context.Context, accountID string, query *Searc
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
-	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
-	if err != nil {
-		return nil, err
+	if s.pool == nil {
+		return nil, errors.New("storage client pool not configured")
 	}
-	client, err := s.factory.NewClient(ctx, creds)
+	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+		return s.accounts.ConnectionCredentials(ctx, accountID)
+	}
+	client, _, err := s.pool.Get(ctx, accountID, supplier)
 	if err != nil {
 		return nil, err
 	}

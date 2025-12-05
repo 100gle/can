@@ -58,10 +58,5 @@ func (s *BucketConfigService) client(ctx context.Context, accountID, bucket stri
 }
 
 func (s *BucketConfigService) supportsConfig(provider types.Provider) bool {
-	switch provider {
-	case types.ProviderOSS, types.ProviderCOS:
-		return false
-	default:
-		return true
-	}
+	return provider == types.ProviderAWS
 }

@@ -24,6 +24,7 @@ pnpm --dir frontend build && wails build
 | --- | --- | --- |
 | `CAN_DB_DRIVER` | `sqlite` | 支持 `sqlite`（ORM 持久化）或 `memory`（内存演示）。 |
 | `CAN_DB_DSN` | `%USER_CONFIG%/can/accounts.db` | SQLite 文件路径；当 driver 为 `sqlite` 且未显式设置时自动创建。 |
+| `CAN_TRANSFER_DB` | `%USER_CONFIG%/can/transfers.db` | 传输任务队列的 SQLite 文件；缺省时自动创建，无法创建时回退到内存队列。 |
 
 切换为内存模式时（`CAN_DB_DRIVER=memory`）不会持久化任何账户，仅适合演示或测试。
 
