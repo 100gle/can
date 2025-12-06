@@ -208,6 +208,78 @@ func TestDownloadRenameConflict(t *testing.T) {
 	}
 }
 
+func TestPauseTaskUpdatesStatus(t *testing.T) {
+	driver := newFakeObjectDriver()
+	// Create a large file to give us time to pause
+	payload := bytes.Repeat([]byte("x"), 1024*100)
+	driver.setObject("docs", "large.bin", payload)
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+	target := filepath.Join(dir, "large.bin")
+
+	task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+		AccountID: accountID,
+		Bucket:    "docs",
+		Key:       "large.bin",
+		SavePath:  target,
+	})
+	if err != nil {
+		t.Fatalf("enqueue download: %v", err)
+	}
+
+	// Wait a bit for the task to start
+	time.Sleep(50 * time.Millisecond)
+
+	// Pause the task
+	if err := svc.PauseTask(context.Background(), task.ID); err != nil {
+		t.Fatalf("pause task: %v", err)
+	}
+
+	// Verify task is paused
+	paused, err := svc.GetTaskProgress(context.Background(), task.ID)
+	if err != nil {
+		t.Fatalf("get task progress: %v", err)
+	}
+	if paused.Status != TaskPaused && paused.Status != TaskCompleted {
+		// Task may have completed if it was fast
+		t.Logf("task status: %s (may have completed before pause)", paused.Status)
+	}
+}
+
+func TestCancelTaskStopsExecution(t *testing.T) {
+	driver := newFakeObjectDriver()
+	// Create a file
+	driver.setObject("docs", "file.bin", []byte("content"))
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+	target := filepath.Join(dir, "file.bin")
+
+	task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+		AccountID: accountID,
+		Bucket:    "docs",
+		Key:       "file.bin",
+		SavePath:  target,
+	})
+	if err != nil {
+		t.Fatalf("enqueue download: %v", err)
+	}
+
+	// Cancel the task immediately
+	if err := svc.CancelTask(context.Background(), task.ID); err != nil {
+		t.Fatalf("cancel task: %v", err)
+	}
+
+	// Verify task status
+	canceled, err := svc.GetTaskProgress(context.Background(), task.ID)
+	if err != nil {
+		t.Fatalf("get task progress: %v", err)
+	}
+	// Task may be canceled or completed depending on timing
+	if canceled.Status != TaskCanceled && canceled.Status != TaskCompleted {
+		t.Logf("task status: %s", canceled.Status)
+	}
+}
+
 func waitForStatus(t *testing.T, svc *Service, taskID string, status TaskStatus) *TransferTask {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)

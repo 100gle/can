@@ -150,6 +150,97 @@ func TestUpdateObjectAttributesPartialSuccess(t *testing.T) {
 	}
 }
 
+func TestCopyObjectSucceeds(t *testing.T) {
+	driver := newStubObjectDriver()
+	svc, accountID := newTestObjectsService(t, driver)
+	ctx := context.Background()
+	if err := svc.CopyObject(ctx, accountID, "src", "file.txt", "dst", "copied.txt"); err != nil {
+		t.Fatalf("copy object: %v", err)
+	}
+	if len(driver.copyCalls) != 1 {
+		t.Fatalf("expected 1 copy call, got %d", len(driver.copyCalls))
+	}
+	call := driver.copyCalls[0]
+	if call.sourceBucket != "src" || call.sourceKey != "file.txt" || call.targetBucket != "dst" || call.targetKey != "copied.txt" {
+		t.Fatalf("unexpected copy call: %+v", call)
+	}
+}
+
+func TestCopyObjectPropagatesError(t *testing.T) {
+	driver := newStubObjectDriver()
+	driver.copyErr = errors.New("copy failed")
+	svc, accountID := newTestObjectsService(t, driver)
+	err := svc.CopyObject(context.Background(), accountID, "src", "file.txt", "dst", "copied.txt")
+	if !errors.Is(err, driver.copyErr) {
+		t.Fatalf("expected copy error, got %v", err)
+	}
+}
+
+func TestGetObjectAttributesReturnsMetadata(t *testing.T) {
+	driver := newStubObjectDriver()
+	driver.headResponses[driver.key("docs", "report.pdf")] = headResponse{
+		desc: providers.ObjectDescriptor{
+			Key:          "report.pdf",
+			Size:         1024,
+			ContentType:  "application/pdf",
+			StorageClass: "STANDARD",
+		},
+		err: nil,
+	}
+	svc, accountID := newTestObjectsService(t, driver)
+	ctx := context.Background()
+	attrs, err := svc.GetObjectAttributes(ctx, accountID, "docs", "report.pdf")
+	if err != nil {
+		t.Fatalf("get object attributes: %v", err)
+	}
+	if attrs.Object.Key != "report.pdf" {
+		t.Fatalf("expected key report.pdf, got %s", attrs.Object.Key)
+	}
+	if attrs.Object.Size != 1024 {
+		t.Fatalf("expected size 1024, got %d", attrs.Object.Size)
+	}
+}
+
+func TestGetObjectAttributesNotFound(t *testing.T) {
+	driver := newStubObjectDriver()
+	driver.headResponses[driver.key("docs", "missing.txt")] = headResponse{
+		err: errors.New("object not found"),
+	}
+	svc, accountID := newTestObjectsService(t, driver)
+	_, err := svc.GetObjectAttributes(context.Background(), accountID, "docs", "missing.txt")
+	if err == nil {
+		t.Fatalf("expected error for missing object")
+	}
+}
+
+func TestBatchUpdateObjectAttributesPartialFailure(t *testing.T) {
+	driver := newStubObjectDriver()
+	driver.headResponses[driver.key("docs", "a.txt")] = headResponse{
+		desc: providers.ObjectDescriptor{Key: "a.txt"},
+	}
+	driver.headResponses[driver.key("docs", "b.txt")] = headResponse{
+		desc: providers.ObjectDescriptor{Key: "b.txt"},
+	}
+	// First object will fail tags update
+	driver.tagsErr = errors.New("tags update failed")
+	svc, accountID := newTestObjectsService(t, driver)
+	patches := []ObjectAttributesPatch{
+		{Bucket: "docs", Key: "a.txt", Tags: map[string]string{"env": "prod"}},
+		{Bucket: "docs", Key: "b.txt", Tags: map[string]string{"env": "dev"}},
+	}
+	result, err := svc.BatchUpdateObjectAttributes(context.Background(), accountID, patches)
+	if err != nil {
+		t.Fatalf("batch update: %v", err)
+	}
+	if result.Total != 2 {
+		t.Fatalf("expected total 2, got %d", result.Total)
+	}
+	// Both should fail since driver.tagsErr is set
+	if len(result.Failed) != 2 {
+		t.Fatalf("expected 2 failures, got %d", len(result.Failed))
+	}
+}
+
 type stubObjectDriver struct {
 	headResponses map[string]headResponse
 	copyCalls     []copyCall
