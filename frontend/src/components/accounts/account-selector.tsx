@@ -114,7 +114,7 @@ export const AccountSelector = ({
   const renderGrid = (layout: "cards" | "list") => {
     if (loading) {
       return (
-        <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>正在加载账户列表...</span>
         </div>
@@ -123,7 +123,7 @@ export const AccountSelector = ({
 
     if (error) {
       return (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           <p>{error}</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
             <RefreshCcw className="mr-2 h-4 w-4" />
@@ -164,7 +164,7 @@ export const AccountSelector = ({
                 <Sparkles className="h-3 w-3" />
                 Multi-Account
               </p>
-              <h2 className="mt-2 text-3xl font-semibold">选择你的云存储账户</h2>
+              <h2 className="mt-2 text-2xl font-semibold">选择你的云存储账户</h2>
               <p className="text-sm text-muted-foreground">
                 集中管理 S3 兼容服务，快速切换并查看连接状态。
               </p>
@@ -198,11 +198,11 @@ export const AccountSelector = ({
         </div>
         {accounts.length > 0 ? (
           <div className="flex justify-start">
-            <TabsList className="flex rounded-2xl border border-border/60 bg-muted/20 p-1 text-muted-foreground shadow-inner shadow-black/5 backdrop-blur-sm">
+            <TabsList className="flex rounded-lg border border-border/60 bg-muted/20 p-1 text-muted-foreground shadow-inner shadow-black/5 backdrop-blur-sm">
               <TabsTrigger
                 value="cards"
                 aria-label="卡片视图"
-                className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
               >
                 <LayoutGrid className="h-4 w-4" />
                 <span className="hidden sm:inline">卡片</span>
@@ -210,7 +210,7 @@ export const AccountSelector = ({
               <TabsTrigger
                 value="list"
                 aria-label="列表视图"
-                className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
               >
                 <Rows className="h-4 w-4" />
                 <span className="hidden sm:inline">列表</span>
@@ -241,8 +241,8 @@ export const AccountSelector = ({
 };
 
 const EmptyState = ({ onCreate, onImport }: { onCreate: () => void; onImport?: () => void }) => (
-  <div className="rounded-3xl border border-dashed border-border/60 p-10 text-center">
-    <h3 className="text-2xl font-semibold">欢迎使用 CAN</h3>
+  <div className="rounded-xl border border-dashed border-border/60 p-10 text-center">
+    <h3 className="text-xl font-semibold">欢迎使用 CAN</h3>
     <p className="mt-2 text-sm text-muted-foreground">
       当前还没有配置任何账户，立即新建一个开始浏览 Bucket 与对象。
     </p>

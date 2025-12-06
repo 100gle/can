@@ -583,6 +583,239 @@ export namespace migration {
 
 export namespace objects {
 	
+	export class AccessGrant {
+	    granteeType: string;
+	    grantee: string;
+	    permission: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccessGrant(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.granteeType = source["granteeType"];
+	        this.grantee = source["grantee"];
+	        this.permission = source["permission"];
+	    }
+	}
+	export class AccessLink {
+	    id: string;
+	    method: string;
+	    url: string;
+	    expiresAt: string;
+	    markdown: string;
+	    html: string;
+	    qrCode: string;
+	    responseHeaders: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccessLink(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.expiresAt = source["expiresAt"];
+	        this.markdown = source["markdown"];
+	        this.html = source["html"];
+	        this.qrCode = source["qrCode"];
+	        this.responseHeaders = source["responseHeaders"];
+	    }
+	}
+	export class AccessLinkRequest {
+	    bucket: string;
+	    key: string;
+	    methods: string[];
+	    expirationSeconds: number;
+	    responseHeaders: Record<string, string>;
+	    fileName: string;
+	    versionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccessLinkRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.methods = source["methods"];
+	        this.expirationSeconds = source["expirationSeconds"];
+	        this.responseHeaders = source["responseHeaders"];
+	        this.fileName = source["fileName"];
+	        this.versionId = source["versionId"];
+	    }
+	}
+	export class BatchOperationFailure {
+	    bucket: string;
+	    key: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchOperationFailure(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.error = source["error"];
+	    }
+	}
+	export class BatchAttributesResult {
+	    total: number;
+	    succeeded: number;
+	    failed: BatchOperationFailure[];
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchAttributesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.succeeded = source["succeeded"];
+	        this.failed = this.convertValues(source["failed"], BatchOperationFailure);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class DownloadBatchEntry {
+	    bucket: string;
+	    key: string;
+	    relativePath: string;
+	    size: number;
+	    versionId: string;
+	    isDir: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadBatchEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.relativePath = source["relativePath"];
+	        this.size = source["size"];
+	        this.versionId = source["versionId"];
+	        this.isDir = source["isDir"];
+	    }
+	}
+	export class DownloadBatchInput {
+	    bucket: string;
+	    entries: DownloadBatchEntry[];
+	    targetDirectory: string;
+	    archiveName: string;
+	    conflictStrategy: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadBatchInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.entries = this.convertValues(source["entries"], DownloadBatchEntry);
+	        this.targetDirectory = source["targetDirectory"];
+	        this.archiveName = source["archiveName"];
+	        this.conflictStrategy = source["conflictStrategy"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DownloadObjectInput {
+	    bucket: string;
+	    key: string;
+	    savePath: string;
+	    targetDirectory: string;
+	    conflictStrategy: string;
+	    disableResume: boolean;
+	    versionId: string;
+	    expectedEtag: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadObjectInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.savePath = source["savePath"];
+	        this.targetDirectory = source["targetDirectory"];
+	        this.conflictStrategy = source["conflictStrategy"];
+	        this.disableResume = source["disableResume"];
+	        this.versionId = source["versionId"];
+	        this.expectedEtag = source["expectedEtag"];
+	    }
+	}
+	export class LinkHistoryEntry {
+	    id: string;
+	    accountId: string;
+	    bucket: string;
+	    key: string;
+	    method: string;
+	    url: string;
+	    fileName: string;
+	    expiresAt: string;
+	    createdAt: string;
+	    responseHeaders: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinkHistoryEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.accountId = source["accountId"];
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.fileName = source["fileName"];
+	        this.expiresAt = source["expiresAt"];
+	        this.createdAt = source["createdAt"];
+	        this.responseHeaders = source["responseHeaders"];
+	    }
+	}
 	export class ListObjectsInput {
 	    bucket: string;
 	    prefix: string;
@@ -609,6 +842,8 @@ export namespace objects {
 	    lastModified: string;
 	    etag: string;
 	    contentType: string;
+	    storageClass: string;
+	    versionId: string;
 	    isDir: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -622,6 +857,8 @@ export namespace objects {
 	        this.lastModified = source["lastModified"];
 	        this.etag = source["etag"];
 	        this.contentType = source["contentType"];
+	        this.storageClass = source["storageClass"];
+	        this.versionId = source["versionId"];
 	        this.isDir = source["isDir"];
 	    }
 	}
@@ -658,6 +895,124 @@ export namespace objects {
 		    }
 		    return a;
 		}
+	}
+	export class MoveObjectRequest {
+	    sourceBucket: string;
+	    sourceKey: string;
+	    targetBucket: string;
+	    targetKey: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MoveObjectRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourceBucket = source["sourceBucket"];
+	        this.sourceKey = source["sourceKey"];
+	        this.targetBucket = source["targetBucket"];
+	        this.targetKey = source["targetKey"];
+	    }
+	}
+	export class MoveObjectsResult {
+	    total: number;
+	    succeeded: number;
+	    failed: BatchOperationFailure[];
+	
+	    static createFrom(source: any = {}) {
+	        return new MoveObjectsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.succeeded = source["succeeded"];
+	        this.failed = this.convertValues(source["failed"], BatchOperationFailure);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ObjectAttributes {
+	    object: ObjectInfo;
+	    metadata: Record<string, string>;
+	    tags: Record<string, string>;
+	    acl: string;
+	    grants: AccessGrant[];
+	    ownerId: string;
+	    ownerName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ObjectAttributes(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.object = this.convertValues(source["object"], ObjectInfo);
+	        this.metadata = source["metadata"];
+	        this.tags = source["tags"];
+	        this.acl = source["acl"];
+	        this.grants = this.convertValues(source["grants"], AccessGrant);
+	        this.ownerId = source["ownerId"];
+	        this.ownerName = source["ownerName"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ObjectAttributesPatch {
+	    bucket: string;
+	    key: string;
+	    metadata: Record<string, string>;
+	    tags: Record<string, string>;
+	    contentType: string;
+	    storageClass: string;
+	    acl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ObjectAttributesPatch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.metadata = source["metadata"];
+	        this.tags = source["tags"];
+	        this.contentType = source["contentType"];
+	        this.storageClass = source["storageClass"];
+	        this.acl = source["acl"];
+	    }
 	}
 
 }
@@ -925,6 +1280,69 @@ export namespace system {
 
 export namespace transfer {
 	
+	export class DownloadEntry {
+	    bucket: string;
+	    key: string;
+	    relativePath: string;
+	    size: number;
+	    versionId: string;
+	    isDir: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.relativePath = source["relativePath"];
+	        this.size = source["size"];
+	        this.versionId = source["versionId"];
+	        this.isDir = source["isDir"];
+	    }
+	}
+	export class DownloadConfig {
+	    mode: string;
+	    targetDirectory: string;
+	    archiveName: string;
+	    conflictStrategy: string;
+	    entries: DownloadEntry[];
+	    resumeEnabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.targetDirectory = source["targetDirectory"];
+	        this.archiveName = source["archiveName"];
+	        this.conflictStrategy = source["conflictStrategy"];
+	        this.entries = this.convertValues(source["entries"], DownloadEntry);
+	        this.resumeEnabled = source["resumeEnabled"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class TransferTask {
 	    id: string;
 	    type: string;
@@ -945,6 +1363,9 @@ export namespace transfer {
 	    maxRetries: number;
 	    uploadId?: string;
 	    completedParts?: Record<number, string>;
+	    versionId?: string;
+	    etag?: string;
+	    downloadConfig?: DownloadConfig;
 	    createdAt: string;
 	    updatedAt: string;
 	
@@ -973,9 +1394,30 @@ export namespace transfer {
 	        this.maxRetries = source["maxRetries"];
 	        this.uploadId = source["uploadId"];
 	        this.completedParts = source["completedParts"];
+	        this.versionId = source["versionId"];
+	        this.etag = source["etag"];
+	        this.downloadConfig = this.convertValues(source["downloadConfig"], DownloadConfig);
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

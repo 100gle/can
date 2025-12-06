@@ -87,7 +87,7 @@ export const AccountCard = memo(function AccountCard({
       aria-disabled={disabled}
       onClick={handleClick}
       className={cn(
-        "group h-full w-full cursor-pointer rounded-2xl border border-border/40 bg-card/80 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        "group h-full w-full cursor-pointer rounded-lg border border-border/40 bg-card/80 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         disabled && "pointer-events-none opacity-70",
       )}
     >

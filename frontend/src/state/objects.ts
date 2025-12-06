@@ -51,6 +51,8 @@ const FALLBACK_OBJECTS: ObjectModel[] = [
     lastModified: new Date().toISOString() as any,
     etag: "",
     contentType: "",
+    storageClass: "",
+    versionId: "",
     isDir: true,
   },
   {
@@ -59,6 +61,8 @@ const FALLBACK_OBJECTS: ObjectModel[] = [
     lastModified: new Date().toISOString() as any,
     etag: "etag-1",
     contentType: "image/png",
+    storageClass: "STANDARD",
+    versionId: "",
     isDir: false,
   },
   {
@@ -67,6 +71,8 @@ const FALLBACK_OBJECTS: ObjectModel[] = [
     lastModified: new Date().toISOString() as any,
     etag: "etag-2",
     contentType: "text/plain",
+    storageClass: "STANDARD",
+    versionId: "",
     isDir: false,
   },
 ];
@@ -210,6 +216,8 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
           lastModified: new Date().toISOString() as any,
           etag: `mock-${Date.now()}`,
           contentType: "application/octet-stream",
+          storageClass: "STANDARD",
+          versionId: "",
           isDir: false,
         };
         set((state) => ({ objects: [mock, ...state.objects] }));

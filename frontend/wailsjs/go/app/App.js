@@ -10,6 +10,10 @@ export function ActiveAccount() {
   return window['go']['app']['App']['ActiveAccount']();
 }
 
+export function BatchUpdateObjectAttributes(arg1, arg2) {
+  return window['go']['app']['App']['BatchUpdateObjectAttributes'](arg1, arg2);
+}
+
 export function BucketLocation(arg1, arg2) {
   return window['go']['app']['App']['BucketLocation'](arg1, arg2);
 }
@@ -46,12 +50,20 @@ export function CreateBucketSnapshot(arg1, arg2) {
   return window['go']['app']['App']['CreateBucketSnapshot'](arg1, arg2);
 }
 
+export function CreateFolder(arg1, arg2, arg3) {
+  return window['go']['app']['App']['CreateFolder'](arg1, arg2, arg3);
+}
+
 export function CreateMigrationJob(arg1, arg2, arg3) {
   return window['go']['app']['App']['CreateMigrationJob'](arg1, arg2, arg3);
 }
 
 export function CreateSyncRule(arg1) {
   return window['go']['app']['App']['CreateSyncRule'](arg1);
+}
+
+export function DeleteAccessLinkHistory(arg1, arg2) {
+  return window['go']['app']['App']['DeleteAccessLinkHistory'](arg1, arg2);
 }
 
 export function DeleteAccount(arg1) {
@@ -98,8 +110,16 @@ export function DeleteSyncRule(arg1) {
   return window['go']['app']['App']['DeleteSyncRule'](arg1);
 }
 
+export function DownloadBatch(arg1, arg2) {
+  return window['go']['app']['App']['DownloadBatch'](arg1, arg2);
+}
+
 export function DownloadObject(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['DownloadObject'](arg1, arg2, arg3, arg4);
+}
+
+export function DownloadObjectWithOptions(arg1, arg2) {
+  return window['go']['app']['App']['DownloadObjectWithOptions'](arg1, arg2);
 }
 
 export function EnableBucketVersioning(arg1, arg2) {
@@ -116,6 +136,10 @@ export function ExportSearchResults(arg1, arg2, arg3) {
 
 export function ForceQuit() {
   return window['go']['app']['App']['ForceQuit']();
+}
+
+export function GenerateAccessLinks(arg1, arg2) {
+  return window['go']['app']['App']['GenerateAccessLinks'](arg1, arg2);
 }
 
 export function GetAnalyticsSummary(arg1) {
@@ -148,6 +172,10 @@ export function GetBucketWebsite(arg1, arg2) {
 
 export function GetMigrationJob(arg1) {
   return window['go']['app']['App']['GetMigrationJob'](arg1);
+}
+
+export function GetObjectAttributes(arg1, arg2, arg3) {
+  return window['go']['app']['App']['GetObjectAttributes'](arg1, arg2, arg3);
 }
 
 export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
@@ -186,6 +214,10 @@ export function InitiateMultipartUpload(arg1, arg2, arg3) {
   return window['go']['app']['App']['InitiateMultipartUpload'](arg1, arg2, arg3);
 }
 
+export function ListAccessLinkHistory(arg1, arg2) {
+  return window['go']['app']['App']['ListAccessLinkHistory'](arg1, arg2);
+}
+
 export function ListAccounts() {
   return window['go']['app']['App']['ListAccounts']();
 }
@@ -220,6 +252,10 @@ export function ListSyncTasks(arg1) {
 
 export function ListTransferTasks() {
   return window['go']['app']['App']['ListTransferTasks']();
+}
+
+export function MoveObjects(arg1, arg2) {
+  return window['go']['app']['App']['MoveObjects'](arg1, arg2);
 }
 
 export function OnSecondInstance(arg1) {
@@ -320,6 +356,10 @@ export function TestAccountConnectionPreview(arg1) {
 
 export function UpdateAccount(arg1, arg2) {
   return window['go']['app']['App']['UpdateAccount'](arg1, arg2);
+}
+
+export function UpdateObjectAttributes(arg1, arg2) {
+  return window['go']['app']['App']['UpdateObjectAttributes'](arg1, arg2);
 }
 
 export function UpdateSavedSearchQuery(arg1, arg2, arg3) {

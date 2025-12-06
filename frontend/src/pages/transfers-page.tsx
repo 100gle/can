@@ -1,5 +1,7 @@
+import { PageHeader } from "@/components/layouts/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatBytes } from "@/lib/utils";
-import { transfersStore, useTransfersStore } from "@/state/transfers";
 import type { TransferViewModel } from "@/state/transfers";
+import { transfersStore, useTransfersStore } from "@/state/transfers";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -111,170 +113,177 @@ export const TransfersPage = () => {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">传输管理</h1>
-          <p className="text-muted-foreground">查看并管理正在进行的上传 / 下载任务。</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <SpeedLimitDialog />
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => transfersStore.clearCompleted()}
-            className="gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            清理已完成
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="传输管理"
+        description="查看并管理正在进行的上传 / 下载任务。"
+        showBack
+        actions={
+          <>
+            <SpeedLimitDialog />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => transfersStore.clearCompleted()}
+              className="gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              清理已完成
+            </Button>
+          </>
+        }
+      />
 
-      <div className="rounded-md border">
-        {taskList.length === 0 ? (
-          <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
-            <p className="text-sm">暂无传输任务</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>任务名称</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead className="w-[200px]">进度</TableHead>
-                <TableHead>速度 / 剩余时间</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {taskList.map((task) => {
-                const progressRatio = getTaskProgressRatio(task);
-                const progressPercent = progressRatio * 100;
-                const formattedTotal = task.total > 0 ? formatBytes(task.total) : null;
+      <Card>
+        <CardHeader>
+          <CardTitle>传输队列</CardTitle>
+          <CardDescription>当前 {taskList.length} 个任务</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {taskList.length === 0 ? (
+            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+              <p className="text-sm">暂无传输任务</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>任务名称</TableHead>
+                  <TableHead>类型</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead className="w-[200px]">进度</TableHead>
+                  <TableHead>速度 / 剩余时间</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {taskList.map((task) => {
+                  const progressRatio = getTaskProgressRatio(task);
+                  const progressPercent = progressRatio * 100;
+                  const formattedTotal = task.total > 0 ? formatBytes(task.total) : null;
 
-                return (
-                  <TableRow key={task.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex flex-col">
-                        <span>{task.name}</span>
-                        <span className="text-xs text-muted-foreground">{task.bucket}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {task.type === "upload" ? (
-                        <div className="flex items-center gap-1 text-blue-500">
-                          <ArrowUpCircle className="h-4 w-4" />
-                          <span className="text-xs">上传</span>
+                  return (
+                    <TableRow key={task.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{task.name}</span>
+                          <span className="text-xs text-muted-foreground">{task.bucket}</span>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-green-500">
-                          <ArrowDownCircle className="h-4 w-4" />
-                          <span className="text-xs">下载</span>
+                      </TableCell>
+                      <TableCell>
+                        {task.type === "upload" ? (
+                          <div className="flex items-center gap-1 text-blue-500">
+                            <ArrowUpCircle className="h-4 w-4" />
+                            <span className="text-xs">上传</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-green-500">
+                            <ArrowDownCircle className="h-4 w-4" />
+                            <span className="text-xs">下载</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            task.status === "completed"
+                              ? "success"
+                              : task.status === "running"
+                                ? "default"
+                                : "outline"
+                          }
+                        >
+                          {task.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Progress value={progressPercent} className="h-2" />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{progressPercent.toFixed(1)}%</span>
+                            <span>
+                              {formatBytes(task.progress)}
+                              {formattedTotal ? ` / ${formattedTotal}` : ""}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          task.status === "completed"
-                            ? "success"
-                            : task.status === "running"
-                              ? "default"
-                              : "outline"
-                        }
-                      >
-                        {task.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <Progress value={progressPercent} className="h-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{progressPercent.toFixed(1)}%</span>
-                          <span>
-                            {formatBytes(task.progress)}
-                            {formattedTotal ? ` / ${formattedTotal}` : ""}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {task.status === "running" ? (
-                        <div className="flex flex-col gap-1">
-                          <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
-                          <span>{task.eta ? `约 ${task.eta} 秒` : "-"}</span>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
                         {task.status === "running" ? (
-                          <>
+                          <div className="flex flex-col gap-1">
+                            <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
+                            <span>{task.eta ? `约 ${task.eta} 秒` : "-"}</span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {task.status === "running" ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => transfersStore.pauseTask(task.id)}
+                                title="暂停"
+                              >
+                                <Pause className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => transfersStore.cancelTask(task.id)}
+                                title="取消"
+                              >
+                                <XCircle className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          ) : null}
+                          {task.status === "paused" ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => transfersStore.resumeTask(task.id)}
+                                title="继续"
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => transfersStore.cancelTask(task.id)}
+                                title="取消"
+                              >
+                                <XCircle className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          ) : null}
+                          {task.status === "failed" ||
+                          task.status === "canceled" ||
+                          task.status === "completed" ? (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => transfersStore.pauseTask(task.id)}
-                              title="暂停"
+                              onClick={() => {
+                                // Ideally remove from list, currently just visually handled via clearCompleted
+                              }}
+                              disabled
+                              title="无法操作"
                             >
-                              <Pause className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 opacity-50" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => transfersStore.cancelTask(task.id)}
-                              title="取消"
-                            >
-                              <XCircle className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        ) : null}
-                        {task.status === "paused" ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => transfersStore.resumeTask(task.id)}
-                              title="继续"
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => transfersStore.cancelTask(task.id)}
-                              title="取消"
-                            >
-                              <XCircle className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        ) : null}
-                        {task.status === "failed" ||
-                        task.status === "canceled" ||
-                        task.status === "completed" ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              // Ideally remove from list, currently just visually handled via clearCompleted
-                            }}
-                            disabled
-                            title="无法操作"
-                          >
-                            <Trash2 className="h-4 w-4 opacity-50" />
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

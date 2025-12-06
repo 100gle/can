@@ -173,7 +173,7 @@ export const BucketSettingsPage = () => {
         />
       }
     >
-      <main className="space-y-6 p-4 md:p-8">
+      <main className="p-6 space-y-6">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             {account.name} · Bucket 设置

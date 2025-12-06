@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layouts/page-header";
 import { useResolvedTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,12 +158,12 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-6 lg:px-10 lg:py-10">
-      <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">偏好设置</p>
-        <h1 className="text-3xl font-bold tracking-tight">系统设置</h1>
-        <p className="text-muted-foreground">管理应用偏好、主题外观以及数据导入导出。</p>
-      </header>
+    <div className="p-6 space-y-8">
+      <PageHeader
+        title="系统设置"
+        description="管理应用偏好、主题外观以及数据导入导出。"
+        showBack
+      />
 
       <div className="space-y-6">
         <Card>

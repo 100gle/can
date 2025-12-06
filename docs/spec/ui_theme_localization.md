@@ -127,13 +127,13 @@
 - 缓存翻译结果
 
 ## 开发任务清单
-- [ ] 设计主题色彩系统和CSS变量
-- [ ] 实现主题切换功能
-- [ ] 构建主题设置UI
-- [ ] 测试深色/浅色主题在各组件的显示效果
-- [ ] 设计响应式布局（移动/平板/桌面）
-- [ ] 实现responsive CSS media queries
-- [ ] 测试响应式布局在各设备的显示
+- [x] 设计主题色彩系统和CSS变量（`src/style.css` 定义 OKLCH 变量与 Tailwind v4 主题）
+- [x] 实现主题切换功能（`ThemeProvider` + `usePreferencesStore` 控制 `document.documentElement` 深/浅模式）
+- [x] 构建主题设置UI（`src/pages/settings-page.tsx` 的外观卡片）
+- [x] 测试深色/浅色主题在各组件的显示效果（核心页面均已复用 CSS 变量，确认暗色 class 切换生效）
+- [x] 设计响应式布局（移动/平板/桌面）
+- [x] 实现responsive CSS media queries（`DashboardLayout` 与各页面使用 Tailwind 响应式类）
+- [x] 测试响应式布局在各设备的显示
 - [ ] 定义快捷键映射表
 - [ ] 实现快捷键事件监听和处理
 - [ ] 在UI中显示快捷键提示
@@ -141,3 +141,12 @@
 
 - [ ] 实现自定义布局保存/加载（可选）
 - [ ] 可访问性测试（屏幕阅读器、键盘导航等）
+
+## 实现进度（2025-12）
+
+- ✅ **主题栈**：`ThemeProvider` 负责系统主题监听与 `localStorage` 持久化，`src/style.css` 提供浅/深 OKLCH 变量，所有页面统一通过 Tailwind 变量消费。
+- ✅ **设置入口**：设置页"外观"卡片允许在浅色/深色/跟随系统之间切换，且会更新 `usePreferencesStore`。
+- ✅ **主题选择器 UI**：采用可视化图标卡片设计（浅色/深色/系统），包含代表性图形预览，用户可直观识别主题效果。
+- ✅ **响应式布局**：`DashboardLayout`、`HomeLayout` 等组件基于 Tailwind 响应式工具类适配手机/桌面，侧边栏支持折叠。
+- ✅ **Apple 风格圆角**：全局统一 `rounded-lg`/`rounded-xl` 圆角，与 Apple 设计语言保持一致。
+- 🚧 **待办**：快捷键体系、可配置布局、多语言与系统化可访问性测试尚未启动；另外多语言被标记为 out-of-scope，需要重新排期后再同步。

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layouts/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -233,7 +234,8 @@ export function MigrationWizard() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="p-6 space-y-6">
+      <PageHeader title="数据迁移向导" description="在不同云存储桶之间迁移数据" showBack />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">

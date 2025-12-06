@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layouts/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -250,20 +251,18 @@ export function SyncPanel() {
   };
 
   return (
-    <div className="container mx-auto max-w-6xl p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FolderSync className="h-6 w-6" />
-            同步管理
-          </h1>
-          <p className="text-muted-foreground mt-1">配置本地文件夹与云端存储桶之间的自动同步规则</p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          新建规则
-        </Button>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        title="同步管理"
+        description="配置本地文件夹与云端存储桶之间的自动同步规则"
+        showBack
+        actions={
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            新建规则
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>

@@ -51,7 +51,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-      <header className="border-b border-border/40 bg-gradient-to-br from-background via-background/80 to-background/40 p-4">
+      <header className="border-b border-border/40 bg-gradient-to-br from-background via-background/80 to-background/40 px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Popover>

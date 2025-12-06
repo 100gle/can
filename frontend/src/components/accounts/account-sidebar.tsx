@@ -1,10 +1,10 @@
-import { Moon, Server, Sun } from "lucide-react";
 import logo from "@/assets/images/logo-universal.png";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { AccountModel, ProviderMetadata } from "@/state/accounts";
+import { Moon, Server, Sun } from "lucide-react";
 
 export type AccountSidebarProps = {
   accounts: AccountModel[];
@@ -29,7 +29,7 @@ export const AccountSidebar = ({
     <aside className="hidden w-[320px] flex-col border-r border-border/40 bg-sidebar/40 p-6 backdrop-blur-xl xl:flex">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="logo" className="h-10 w-10 rounded-2xl bg-secondary/40 p-1.5" />
+          <img src={logo} alt="logo" className="h-10 w-10 rounded-lg bg-secondary/40 p-1.5" />
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Nebula</p>
             <h1 className="text-xl font-semibold">Object Studio</h1>
@@ -90,13 +90,13 @@ const SidebarAccountItem = ({
   loading: boolean;
   onSelect: (account: AccountModel) => void;
 }) => (
-  <button
-    type="button"
+  <Button
+    variant="ghost"
     onClick={() => onSelect(account)}
     disabled={loading}
     className={cn(
-      "w-full rounded-2xl border border-transparent bg-card/60 p-4 text-left transition hover:border-border/80",
-      active && "border-primary/60 bg-primary/10",
+      "w-full rounded-lg h-auto p-4 text-left justify-start flex-col items-stretch",
+      active && "border border-primary/60 bg-primary/10",
     )}
   >
     <div className="flex items-start justify-between">
@@ -113,5 +113,5 @@ const SidebarAccountItem = ({
       <span className="shrink-0 text-foreground/80">Endpoint:</span>
       <span className="truncate text-foreground">{account.endpoint}</span>
     </div>
-  </button>
+  </Button>
 );

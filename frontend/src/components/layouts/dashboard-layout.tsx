@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { DashboardBreadcrumb, useDashboardBreadcrumbs } from "./dashboard-breadcrumb";
+import { DashboardBreadcrumb } from "./dashboard-breadcrumb";
 
 type DashboardLayoutProps = {
   sidebar: ReactNode;
@@ -22,7 +22,6 @@ export const DashboardLayout = ({
 }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const { items: breadcrumbs, isSubPage } = useDashboardBreadcrumbs();
 
   const handleOpenSettings = () => {
     navigate({ to: "/settings" });
@@ -39,13 +38,13 @@ export const DashboardLayout = ({
           "hidden sticky top-0 h-screen border-r border-border/40 bg-card/30 transition-[width,opacity] duration-300 ease-in-out lg:flex",
           isSidebarCollapsed
             ? "w-0 overflow-hidden border-transparent opacity-0"
-            : "w-[260px] lg:w-[260px]",
+            : "w-[220px] lg:w-[220px]",
         )}
         aria-hidden={isSidebarCollapsed}
       >
         <div
           className={cn(
-            "h-full w-[260px] transition-opacity duration-300",
+            "h-full w-[220px] transition-opacity duration-300",
             isSidebarCollapsed && "pointer-events-none opacity-0",
           )}
         >
@@ -94,27 +93,7 @@ export const DashboardLayout = ({
         <div className="lg:hidden border-b border-border/40 bg-card/40 px-4 py-3 text-sm text-muted-foreground">
           请在桌面端展开侧边栏以获得完整体验
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {isSubPage && breadcrumbs.length > 1 && (
-            <div className="px-4 pt-4 md:px-8">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  const parent = breadcrumbs[breadcrumbs.length - 2];
-                  if (parent) {
-                    navigate({ to: parent.to });
-                  }
-                }}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                返回
-              </Button>
-            </div>
-          )}
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

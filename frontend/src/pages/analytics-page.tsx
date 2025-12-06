@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layouts/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -45,25 +46,28 @@ export function AnalyticsPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-        <div className="w-[200px]">
-          <Select value={provider} onValueChange={setProvider}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Provider" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Providers</SelectItem>
-              <SelectItem value="aws">AWS S3</SelectItem>
-              <SelectItem value="oss">Aliyun OSS</SelectItem>
-              <SelectItem value="cos">Tencent COS</SelectItem>
-              <SelectItem value="r2">Cloudflare R2</SelectItem>
-              <SelectItem value="minio">MinIO</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+    <div className="p-6 space-y-6">
+      <PageHeader
+        title="Analytics"
+        showBack
+        actions={
+          <div className="w-[200px]">
+            <Select value={provider} onValueChange={setProvider}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Providers</SelectItem>
+                <SelectItem value="aws">AWS S3</SelectItem>
+                <SelectItem value="oss">Aliyun OSS</SelectItem>
+                <SelectItem value="cos">Tencent COS</SelectItem>
+                <SelectItem value="r2">Cloudflare R2</SelectItem>
+                <SelectItem value="minio">MinIO</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      />
 
       {loading && !data ? (
         <div className="flex justify-center p-12">

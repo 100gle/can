@@ -83,16 +83,16 @@
 - [x] 设计搜索输入UI
 - [x] 开发全局搜索逻辑（后端已实现 `SearchObjects`）
 - [x] 开发当前桶内搜索逻辑（支持指定 bucket 参数）
-- [ ] 构建高级过滤UI（多个过滤组件）
+- [x] 构建高级过滤UI（多个过滤组件，`src/components/search/search-panel.tsx` 已提供完整表单）
 - [x] 实现日期/时间范围选择器（后端过滤逻辑 `ApplyFilters` 已支持 `StartTime`/`EndTime`）
 - [x] 开发文件类型和存储类型选择（后端支持 `FileTypes` 过滤）
 - [x] 实现标签过滤逻辑（后端支持 `Tags` 过滤）
 - [x] 开发过滤条件组合逻辑（`SearchQuery` 结构体支持组合）
 - [x] 实现搜索结果排序（后端支持按 Name/Size/Time/Type/Bucket/Score 排序）
-- [ ] 构建搜索结果显示UI
+- [x] 构建搜索结果显示UI（表格视图 + 分页）
 - [x] 实现CSV/JSON/文本导出（后端 `ExportSearchResults` 已实现）
 - [ ] 开发自定义导出列选择
-- [ ] 实现搜索条件保存/加载
+- [x] 实现搜索条件保存/加载（保存的搜索条件通过 `searchStore.saveQuery`/`applySavedQuery` 实现）
 - [ ] 添加搜索历史记录
 - [x] 实现搜索性能优化（分页支持 `Offset`/`Limit`，最大扫描限制 `maxObjectsScanned`）
 
@@ -103,7 +103,8 @@
 - ✅ **跨桶搜索**：支持并发扫描多个存储桶（`resolveBuckets`）聚合结果。
 - ✅ **结果导出**：内置 CSV/JSON 导出器，支持流式写入。
 - ✅ **性能控制**：通过 `maxInspect` 和 `pageLimit` 防止内存溢出，支持 `ListObjects` 分页扫描。
+- ✅ **前端体验**：`src/components/search/search-panel.tsx` 已提供高级过滤、分页、导出及保存查询的完整交互；`searchStore` 负责状态、导出和保存逻辑。
 - 🚧 **待完善功能**：
-    - 前端 UI 组件（高级过滤器、搜索历史）尚未完全对接。
-    - 自定义导出列目前固定。
+    - 自定义导出列仍为固定模板。
+    - 搜索历史（与保存的查询不同）尚未实现。
     - 模糊搜索目前是简单的 substring match (`strings.Contains`)。

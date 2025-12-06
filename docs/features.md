@@ -1,5 +1,18 @@
 # S3 兼容对象存储管理工具 - 功能规划
 
+## 当前实现进度（2025-02）
+
+| 模块 | 当前状态 | 说明 |
+| --- | --- | --- |
+| 多账户配置（`docs/spec/account_management_multi_account.md`） | ✅ 已上线 | `src/state/accounts.ts` 与 `src/components/accounts/account-selector.tsx` 已完成账户 CRUD、连接测试、导入/导出和活跃账户记忆，侧边栏/抽屉体验可直接切换供应商。 |
+| 统一文件浏览与桶设置（`docs/spec/bucket_listing.md`、`bucket_properties_config.md`） | ✅ 已上线 | `src/components/browser/file-explorer.tsx` 提供根级桶视图、对象视图、拖拽上传、右键菜单和高级工具栏；`src/pages/bucket-settings-page.tsx` 搭配 `bucketConfigStore` 可管理版本控制、加密、生命周期、CORS 与策略。 |
+| 高级搜索与保存条件（`docs/spec/search_and_filter.md`） | ✅ 已上线 | `src/components/search/search-panel.tsx` 暴露全部过滤器、分页、CSV/JSON 导出与搜索条件保存/加载；`src/state/search.ts` 已落地分页、导出及保存查询接口。 |
+| 传输管理与限速（`docs/spec/transfer_management.md`、`file_upload.md`） | ✅ 已上线 | `src/state/transfers.ts` 与 `src/pages/transfers-page.tsx` 管理上传/下载任务、分片进度、暂停/恢复/取消以及全局速度限制，`UploadProgress` 嵌入仪表盘实时展示。 |
+| 同步规则与数据迁移（`docs/spec/synchronization.md`、`data_migration.md`） | ✅ 已上线 | `src/components/sync/sync-panel.tsx` 提供规则 CRUD、启动/停止、本地目录选择；`src/components/migration/migration-wizard.tsx` 支持跨账户/跨服务商的迁移筹备、执行与取消。 |
+| 分析仪表盘与系统设置（`docs/spec/cost_analysis.md`、`backup_recovery.md`） | ✅ 已上线 | `src/pages/analytics-page.tsx` 汇总成本/流量/请求要素；`src/pages/settings-page.tsx` 集成主题切换、账户导入导出、系统备份、性能监控与高级参数。 |
+
+> 以上状态同步了近期实现，后续若有新增/变化请同时更新对应 spec 章节。
+
 ## 一、连接与账户管理
 
 ### 1.1 多账户配置
