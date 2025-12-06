@@ -53,7 +53,8 @@ func NewApp() *App {
 	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc)
 	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
 	configFacade := configfacade.NewService(accountSvc, configSvc)
-	searchSvc := search.NewService(accountSvc, clientPool)
+	searchStore := initSearchStore()
+	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 	return &App{
 		requestTimeout: resolveRequestTimeout(),
 		accounts:       accountSvc,

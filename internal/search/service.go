@@ -38,11 +38,14 @@ type listTask struct {
 }
 
 // NewService constructs a search service instance.
-func NewService(accounts *accounts.Service, pool providers.ClientPool) *Service {
+func NewService(accounts *accounts.Service, pool providers.ClientPool, store SavedQueryStore) *Service {
+	if store == nil {
+		store = NewMemorySavedQueryStore()
+	}
 	return &Service{
 		accounts:     accounts,
 		pool:         pool,
-		savedQueries: NewMemorySavedQueryStore(),
+		savedQueries: store,
 	}
 }
 

@@ -94,7 +94,7 @@ func TestMemorySavedQueryStore_UpdateNotFound(t *testing.T) {
 }
 
 func TestSaveQuery_Validation(t *testing.T) {
-	svc := NewService(nil, nil)
+	svc := NewService(nil, nil, nil)
 	ctx := context.Background()
 
 	// Empty name
@@ -111,7 +111,7 @@ func TestSaveQuery_Validation(t *testing.T) {
 }
 
 func TestDeleteSavedQuery_Validation(t *testing.T) {
-	svc := NewService(nil, nil)
+	svc := NewService(nil, nil, nil)
 	ctx := context.Background()
 
 	err := svc.DeleteSavedQuery(ctx, "")
@@ -121,7 +121,7 @@ func TestDeleteSavedQuery_Validation(t *testing.T) {
 }
 
 func TestServiceSavedQueries_Integration(t *testing.T) {
-	svc := NewService(nil, nil)
+	svc := NewService(nil, nil, nil)
 	ctx := context.Background()
 
 	// Save a query

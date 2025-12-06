@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,8 +21,8 @@ import { getFieldErrorMessage } from "@/lib/forms";
 import { formatBytes } from "@/lib/utils";
 import { searchStore, useSearchStore } from "@/state/search";
 import { useForm, useStore } from "@tanstack/react-form";
-import { DownloadCloud, Loader2, Search, UploadCloud } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { Bookmark, BookmarkPlus, DownloadCloud, Loader2, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 type SearchPanelProps = {
@@ -80,6 +81,14 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
   const hasMore = useSearchStore((state) => state.hasMore);
   const error = useSearchStore((state) => state.error);
   const total = useSearchStore((state) => state.total);
+  const savedQueries = useSearchStore((state) => state.savedQueries);
+
+  const [saveName, setSaveName] = useState("");
+  const [saveOpen, setSaveOpen] = useState(false);
+
+  useEffect(() => {
+    void searchStore.loadSavedQueries();
+  }, []);
 
   const form = useForm({
     defaultValues: query,
@@ -111,6 +120,19 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
 
   const handleExport = (format: "csv" | "json") => {
     void searchStore.exportResults(format);
+  };
+
+  const handleSaveQuery = async () => {
+    if (!saveName.trim()) return;
+    try {
+      // Sync form values to store before saving
+      searchStore.setQuery(formValues);
+      await searchStore.saveQuery(saveName);
+      setSaveOpen(false);
+      setSaveName("");
+    } catch (err) {
+      window.alert?.("保存失败");
+    }
   };
 
   return (
@@ -344,43 +366,117 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
           </div>
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={loading} className="gap-2">
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            执行搜索
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={exporting || results.length === 0}
-            onClick={() => handleExport("csv")}
-            className="gap-2"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <DownloadCloud className="h-4 w-4" />
-            )}
-            导出 CSV
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={exporting || results.length === 0}
-            onClick={() => handleExport("json")}
-            className="gap-2"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <UploadCloud className="h-4 w-4" />
-            )}
-            导出 JSON
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={loading} className="gap-2">
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              执行搜索
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={exporting || results.length === 0}
+              onClick={() => handleExport("csv")}
+              className="gap-2"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <DownloadCloud className="h-4 w-4" />
+              )}
+              导出 CSV
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={exporting || results.length === 0}
+              onClick={() => handleExport("json")}
+              className="gap-2"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <DownloadCloud className="h-4 w-4" />
+              )}
+              导出 JSON
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <BookmarkPlus className="h-4 w-4" />
+                  保存搜索
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">保存当前搜索条件</h4>
+                    <p className="text-sm text-muted-foreground">
+                      方便下次快速应用相同的过滤规则。
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="save-name">名称</Label>
+                    <Input
+                      id="save-name"
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      placeholder="例如：大于100MB的PDF"
+                    />
+                  </div>
+                  <Button onClick={handleSaveQuery}>确认保存</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" className="gap-2">
+                  <Bookmark className="h-4 w-4" />
+                  已保存
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[250px] p-0">
+                <div className="p-2 text-xs font-semibold text-muted-foreground">我的搜索预设</div>
+                <div className="h-px bg-border" />
+                <div className="max-h-[300px] overflow-y-auto p-1">
+                  {savedQueries.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground">
+                      暂无保存的搜索
+                    </div>
+                  ) : (
+                    savedQueries.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex cursor-pointer items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => searchStore.applySavedQuery(item)}
+                      >
+                        <span className="truncate">{item.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void searchStore.deleteSavedQuery(item.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </form>
 

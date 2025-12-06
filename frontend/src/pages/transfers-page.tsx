@@ -1,9 +1,15 @@
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
-import { Sidebar } from "@/components/layouts/sidebar";
-import { UploadProgress } from "@/components/transfer/upload-progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -13,188 +19,264 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { accountsStore, useAccountsStore } from "@/state/accounts";
+import { formatBytes } from "@/lib/utils";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, RefreshCcw } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import type { TransferViewModel } from "@/state/transfers";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Pause,
+  Play,
+  RotateCcw,
+  Settings2,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
-const statusLabel: Record<string, string> = {
-  pending: "排队中",
-  running: "进行中",
-  paused: "已暂停",
-  completed: "已完成",
-  failed: "失败",
-  canceled: "已取消",
+const getTaskProgressRatio = (task: TransferViewModel) => {
+  if (!task.total || task.total <= 0) {
+    return 0;
+  }
+  return task.progress / task.total;
 };
 
-const statusVariant: Record<string, "default" | "outline" | "success"> = {
-  pending: "outline",
-  running: "default",
-  paused: "outline",
-  completed: "success",
-  failed: "outline",
-  canceled: "outline",
-};
-
-const formatBytes = (bytes: number) => {
-  if (!bytes) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-};
-
-export default function TransfersPage() {
-  const params = useParams({ from: "/accounts/$accountId/transfers" });
-  const navigate = useNavigate();
-  const { accounts } = useAccountsStore((state) => state);
-  const taskMap = useTransfersStore((state) => state.tasks);
-  const tasks = useMemo(() => Object.values(taskMap), [taskMap]);
+const SpeedLimitDialog = () => {
+  const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
+  const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState("");
 
   useEffect(() => {
-    void accountsStore.bootstrap();
-  }, []);
+    if (open) {
+      setLimit(globalSpeedLimit > 0 ? String(globalSpeedLimit) : "");
+    }
+  }, [open, globalSpeedLimit]);
+
+  const handleSave = async () => {
+    const val = Number.parseInt(limit, 10);
+    const bytesPerSec = Number.isNaN(val) || val < 0 ? 0 : val;
+    await transfersStore.setGlobalSpeedLimit(bytesPerSec);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings2 className="h-4 w-4" />
+          传输设置
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>全局传输速度限制</DialogTitle>
+          <DialogDescription>
+            限制上传和下载的最大速度 (Bytes/s)。设置为 0 表示不限制。
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <span className="text-right text-sm font-medium">限速值</span>
+            <Input
+              id="speed-limit"
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+              className="col-span-3"
+              placeholder="0 (不限制)"
+              type="number"
+            />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            当前限制: {globalSpeedLimit === 0 ? "无限制" : `${formatBytes(globalSpeedLimit)}/s`}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSave}>保存设置</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export const TransfersPage = () => {
+  const tasks = useTransfersStore((state) => state.tasks);
+  const taskList = Object.values(tasks).sort(
+    (a, b) => getTaskProgressRatio(b) - getTaskProgressRatio(a),
+  );
 
   useEffect(() => {
     transfersStore.startPolling();
     return () => transfersStore.stopPolling();
   }, []);
 
-  const sidebar = (
-    <Sidebar
-      onCreateAccount={() =>
-        navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: params.accountId } })
-      }
-    />
-  );
-
   return (
-    <DashboardLayout sidebar={sidebar}>
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        <header className="border-b border-border/40 bg-background/80 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">传输任务</p>
-              <h1 className="text-2xl font-semibold">传输管理</h1>
-              <p className="text-sm text-muted-foreground">
-                当前账户：{accounts.find((acc) => acc.id === params.accountId)?.name ?? "未选择"}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                className="gap-2"
-                onClick={() =>
-                  navigate({
-                    to: "/accounts/$accountId/dashboard",
-                    params: { accountId: params.accountId },
-                  })
-                }
-              >
-                <ArrowLeft className="h-4 w-4" />
-                返回工作台
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => transfersStore.syncBackendTasks()}
-              >
-                <RefreshCcw className="h-4 w-4" />
-                手动刷新
-              </Button>
-            </div>
-          </div>
-        </header>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">传输管理</h1>
+          <p className="text-muted-foreground">查看并管理正在进行的上传 / 下载任务。</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <SpeedLimitDialog />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => transfersStore.clearCompleted()}
+            className="gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            清理已完成
+          </Button>
+        </div>
+      </div>
 
-        <section className="space-y-4 p-4">
-          <UploadProgress />
-          <Card className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>任务</TableHead>
-                  <TableHead>类型</TableHead>
-                  <TableHead>进度</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tasks.length ? (
-                  tasks.map((task) => {
-                    const percent = task.total
-                      ? Math.min(100, Math.round((task.progress / task.total) * 100))
-                      : 0;
-                    const label = statusLabel[task.status] || task.status;
-                    const variant = statusVariant[task.status] || "outline";
-                    return (
-                      <TableRow key={task.id}>
-                        <TableCell>
-                          <p className="font-semibold">{task.name}</p>
-                          <p className="text-xs text-muted-foreground">{task.bucket}</p>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {task.type === "upload" ? "上传" : "下载"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{percent}%</span>
-                              <span>
-                                {formatBytes(task.progress)} / {formatBytes(task.total)}
-                              </span>
-                            </div>
-                            <Progress value={percent} className="h-1.5" />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={variant}>{label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {task.status === "paused" ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => transfersStore.resumeTask(task.id)}
-                              >
-                                继续
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => transfersStore.pauseTask(task.id)}
-                              >
-                                暂停
-                              </Button>
-                            )}
+      <div className="rounded-md border">
+        {taskList.length === 0 ? (
+          <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+            <p className="text-sm">暂无传输任务</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>任务名称</TableHead>
+                <TableHead>类型</TableHead>
+                <TableHead>状态</TableHead>
+                <TableHead className="w-[200px]">进度</TableHead>
+                <TableHead>速度 / 剩余时间</TableHead>
+                <TableHead className="text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {taskList.map((task) => {
+                const progressRatio = getTaskProgressRatio(task);
+                const progressPercent = progressRatio * 100;
+                const formattedTotal = task.total > 0 ? formatBytes(task.total) : null;
+
+                return (
+                  <TableRow key={task.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col">
+                        <span>{task.name}</span>
+                        <span className="text-xs text-muted-foreground">{task.bucket}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {task.type === "upload" ? (
+                        <div className="flex items-center gap-1 text-blue-500">
+                          <ArrowUpCircle className="h-4 w-4" />
+                          <span className="text-xs">上传</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-green-500">
+                          <ArrowDownCircle className="h-4 w-4" />
+                          <span className="text-xs">下载</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          task.status === "completed"
+                            ? "success"
+                            : task.status === "running"
+                              ? "default"
+                              : "outline"
+                        }
+                      >
+                        {task.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Progress value={progressPercent} className="h-2" />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{progressPercent.toFixed(1)}%</span>
+                          <span>
+                            {formatBytes(task.progress)}
+                            {formattedTotal ? ` / ${formattedTotal}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {task.status === "running" ? (
+                        <div className="flex flex-col gap-1">
+                          <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
+                          <span>{task.eta ? `约 ${task.eta} 秒` : "-"}</span>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {task.status === "running" ? (
+                          <>
                             <Button
-                              size="sm"
                               variant="ghost"
-                              className="text-destructive"
-                              onClick={() => transfersStore.cancelTask(task.id)}
+                              size="icon"
+                              onClick={() => transfersStore.pauseTask(task.id)}
+                              title="暂停"
                             >
-                              删除
+                              <Pause className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      暂无传输任务。
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => transfersStore.cancelTask(task.id)}
+                              title="取消"
+                            >
+                              <XCircle className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : null}
+                        {task.status === "paused" ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => transfersStore.resumeTask(task.id)}
+                              title="继续"
+                            >
+                              <Play className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => transfersStore.cancelTask(task.id)}
+                              title="取消"
+                            >
+                              <XCircle className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : null}
+                        {task.status === "failed" ||
+                        task.status === "canceled" ||
+                        task.status === "completed" ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              // Ideally remove from list, currently just visually handled via clearCompleted
+                            }}
+                            disabled
+                            title="无法操作"
+                          >
+                            <Trash2 className="h-4 w-4 opacity-50" />
+                          </Button>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
-        </section>
-      </main>
-    </DashboardLayout>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
   );
-}
+};
+
+export default TransfersPage;

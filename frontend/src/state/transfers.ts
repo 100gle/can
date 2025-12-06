@@ -3,10 +3,12 @@ import {
   AbortMultipartUpload,
   CancelTransferTask,
   CompleteMultipartUpload,
+  GetTransferSpeedLimit,
   InitiateMultipartUpload,
   ListTransferTasks,
   PauseTransferTask,
   ResumeTransferTask,
+  SetTransferSpeedLimit,
   UploadPart,
 } from "@wailsjs/go/main/App";
 import type { transfer } from "@wailsjs/go/models";
@@ -44,6 +46,7 @@ type UploadOptions = {
 type TransfersState = {
   tasks: Record<string, TransferViewModel>;
   uploading: boolean;
+  globalSpeedLimit: number; // bytes per second, 0 = unlimited
   error?: string;
   pollTimer?: number;
 };
@@ -58,6 +61,9 @@ type TransfersActions = {
   resumeTask: (taskID: string) => Promise<void>;
   cancelTask: (taskID: string) => Promise<void>;
   clearCompleted: () => void;
+  // Speed Limit
+  loadGlobalSpeedLimit: () => Promise<void>;
+  setGlobalSpeedLimit: (bytesPerSec: number) => Promise<void>;
 };
 
 type TransfersStore = TransfersState & TransfersActions;
@@ -117,6 +123,7 @@ const toViewModel = (task: transfer.TransferTask): TransferViewModel => ({
 const createInitialState = (): TransfersState => ({
   tasks: {},
   uploading: false,
+  globalSpeedLimit: 0,
 });
 
 const waitForResume = async (runtime: LocalTaskRuntime) => {
@@ -153,6 +160,7 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     }, BACKEND_POLL_INTERVAL);
     set({ pollTimer: handle });
     void get().syncBackendTasks();
+    void get().loadGlobalSpeedLimit(); // Load speed limit on start
   },
   stopPolling: () => {
     const timer = get().pollTimer;
@@ -299,6 +307,25 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       return { tasks: next };
     });
   },
+  loadGlobalSpeedLimit: async () => {
+    if (!isBridgeAvailable()) return;
+    try {
+      const limit = await GetTransferSpeedLimit();
+      set({ globalSpeedLimit: limit });
+    } catch {
+      // ignore
+    }
+  },
+  setGlobalSpeedLimit: async (bytesPerSec: number) => {
+    if (!isBridgeAvailable()) return;
+    try {
+      await SetTransferSpeedLimit(bytesPerSec);
+      set({ globalSpeedLimit: bytesPerSec });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "设置限速失败";
+      set({ error: message });
+    }
+  },
 }));
 
 const processUploadTask = async (
@@ -422,4 +449,6 @@ export const transfersStore = {
   resumeTask: relay((store) => store.resumeTask),
   cancelTask: relay((store) => store.cancelTask),
   clearCompleted: relay((store) => store.clearCompleted),
+  loadGlobalSpeedLimit: relay((store) => store.loadGlobalSpeedLimit),
+  setGlobalSpeedLimit: relay((store) => store.setGlobalSpeedLimit),
 };

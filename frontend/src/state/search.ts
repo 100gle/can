@@ -1,5 +1,11 @@
 import { isBridgeAvailable } from "@/lib/bridge";
-import { ExportSearchResults, SearchObjects } from "@wailsjs/go/main/App";
+import {
+  DeleteSavedSearchQuery,
+  ExportSearchResults,
+  ListSavedSearchQueries,
+  SaveSearchQuery,
+  SearchObjects,
+} from "@wailsjs/go/main/App";
 import { create } from "zustand";
 
 export type SearchQueryModel = {
@@ -31,11 +37,20 @@ export type SearchResultModel = {
   score: number;
 };
 
+export type SavedQueryModel = {
+  id: string;
+  name: string;
+  query: SearchQueryModel;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SearchState = {
   accountId?: string;
   bucket?: string;
   query: SearchQueryModel;
   results: SearchResultModel[];
+  savedQueries: SavedQueryModel[];
   loading: boolean;
   loadingMore: boolean;
   exporting: boolean;
@@ -52,6 +67,11 @@ export type SearchActions = {
   loadMore: () => Promise<void>;
   exportResults: (format: "csv" | "json") => Promise<void>;
   clear: () => void;
+  // Saved Queries
+  loadSavedQueries: () => Promise<void>;
+  saveQuery: (name: string) => Promise<void>;
+  deleteSavedQuery: (id: string) => Promise<void>;
+  applySavedQuery: (saved: SavedQueryModel) => void;
 };
 
 type SearchStore = SearchState & SearchActions;
@@ -114,6 +134,7 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
   bucket: undefined,
   query: defaultQuery(),
   results: [],
+  savedQueries: [],
   loading: false,
   loadingMore: false,
   exporting: false,
@@ -242,6 +263,39 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
       error: undefined,
     });
   },
+  loadSavedQueries: async () => {
+    if (!isBridgeAvailable()) return;
+    try {
+      const list = await ListSavedSearchQueries();
+      set({ savedQueries: list as any });
+    } catch (error) {
+      console.error("failed to load saved queries", error);
+    }
+  },
+  saveQuery: async (name: string) => {
+    const { query } = get();
+    if (!isBridgeAvailable()) return;
+    try {
+      await SaveSearchQuery(name, query as any);
+      await get().loadSavedQueries();
+    } catch (error) {
+      throw error;
+    }
+  },
+  deleteSavedQuery: async (id: string) => {
+    if (!isBridgeAvailable()) return;
+    try {
+      await DeleteSavedSearchQuery(id);
+      await get().loadSavedQueries();
+    } catch (error) {
+      throw error;
+    }
+  },
+  applySavedQuery: (saved: SavedQueryModel) => {
+    set((state) => ({
+      query: { ...state.query, ...saved.query, accountId: state.accountId ?? "" }, // Keep current account
+    }));
+  },
 }));
 
 export const useSearchStore = <T>(selector: (state: SearchState) => T): T =>
@@ -260,6 +314,10 @@ export const searchStore = {
   loadMore: relay((store) => store.loadMore),
   exportResults: relay((store) => store.exportResults),
   clear: relay((store) => store.clear),
+  loadSavedQueries: relay((store) => store.loadSavedQueries),
+  saveQuery: relay((store) => store.saveQuery),
+  deleteSavedQuery: relay((store) => store.deleteSavedQuery),
+  applySavedQuery: relay((store) => store.applySavedQuery),
 };
 const clone = <T>(value: T): T => {
   try {
