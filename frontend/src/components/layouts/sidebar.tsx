@@ -7,10 +7,9 @@ import { useEffect, useState } from "react";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
-  onOpenSettings?: () => void;
 };
 
-export const Sidebar = ({ onCreateAccount, onOpenSettings }: SidebarProps) => {
+export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
   const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
 
@@ -54,10 +53,16 @@ export const Sidebar = ({ onCreateAccount, onOpenSettings }: SidebarProps) => {
           <Plus className="h-4 w-4" />
           新建账户
         </Button>
-        <Button variant="outline" size="sm" className="w-full gap-2" onClick={onOpenSettings}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => navigate({ to: "/settings" })}
+        >
           <Settings className="h-4 w-4" />
           系统设置
         </Button>
+
         <Button variant="ghost" size="sm" className="w-full gap-2" onClick={toggleTheme}>
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           {isDark ? "切换为浅色" : "切换为深色"}

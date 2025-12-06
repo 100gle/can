@@ -115,39 +115,6 @@ const buildLocalAccount = (input: AccountFormInput, providerLabel: string): Acco
   };
 };
 
-const FALLBACK_ACCOUNTS: AccountModel[] = [
-  {
-    id: "seed-aws",
-    name: "AWS 主账户",
-    tag: "主集群",
-    provider: "aws",
-    providerLabel: "AWS S3",
-    endpoint: "https://s3.amazonaws.com",
-    region: "us-east-1",
-    useSSL: true,
-    port: 443,
-    accessKeyPreview: "AKIA***99",
-    hasSecret: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "seed-oss",
-    name: "阿里云杭州",
-    tag: "备份",
-    provider: "oss",
-    providerLabel: "Aliyun OSS",
-    endpoint: "https://oss-cn-hangzhou.aliyuncs.com",
-    region: "cn-hangzhou",
-    useSSL: true,
-    port: 443,
-    accessKeyPreview: "LTAI***11",
-    hasSecret: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 const FALLBACK_PROVIDERS: ProviderMetadata[] = [
   { id: "aws", label: "AWS S3", description: "Amazon S3 Regions & GovCloud" },
   { id: "oss", label: "Aliyun OSS", description: "Object Storage Service" },
@@ -236,10 +203,10 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
         capabilities = capabilityPayload;
         active = normalizeAccount(activePayload as WailsAccount | null);
       } else {
-        accounts = clone(FALLBACK_ACCOUNTS);
+        accounts = [];
         providers = clone(FALLBACK_PROVIDERS);
         capabilities = clone(FALLBACK_CAPABILITIES);
-        active = accounts[0] ?? null;
+        active = null;
       }
 
       const derivedId = (active ? active.id : undefined) ?? accounts[0]?.id ?? null;

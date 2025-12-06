@@ -16,7 +16,7 @@
 - **Actions**
   1. Introduce a `sync.RWMutex` (e.g., `mu sync.RWMutex`) on the service; wrap all reads/writes to `activeID`/`activeLoaded` plus session store interactions inside the lock.
   2. Alternatively extract a small `ActiveAccountManager` struct (with its own mutex + session store dependency) and inject it into `accounts.Service` to keep responsibilities isolated.
-  3. Add race-focused tests in `internal/accounts/service_test.go` that concurrently call `SetActiveAccount`, `ActiveAccount`, `DeleteAccount`, and `EnsureSeed`. Run `go test -race ./internal/accounts`.
+  3. Add race-focused tests in `internal/accounts/service_test.go` that concurrently call `SetActiveAccount`, `ActiveAccount`, and `DeleteAccount`. Run `go test -race ./internal/accounts`.
   4. Definition of Done: race detector passes, and the session state persists correctly even under concurrent switching.
 
 ## 3. Provider Client Reuse _(Completed)_

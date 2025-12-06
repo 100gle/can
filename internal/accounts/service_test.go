@@ -246,7 +246,7 @@ func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
 	errCh := make(chan error, 8)
 	var wg sync.WaitGroup
 	ids := []string{accA.ID, accB.ID}
-	wg.Add(4)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 200; i++ {
@@ -289,15 +289,6 @@ func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
 			}
 			if err := svc.DeleteAccount(ctx, temp.ID); err != nil {
 				recordError(errCh, fmt.Errorf("delete temp: %w", err))
-				return
-			}
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 50; i++ {
-			if err := svc.EnsureSeed(ctx); err != nil {
-				recordError(errCh, fmt.Errorf("ensure seed: %w", err))
 				return
 			}
 		}

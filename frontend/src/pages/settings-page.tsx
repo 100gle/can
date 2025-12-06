@@ -1,10 +1,15 @@
-import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Home } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { accountsStore, useAccountsStore } from "@/state/accounts";
-import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { useResolvedTheme } from "@/components/providers/theme-provider";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
   DEFAULT_ADVANCED_OPTIONS,
   usePreferencesStore,
@@ -15,7 +20,6 @@ import {
 } from "@/state/preferences";
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
-const DOCS_BASE_URL = "https://github.com/100gle/can/blob/main/docs";
 const ISSUES_URL = "https://github.com/100gle/can/issues/new/choose";
 
 const openExternalLink = (url: string) => {
@@ -24,22 +28,13 @@ const openExternalLink = (url: string) => {
 };
 
 export default function SettingsPage() {
-  const navigate = useNavigate();
   const accounts = useAccountsStore((state) => state.accounts);
-  const activeAccountId = useAccountsStore((state) => state.activeAccountId);
   const themePreference = usePreferencesStore((state) => state.themePreference);
   const setThemePreference = usePreferencesStore((state) => state.setThemePreference);
   const advancedOptions = usePreferencesStore((state) => state.advancedOptions);
   const setAdvancedOptions = usePreferencesStore((state) => state.setAdvancedOptions);
   const resetAdvancedOptions = usePreferencesStore((state) => state.resetAdvancedOptions);
   const resolvedTheme = useResolvedTheme();
-  const handleBack = useBackNavigation(() => {
-    if (activeAccountId) {
-      navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: activeAccountId } });
-      return;
-    }
-    navigate({ to: "/" });
-  });
 
   const handleThemeSelection = (value: ThemePreference) => {
     setThemePreference(value);
@@ -77,10 +72,6 @@ export default function SettingsPage() {
       });
   };
 
-  const openDocs = (filename: string) => openExternalLink(`${DOCS_BASE_URL}/${filename}`);
-  const handleOpenRedesignPlan = () => openDocs("FRONTEND_REDESIGN_PLAN.md");
-  const handleOpenChecklist = () => openDocs("IMPLEMENTATION_CHECKLIST.md");
-  const handleOpenQuickReference = () => openDocs("FRONTEND_QUICK_REFERENCE.md");
   const handleOpenIssues = () => openExternalLink(ISSUES_URL);
 
   const handleImport = () => {
@@ -105,193 +96,192 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="border-b border-border/40 bg-card/60 shadow-sm backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8">
-          <Button variant="ghost" size="sm" className="gap-2" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-            返回
-          </Button>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-              onClick={() => navigate({ to: "/" })}
-            >
-              <Home className="h-4 w-4" />
-              账户中心
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-6 lg:px-10 lg:py-10">
+      <header className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">偏好设置</p>
+        <h1 className="text-3xl font-bold tracking-tight">系统设置</h1>
+        <p className="text-muted-foreground">管理应用偏好、主题外观以及数据导入导出。</p>
+      </header>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>外观</CardTitle>
+            <CardDescription>
+              自定义界面显示模式。
+              <span className="ml-1 inline-block">
+                (当前:{" "}
+                {themePreference === "system"
+                  ? `跟随系统 · ${resolvedTheme === "dark" ? "深色" : "浅色"}`
+                  : resolvedTheme === "dark"
+                    ? "深色"
+                    : "浅色"}
+                )
+              </span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              <button
+                type="button"
+                className={`cursor-pointer rounded-md border-2 p-1 ${
+                  themePreference === "light" ? "border-primary" : "border-transparent"
+                }`}
+                onClick={() => handleThemeSelection("light")}
+              >
+                <div className="space-y-2 rounded-sm bg-[#ecedef] p-2">
+                  <div className="space-y-2 rounded-md bg-white p-2 shadow-sm">
+                    <div className="h-2 w-[80px] rounded-lg bg-[#ecedef]" />
+                    <div className="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
+                  </div>
+                  <div className="flex items-center space-x-2 rounded-md bg-white p-2 shadow-sm">
+                    <div className="h-4 w-4 rounded-full bg-[#ecedef]" />
+                    <div className="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
+                  </div>
+                </div>
+                <div className="mt-2 text-center text-sm font-medium">浅色</div>
+              </button>
+
+              <button
+                type="button"
+                className={`cursor-pointer rounded-md border-2 p-1 ${
+                  themePreference === "dark" ? "border-primary" : "border-transparent"
+                }`}
+                onClick={() => handleThemeSelection("dark")}
+              >
+                <div className="space-y-2 rounded-sm bg-slate-950 p-2">
+                  <div className="space-y-2 rounded-md bg-slate-800 p-2 shadow-sm">
+                    <div className="h-2 w-[80px] rounded-lg bg-slate-400" />
+                    <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+                  </div>
+                  <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
+                    <div className="h-4 w-4 rounded-full bg-slate-400" />
+                    <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+                  </div>
+                </div>
+                <div className="mt-2 text-center text-sm font-medium">深色</div>
+              </button>
+
+              <button
+                type="button"
+                className={`cursor-pointer rounded-md border-2 p-1 ${
+                  themePreference === "system" ? "border-primary" : "border-transparent"
+                }`}
+                onClick={() => handleThemeSelection("system")}
+              >
+                <div className="flex h-full items-center justify-center rounded-sm bg-slate-200 px-8 py-4 dark:bg-slate-900">
+                  <div className="text-center">
+                    <span className="text-2xl font-bold">Auto</span>
+                  </div>
+                </div>
+                <div className="mt-2 text-center text-sm font-medium">系统</div>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>数据管理</CardTitle>
+            <CardDescription>在不同设备间同步或备份你的账户配置。</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 sm:flex-row">
+            <Button variant="outline" onClick={handleImport} className="w-full sm:w-auto">
+              导入配置
             </Button>
-          </div>
-        </div>
-      </div>
-      <div className="px-4 py-8 sm:px-8">
-        <div className="mx-auto max-w-4xl space-y-6">
-          <header>
-            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">
-              System Settings
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">CAN 控制中心</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              管理主题、导入导出账户配置，并查看版本信息。更多功能正在按照 FRONTEND_REDESIGN_PLAN.md
-              实施。
-            </p>
-          </header>
+            <Button onClick={handleExport} disabled={!accounts.length} className="w-full sm:w-auto">
+              导出配置 ({accounts.length})
+            </Button>
+          </CardContent>
+        </Card>
 
-          <Card className="p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">主题外观</h2>
-                <p className="text-sm text-muted-foreground">
-                  在浅色、深色或跟随系统之间切换，偏好保存在本地存储并会在下次启动时自动恢复。
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  当前模式：
-                  {themePreference === "system"
-                    ? `系统 · ${resolvedTheme === "dark" ? "深色" : "浅色"}`
-                    : resolvedTheme === "dark"
-                      ? "深色"
-                      : "浅色"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={themePreference === "light" ? "default" : "outline"}
-                  onClick={() => handleThemeSelection("light")}
-                >
-                  浅色
-                </Button>
-                <Button
-                  variant={themePreference === "dark" ? "default" : "outline"}
-                  onClick={() => handleThemeSelection("dark")}
-                >
-                  深色
-                </Button>
-                <Button
-                  variant={themePreference === "system" ? "default" : "outline"}
-                  onClick={() => handleThemeSelection("system")}
-                >
-                  跟随系统
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">导入 / 导出</h2>
-                <p className="text-sm text-muted-foreground">
-                  通过桌面文件对话框在多台设备之间同步账户配置。
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={handleImport}>
-                  导入配置
-                </Button>
-                <Button onClick={handleExport} disabled={!accounts.length}>
-                  导出配置
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="space-y-4 p-5">
-            <div>
-              <h2 className="text-lg font-semibold">高级选项</h2>
-              <p className="text-sm text-muted-foreground">
-                实验性设置仅保存在本地设备上，适合在演示或调试阶段快速切换行为。
-              </p>
-            </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>高级设置</CardTitle>
+            <CardDescription>调整底层行为和日志级别。这些设置仅对当前设备生效。</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-sm font-medium text-foreground">数据库驱动</label>
-                <select
-                  className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              <div className="space-y-2">
+                <Label htmlFor="driver-select">数据库驱动</Label>
+                <Select
                   value={advancedOptions.databaseDriver}
-                  onChange={(event) =>
+                  onValueChange={(val) =>
                     updateAdvancedOptions({
-                      databaseDriver: event.target.value as DatabaseDriver,
+                      databaseDriver: val as DatabaseDriver,
                     })
                   }
                 >
-                  <option value="sqlite">SQLite（持久化）</option>
-                  <option value="memory">Memory（临时会话）</option>
-                </select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Memory 模式不会写入本地数据库，重启客户端后配置会丢失。
+                  <SelectTrigger id="driver-select">
+                    <SelectValue placeholder="选择驱动" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sqlite">SQLite (持久化)</SelectItem>
+                    <SelectItem value="memory">Memory (临时会话)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[0.8rem] text-muted-foreground">
+                  Memory 模式下数据将在重启后丢失。
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">日志级别</label>
-                <select
-                  className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+
+              <div className="space-y-2">
+                <Label htmlFor="log-select">日志级别</Label>
+                <Select
                   value={advancedOptions.logLevel}
-                  onChange={(event) =>
-                    updateAdvancedOptions({ logLevel: event.target.value as LogLevel })
-                  }
+                  onValueChange={(val) => updateAdvancedOptions({ logLevel: val as LogLevel })}
                 >
-                  <option value="debug">Debug（最详细）</option>
-                  <option value="info">Info（默认）</option>
-                  <option value="warn">Warn</option>
-                  <option value="error">Error</option>
-                </select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Debug 适合排查问题，生产环境建议使用 Info 或更高等级。
+                  <SelectTrigger id="log-select">
+                    <SelectValue placeholder="选择级别" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="debug">Debug</SelectItem>
+                    <SelectItem value="info">Info</SelectItem>
+                    <SelectItem value="warn">Warn</SelectItem>
+                    <SelectItem value="error">Error</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[0.8rem] text-muted-foreground">
+                  通常无需更改，Debug 模式会产生大量日志。
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap justify-end gap-2">
+
+            <div className="flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-8 text-muted-foreground hover:text-destructive"
                 onClick={handleResetAdvanced}
                 disabled={isDefaultAdvanced}
               >
-                恢复默认
+                恢复默认设置
               </Button>
             </div>
-          </Card>
+          </CardContent>
+        </Card>
 
-          <Card className="p-5">
-            <h2 className="text-lg font-semibold">关于应用</h2>
-            <dl className="mt-3 space-y-4 text-sm text-muted-foreground">
-              <div className="flex items-center justify-between">
-                <dt>版本号</dt>
-                <dd className="font-medium text-foreground">{APP_VERSION}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt>账户数量</dt>
-                <dd>{accounts.length}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-foreground">文档</dt>
-                <dd className="mt-2 flex flex-wrap gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleOpenRedesignPlan}>
-                    重构计划
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={handleOpenChecklist}>
-                    实现清单
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={handleOpenQuickReference}>
-                    速查表
-                  </Button>
-                </dd>
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <dt className="font-medium text-foreground">反馈渠道</dt>
-                  <dd className="mt-1 text-xs text-muted-foreground">
-                    在 GitHub Issues 中报告问题或分享新的需求。
-                  </dd>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleOpenIssues}>
-                  打开 Issues
-                </Button>
-              </div>
-            </dl>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>关于</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">当前版本</span>
+              <span className="font-medium">{APP_VERSION}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">已连接账户</span>
+              <span className="font-medium">{accounts.length}</span>
+            </div>
+            <div className="flex items-center justify-between border-t pt-4">
+              <span className="text-muted-foreground">遇到问题？</span>
+              <Button variant="link" className="h-auto p-0" onClick={handleOpenIssues}>
+                提交反馈
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

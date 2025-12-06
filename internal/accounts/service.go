@@ -257,45 +257,6 @@ func (s *Service) TestConnectionWithInput(ctx context.Context, input CreateAccou
 	}, nil
 }
 
-// EnsureSeed inserts sample accounts if none exist, aiding early UI integration.
-func (s *Service) EnsureSeed(ctx context.Context) error {
-	count, err := s.store.Count(ctx)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-	samples := []CreateAccountInput{
-		{
-			Name:            "AWS 主账户",
-			Provider:        types.ProviderAWS,
-			Endpoint:        "https://s3.amazonaws.com",
-			AccessKeyID:     "AKIA-PLACEHOLDER",
-			SecretAccessKey: "aws-secret",
-			Region:          "us-east-1",
-			UseSSL:          true,
-			Port:            443,
-		},
-		{
-			Name:            "阿里云杭州",
-			Provider:        types.ProviderOSS,
-			Endpoint:        "https://oss-cn-hangzhou.aliyuncs.com",
-			AccessKeyID:     "LTAI-PLACEHOLDER",
-			SecretAccessKey: "oss-secret",
-			Region:          "cn-hangzhou",
-			UseSSL:          true,
-			Port:            443,
-		},
-	}
-	for _, sample := range samples {
-		if _, err := s.CreateAccount(ctx, sample); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // ConnectionCredentials resolves decrypted credentials for the given account.
 func (s *Service) ConnectionCredentials(ctx context.Context, id string) (providers.ConnectionCredentials, error) {
 	record, err := s.store.Get(ctx, id)

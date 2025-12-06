@@ -1,0 +1,87 @@
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { useAccountsStore } from "@/state/accounts";
+import { Link, useLocation, useParams } from "@tanstack/react-router";
+import { Fragment, useMemo } from "react";
+
+export const useDashboardBreadcrumbs = () => {
+  const params = useParams({ strict: false });
+  const location = useLocation();
+  const activeAccountId = useAccountsStore((state) => state.activeAccountId);
+  const accounts = useAccountsStore((state) => state.accounts);
+
+  return useMemo(() => {
+    const items = [{ label: "首页", to: "/" }];
+
+    // Handle Settings Page
+    if (location.pathname === "/settings") {
+      // If we have an active account, insert it as the parent
+      if (activeAccountId) {
+        const account = accounts.find((a) => a.id === activeAccountId);
+        const label = account ? account.name : activeAccountId;
+        items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
+      }
+      items.push({ label: "系统设置", to: "/settings" });
+      return items;
+    }
+
+    const accountId = (params as any).accountId;
+    if (accountId) {
+      const account = accounts.find((a) => a.id === accountId);
+      const label = account ? account.name : accountId;
+      items.push({ label, to: `/accounts/${accountId}/dashboard` });
+    }
+
+    if (location.pathname.includes("/transfers")) {
+      items.push({ label: "传输任务", to: location.pathname });
+    } else if (location.pathname.includes("/search")) {
+      items.push({ label: "对象搜索", to: location.pathname });
+    } else if (location.pathname.includes("/buckets/")) {
+      const bucketId = (params as any).bucketId;
+      if (bucketId) {
+        // If we are at settings, we want: Account > Bucket > Settings
+        items.push({ label: bucketId, to: `/accounts/${accountId}/dashboard?bucket=${bucketId}` });
+
+        if (location.pathname.includes("/settings")) {
+          items.push({ label: "设置", to: location.pathname });
+        }
+      }
+    }
+
+    return items;
+  }, [location.pathname, params, accounts, activeAccountId]);
+};
+
+export const DashboardBreadcrumb = () => {
+  const breadcrumbs = useDashboardBreadcrumbs();
+
+  return (
+    <Breadcrumb className="hidden md:flex">
+      <BreadcrumbList>
+        {breadcrumbs.map((item, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          return (
+            <Fragment key={item.to + index}>
+              {index > 0 && <BreadcrumbSeparator />}
+              <BreadcrumbItem>
+                {isLast ? (
+                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink asChild>
+                    <Link to={item.to}>{item.label}</Link>
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+};

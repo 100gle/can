@@ -47,7 +47,6 @@ export const SearchPage = () => {
               params: { accountId: params.accountId },
             })
           }
-          onOpenSettings={() => navigate({ to: "/settings" })}
         />
       }
     >

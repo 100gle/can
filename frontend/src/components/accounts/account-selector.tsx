@@ -12,7 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
-import { LayoutGrid, Loader2, Plus, RefreshCcw, Rows, Sparkles } from "lucide-react";
+import {
+  DownloadCloud,
+  LayoutGrid,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Rows,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { AccountCardStatus } from "./account-card";
 import { AccountCardGrid } from "./account-card-grid";
@@ -20,9 +29,16 @@ import { AccountCardGrid } from "./account-card-grid";
 type AccountSelectorProps = {
   onCreateAccount: () => void;
   onEditAccount: (account: AccountModel) => void;
+  onImportAccount?: () => void;
+  onExportAccount?: () => void;
 };
 
-export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelectorProps) => {
+export const AccountSelector = ({
+  onCreateAccount,
+  onEditAccount,
+  onImportAccount,
+  onExportAccount,
+}: AccountSelectorProps) => {
   const navigate = useNavigate();
   const accounts = useAccountsStore((state) => state.accounts);
   const loading = useAccountsStore((state) => state.loading);
@@ -118,7 +134,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
     }
 
     if (!accounts.length) {
-      return <EmptyState onCreate={onCreateAccount} />;
+      return <EmptyState onCreate={onCreateAccount} onImport={onImportAccount} />;
     }
 
     return (
@@ -139,20 +155,49 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
       <Tabs
         value={viewMode}
         onValueChange={(value) => setViewMode(value as "cards" | "list")}
-        className="gap-8"
+        className="gap-4"
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
-              <Sparkles className="h-3 w-3" />
-              Multi-Account
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold">选择你的云存储账户</h2>
-            <p className="text-sm text-muted-foreground">
-              集中管理 S3 兼容服务，快速切换并查看连接状态。
-            </p>
+          <div className="flex items-center gap-8">
+            <div>
+              <p className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
+                <Sparkles className="h-3 w-3" />
+                Multi-Account
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">选择你的云存储账户</h2>
+              <p className="text-sm text-muted-foreground">
+                集中管理 S3 兼容服务，快速切换并查看连接状态。
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-4">
+            {accounts.length > 0 ? (
+              <>
+                {/* Mobile Tabs List for smaller screens */}
+
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={onImportAccount}>
+                    <UploadCloud className="h-4 w-4" />
+                    导入
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={onExportAccount}>
+                    <DownloadCloud className="h-4 w-4" />
+                    导出
+                  </Button>
+                </div>
+
+                <div className="hidden h-6 w-px bg-border sm:block" />
+
+                <Button size="sm" className="gap-2" onClick={onCreateAccount}>
+                  <Plus className="h-4 w-4" />
+                  新建账户
+                </Button>
+              </>
+            ) : null}
+          </div>
+        </div>
+        {accounts.length > 0 ? (
+          <div className="flex justify-start">
             <TabsList className="flex rounded-2xl border border-border/60 bg-muted/20 p-1 text-muted-foreground shadow-inner shadow-black/5 backdrop-blur-sm">
               <TabsTrigger
                 value="cards"
@@ -160,7 +205,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
                 className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
               >
                 <LayoutGrid className="h-4 w-4" />
-                卡片
+                <span className="hidden sm:inline">卡片</span>
               </TabsTrigger>
               <TabsTrigger
                 value="list"
@@ -168,15 +213,11 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
                 className="flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
               >
                 <Rows className="h-4 w-4" />
-                列表
+                <span className="hidden sm:inline">列表</span>
               </TabsTrigger>
             </TabsList>
-            <Button size="sm" className="gap-2" onClick={onCreateAccount}>
-              <Plus className="h-4 w-4" />
-              新建账户
-            </Button>
           </div>
-        </div>
+        ) : null}
         <TabsContent value="cards">{renderGrid("cards")}</TabsContent>
         <TabsContent value="list">{renderGrid("list")}</TabsContent>
       </Tabs>
@@ -199,15 +240,21 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
   );
 };
 
-const EmptyState = ({ onCreate }: { onCreate: () => void }) => (
+const EmptyState = ({ onCreate, onImport }: { onCreate: () => void; onImport?: () => void }) => (
   <div className="rounded-3xl border border-dashed border-border/60 p-10 text-center">
     <h3 className="text-2xl font-semibold">欢迎使用 CAN</h3>
     <p className="mt-2 text-sm text-muted-foreground">
       当前还没有配置任何账户，立即新建一个开始浏览 Bucket 与对象。
     </p>
-    <Button className="mt-6 gap-2" onClick={onCreate}>
-      <Plus className="h-4 w-4" />
-      新建账户
-    </Button>
+    <div className="mt-6 flex items-center justify-center gap-4">
+      <Button variant="outline" className="gap-2" onClick={onImport}>
+        <UploadCloud className="h-4 w-4" />
+        导入配置
+      </Button>
+      <Button className="gap-2" onClick={onCreate}>
+        <Plus className="h-4 w-4" />
+        新建账户
+      </Button>
+    </div>
   </div>
 );

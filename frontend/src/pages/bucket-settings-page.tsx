@@ -1,5 +1,5 @@
-import { CapabilityGate } from "@/components/buckets/capability-gate";
 import { BucketSettings, type BucketSettingsSection } from "@/components/buckets/bucket-settings";
+import { CapabilityGate } from "@/components/buckets/capability-gate";
 import { CORSPanel } from "@/components/buckets/cors-panel";
 import { EncryptionPanel } from "@/components/buckets/encryption-panel";
 import { LifecyclePanel } from "@/components/buckets/lifecycle-panel";
@@ -144,7 +144,6 @@ export const BucketSettingsPage = () => {
               params: { accountId: params.accountId },
             })
           }
-          onOpenSettings={() => navigate({ to: "/settings" })}
         />
       }
     >

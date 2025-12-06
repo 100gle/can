@@ -135,10 +135,6 @@ export default function DashboardPage() {
       });
   };
 
-  const handleOpenSettings = () => {
-    navigate({ to: "/settings" });
-  };
-
   const handleOpenBucketSettings = (bucketName: string) => {
     if (!activeAccount) return;
     navigate({
@@ -147,9 +143,7 @@ export default function DashboardPage() {
     });
   };
 
-  const sidebar = (
-    <Sidebar onCreateAccount={() => openDrawer("create")} onOpenSettings={handleOpenSettings} />
-  );
+  const sidebar = <Sidebar onCreateAccount={() => openDrawer("create")} />;
 
   if (!activeAccount && loading) {
     return (
@@ -205,6 +199,10 @@ export default function DashboardPage() {
                 <UploadCloud className="h-4 w-4" />
                 导入
               </Button>
+              <Button size="sm" className="gap-1" onClick={() => openDrawer("create")}>
+                <Plus className="h-4 w-4" />
+                新建
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -239,10 +237,6 @@ export default function DashboardPage() {
               >
                 <Share2 className="h-4 w-4" />
                 传输队列
-              </Button>
-              <Button size="sm" className="gap-1" onClick={() => openDrawer("create")}>
-                <Plus className="h-4 w-4" />
-                新建
               </Button>
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}

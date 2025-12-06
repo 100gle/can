@@ -38,7 +38,7 @@ describe("SettingsPage", () => {
 
   it("renders without entering infinite update loops", async () => {
     const { root, container } = await renderAt("/settings");
-    expect(container.textContent).toContain("CAN 控制中心");
+    expect(container.textContent).toContain("系统设置");
     await act(async () => {
       root.unmount();
     });

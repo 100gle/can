@@ -66,7 +66,6 @@ export default function TransfersPage() {
       onCreateAccount={() =>
         navigate({ to: "/accounts/$accountId/dashboard", params: { accountId: params.accountId } })
       }
-      onOpenSettings={() => navigate({ to: "/settings" })}
     />
   );
 

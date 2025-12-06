@@ -69,11 +69,6 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	reqCtx, cancel := a.requestContext(ctx)
-	defer cancel()
-	if err := a.accounts.EnsureSeed(reqCtx); err != nil {
-		runtime.LogErrorf(ctx, "seed sample accounts: %v", err)
-	}
 }
 
 // SupportedProviders exposes the providers metadata to the UI.
