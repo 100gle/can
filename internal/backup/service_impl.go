@@ -13,16 +13,18 @@ import (
 )
 
 type ServiceImpl struct {
-	accounts *accounts.Service
-	objects  *objects.Service
-	dataDir  string // To locate settings.json etc.
+	accounts      *accounts.Service
+	objects       *objects.Service
+	dataDir       string // To locate settings.json etc.
+	snapshotStore *SnapshotStore
 }
 
 func NewService(accounts *accounts.Service, objects *objects.Service, dataDir string) *ServiceImpl {
 	return &ServiceImpl{
-		accounts: accounts,
-		objects:  objects,
-		dataDir:  dataDir,
+		accounts:      accounts,
+		objects:       objects,
+		dataDir:       dataDir,
+		snapshotStore: NewSnapshotStore(dataDir),
 	}
 }
 
@@ -39,13 +41,6 @@ func (s *ServiceImpl) CreateAppBackup(ctx context.Context, encrypted bool, passw
 		// settings.json and favorites.json would be read from s.dataDir/settings.json
 	}
 	// For MVP, handling just accounts is fine if settings are trivial.
-
-	// Serialize Content
-	// Serialize Content (Optional check, effectively unused but keeping for debug if needed, or remove)
-	// jsonData, err := json.Marshal(content)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
 
 	// 3. Encrypt if requested
 	// If password provided, encrypt jsonData.
@@ -132,7 +127,7 @@ func (s *ServiceImpl) CreateBucketSnapshot(ctx context.Context, accountID, bucke
 		marker = res.NextMarker
 	}
 
-	// Save to file (mock implementation: just return header)
+	// Create Header
 	header := &BackupHeader{
 		ID:          uuid.New().String(),
 		Type:        BackupTypeSnapshot,
@@ -142,15 +137,44 @@ func (s *ServiceImpl) CreateBucketSnapshot(ctx context.Context, accountID, bucke
 		ObjectCount: int64(len(allObjects)),
 	}
 
-	// Actual persistent storage of snapshot JSON would happen here (saving to disk/db)
+	// Persist to store
+	if err := s.snapshotStore.SaveSnapshot(header, allObjects); err != nil {
+		return nil, fmt.Errorf("failed to save snapshot: %w", err)
+	}
 
 	return header, nil
 }
 
 func (s *ServiceImpl) ListSnapshots(ctx context.Context, accountID, bucket string) ([]*BackupHeader, error) {
-	return []*BackupHeader{}, nil // Placeholder
+	return s.snapshotStore.ListSnapshots(accountID, bucket)
 }
 
 func (s *ServiceImpl) RestoreSnapshot(ctx context.Context, snapshotID string) error {
-	return nil // Placeholder
+	// Get snapshot metadata
+	header, err := s.snapshotStore.GetSnapshot(snapshotID)
+	if err != nil {
+		return fmt.Errorf("snapshot not found: %w", err)
+	}
+
+	// Get snapshot content (object list)
+	content, err := s.snapshotStore.GetSnapshotContent(snapshotID)
+	if err != nil {
+		return fmt.Errorf("failed to read snapshot content: %w", err)
+	}
+
+	// For MVP: just report what would be restored (print to console)
+	// In a full implementation, we would compare current bucket state with snapshot
+	// and re-upload any missing objects
+	fmt.Printf("Restore snapshot %s for bucket %s/%s\n", snapshotID, header.AccountID, header.BucketName)
+	fmt.Printf("Snapshot contains %d objects\n", len(content.Objects))
+
+	// TODO: Compare with current bucket state and identify missing objects
+	// For now, just return success as we've validated the snapshot exists
+
+	return nil
+}
+
+// DeleteSnapshot removes a snapshot by ID.
+func (s *ServiceImpl) DeleteSnapshot(ctx context.Context, snapshotID string) error {
+	return s.snapshotStore.DeleteSnapshot(snapshotID)
 }

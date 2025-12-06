@@ -243,9 +243,10 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
             ? normalizeLifecycle(lifecycle as ConfigModels.LifecycleRule[])
             : [],
           cors: canCORS ? normalizeCORS(cors as ConfigModels.BucketCORS) : undefined,
-          policy: canPolicy && policy 
-            ? { raw: policy.raw, version: policy.version, statement: policy.statement } 
-            : undefined,
+          policy:
+            canPolicy && policy
+              ? { raw: policy.raw, version: policy.version, statement: policy.statement }
+              : undefined,
           loading: false,
         });
       } else {
@@ -272,65 +273,69 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
   },
   // ... existing save methods ...
   saveVersioning: async (status: "Enabled" | "Suspended") => {
-      // ... existing implementation simplified for brevity ...
-      const { accountId, bucket } = get();
-      if (!accountId || !bucket) return;
-      set((state) => ({ saving: { ...state.saving, versioning: true }, error: undefined }));
-      try {
-          if (status === "Enabled") await EnableBucketVersioning(accountId, bucket);
-          else await SuspendBucketVersioning(accountId, bucket);
-          set({ versioning: { status, updated: new Date().toISOString() as any } });
-      } catch(e) {
-          const message = e instanceof Error ? e.message : "保存版本控制失败";
-          set({ error: message });
-          throw e;
-      }
-      finally { set(s => ({ saving: { ...s.saving, versioning: false } })); }
+    // ... existing implementation simplified for brevity ...
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, versioning: true }, error: undefined }));
+    try {
+      if (status === "Enabled") await EnableBucketVersioning(accountId, bucket);
+      else await SuspendBucketVersioning(accountId, bucket);
+      set({ versioning: { status, updated: new Date().toISOString() as any } });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "保存版本控制失败";
+      set({ error: message });
+      throw e;
+    } finally {
+      set((s) => ({ saving: { ...s.saving, versioning: false } }));
+    }
   },
   saveEncryption: async (payload: BucketEncryptionModel) => {
-      const { accountId, bucket } = get();
-      if (!accountId || !bucket) return;
-      set((state) => ({ saving: { ...state.saving, encryption: true }, error: undefined }));
-      try {
-          if (!payload.enabled) await DeleteBucketEncryption(accountId, bucket);
-          else await SetBucketEncryption(accountId, bucket, payload as any);
-          set({ encryption: { ...payload, updated: new Date().toISOString() as any } });
-      } catch(e) {
-          const message = e instanceof Error ? e.message : "保存加密配置失败";
-          set({ error: message });
-          throw e;
-      }
-      finally { set(s => ({ saving: { ...s.saving, encryption: false } })); }
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, encryption: true }, error: undefined }));
+    try {
+      if (!payload.enabled) await DeleteBucketEncryption(accountId, bucket);
+      else await SetBucketEncryption(accountId, bucket, payload as any);
+      set({ encryption: { ...payload, updated: new Date().toISOString() as any } });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "保存加密配置失败";
+      set({ error: message });
+      throw e;
+    } finally {
+      set((s) => ({ saving: { ...s.saving, encryption: false } }));
+    }
   },
   saveLifecycle: async (rules: LifecycleRuleModel[]) => {
-      const { accountId, bucket } = get();
-      if (!accountId || !bucket) return;
-      set((state) => ({ saving: { ...state.saving, lifecycle: true }, error: undefined }));
-      try {
-          if (!rules.length) await DeleteBucketLifecycle(accountId, bucket);
-          else await SetBucketLifecycle(accountId, bucket, rules as any);
-          set({ lifecycle: rules });
-      } catch(e) {
-          const message = e instanceof Error ? e.message : "保存生命周期失败";
-          set({ error: message });
-          throw e;
-      }
-      finally { set(s => ({ saving: { ...s.saving, lifecycle: false } })); }
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, lifecycle: true }, error: undefined }));
+    try {
+      if (!rules.length) await DeleteBucketLifecycle(accountId, bucket);
+      else await SetBucketLifecycle(accountId, bucket, rules as any);
+      set({ lifecycle: rules });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "保存生命周期失败";
+      set({ error: message });
+      throw e;
+    } finally {
+      set((s) => ({ saving: { ...s.saving, lifecycle: false } }));
+    }
   },
   saveCORS: async (cors: BucketCORSModel) => {
-      const { accountId, bucket } = get();
-      if (!accountId || !bucket) return;
-      set((state) => ({ saving: { ...state.saving, cors: true }, error: undefined }));
-      try {
-          if (!cors.rules?.length) await DeleteBucketCORS(accountId, bucket);
-          else await SetBucketCORS(accountId, bucket, cors as any);
-          set({ cors });
-      } catch(e) {
-          const message = e instanceof Error ? e.message : "保存 CORS 失败";
-          set({ error: message });
-          throw e;
-      }
-      finally { set(s => ({ saving: { ...s.saving, cors: false } })); }
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, cors: true }, error: undefined }));
+    try {
+      if (!cors.rules?.length) await DeleteBucketCORS(accountId, bucket);
+      else await SetBucketCORS(accountId, bucket, cors as any);
+      set({ cors });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "保存 CORS 失败";
+      set({ error: message });
+      throw e;
+    } finally {
+      set((s) => ({ saving: { ...s.saving, cors: false } }));
+    }
   },
   setPolicy: async (json: string) => {
     const { accountId, bucket, featureSupport } = get();
@@ -344,34 +349,36 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     try {
       // Parse JSON to validate and structure if needed, or send raw
       // The backend SetBucketPolicy expects a struct.
-      // If we only have raw JSON string, we might need to parse it to fill the struct fields 
+      // If we only have raw JSON string, we might need to parse it to fill the struct fields
       // OR update backend to accept raw string.
       // Looking at backend config/policy.go, it uses BucketPolicy struct.
       // Let's try to parse it.
       let policyStruct: ConfigModels.BucketPolicy;
       try {
-          const parsed = JSON.parse(json);
-          policyStruct = {
-              raw: json,
-              version: parsed.Version || "",
-              statement: parsed.Statement || [],
-          } as any;
-      } catch (e) {
-          throw new Error("Invalid JSON format");
+        const parsed = JSON.parse(json);
+        policyStruct = {
+          raw: json,
+          version: parsed.Version || "",
+          statement: parsed.Statement || [],
+        } as any;
+      } catch {
+        throw new Error("Invalid JSON format");
       }
 
       const useBridge = isBridgeAvailable();
       if (useBridge) {
         await SetBucketPolicy(accountId, bucket, policyStruct);
       }
-      set({ policy: { raw: json, version: policyStruct.version, statement: policyStruct.statement } });
+      set({
+        policy: { raw: json, version: policyStruct.version, statement: policyStruct.statement },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "保存策略失败";
       set({ error: message });
       throw error;
     } finally {
       set((state) => {
-        const { policy, ...rest } = state.saving;
+        const { policy: _policy, ...rest } = state.saving;
         return { saving: rest };
       });
     }
@@ -392,7 +399,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
       throw error;
     } finally {
       set((state) => {
-        const { policy, ...rest } = state.saving;
+        const { policy: _policy, ...rest } = state.saving;
         return { saving: rest };
       });
     }

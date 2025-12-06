@@ -275,21 +275,13 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
   saveQuery: async (name: string) => {
     const { query } = get();
     if (!isBridgeAvailable()) return;
-    try {
-      await SaveSearchQuery(name, query as any);
-      await get().loadSavedQueries();
-    } catch (error) {
-      throw error;
-    }
+    await SaveSearchQuery(name, query as any);
+    await get().loadSavedQueries();
   },
   deleteSavedQuery: async (id: string) => {
     if (!isBridgeAvailable()) return;
-    try {
-      await DeleteSavedSearchQuery(id);
-      await get().loadSavedQueries();
-    } catch (error) {
-      throw error;
-    }
+    await DeleteSavedSearchQuery(id);
+    await get().loadSavedQueries();
   },
   applySavedQuery: (saved: SavedQueryModel) => {
     set((state) => ({

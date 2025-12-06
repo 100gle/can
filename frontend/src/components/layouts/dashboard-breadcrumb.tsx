@@ -1,23 +1,26 @@
 import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useAccountsStore } from "@/state/accounts";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { Fragment, useMemo } from "react";
 
-export const useDashboardBreadcrumbs = () => {
+type BreadcrumbItem = { label: string; to: string };
+type BreadcrumbResult = { items: BreadcrumbItem[]; isSubPage: boolean };
+
+export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
   const params = useParams({ strict: false });
   const location = useLocation();
   const activeAccountId = useAccountsStore((state) => state.activeAccountId);
   const accounts = useAccountsStore((state) => state.accounts);
 
   return useMemo(() => {
-    const items = [{ label: "首页", to: "/" }];
+    const items: BreadcrumbItem[] = [{ label: "首页", to: "/" }];
 
     // Handle Settings Page
     if (location.pathname === "/settings") {
@@ -28,7 +31,7 @@ export const useDashboardBreadcrumbs = () => {
         items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
       }
       items.push({ label: "系统设置", to: "/settings" });
-      return items;
+      return { items, isSubPage: true };
     }
 
     // Handle Analytics Page
@@ -40,7 +43,19 @@ export const useDashboardBreadcrumbs = () => {
         items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
       }
       items.push({ label: "数据分析", to: "/analytics" });
-      return items;
+      return { items, isSubPage: true };
+    }
+
+    // Handle Sync Page
+    if (location.pathname === "/sync") {
+      items.push({ label: "同步管理", to: "/sync" });
+      return { items, isSubPage: true };
+    }
+
+    // Handle Migration Page
+    if (location.pathname === "/migration") {
+      items.push({ label: "数据迁移", to: "/migration" });
+      return { items, isSubPage: true };
     }
 
     const accountId = (params as any).accountId;
@@ -50,10 +65,16 @@ export const useDashboardBreadcrumbs = () => {
       items.push({ label, to: `/accounts/${accountId}/dashboard` });
     }
 
+    // Check if this is a sub-page (not the dashboard root)
+    const isDashboardRoot = location.pathname.endsWith("/dashboard");
+    const isHomePage = location.pathname === "/";
+
     if (location.pathname.includes("/transfers")) {
       items.push({ label: "传输任务", to: location.pathname });
+      return { items, isSubPage: true };
     } else if (location.pathname.includes("/search")) {
       items.push({ label: "对象搜索", to: location.pathname });
+      return { items, isSubPage: true };
     } else if (location.pathname.includes("/buckets/")) {
       const bucketId = (params as any).bucketId;
       if (bucketId) {
@@ -64,14 +85,16 @@ export const useDashboardBreadcrumbs = () => {
           items.push({ label: "设置", to: location.pathname });
         }
       }
+      return { items, isSubPage: true };
     }
 
-    return items;
+    // Dashboard root or home page: not a sub-page
+    return { items, isSubPage: !isDashboardRoot && !isHomePage };
   }, [location.pathname, params, accounts, activeAccountId]);
 };
 
 export const DashboardBreadcrumb = () => {
-  const breadcrumbs = useDashboardBreadcrumbs();
+  const { items: breadcrumbs } = useDashboardBreadcrumbs();
 
   return (
     <Breadcrumb className="hidden md:flex">

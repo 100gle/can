@@ -70,7 +70,7 @@ func (s *Service) CreateAccount(ctx context.Context, input CreateAccountInput) (
 	if err != nil {
 		return Account{}, fmt.Errorf("encrypt secret: %w", err)
 	}
-	record := StorageAccount{
+	record := accountRecord{
 		ID:              uuid.NewString(),
 		Name:            strings.TrimSpace(input.Name),
 		Tag:             strings.TrimSpace(input.Tag),
@@ -298,7 +298,7 @@ func credentialsFromInput(input CreateAccountInput) providers.ConnectionCredenti
 	}
 }
 
-func (s *Service) credentialsFromRecord(ctx context.Context, record StorageAccount) (providers.ConnectionCredentials, error) {
+func (s *Service) credentialsFromRecord(ctx context.Context, record accountRecord) (providers.ConnectionCredentials, error) {
 	secret, err := s.cipher.DecryptString(ctx, record.EncryptedSecret)
 	if err != nil {
 		return providers.ConnectionCredentials{}, fmt.Errorf("decrypt secret: %w", err)
@@ -314,7 +314,7 @@ func (s *Service) credentialsFromRecord(ctx context.Context, record StorageAccou
 	}, nil
 }
 
-func toAccount(record StorageAccount) Account {
+func toAccount(record accountRecord) Account {
 	return Account{
 		ID:               record.ID,
 		Name:             record.Name,

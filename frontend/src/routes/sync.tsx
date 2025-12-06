@@ -1,16 +1,16 @@
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
-import { MigrationWizard } from "@/components/migration/migration-wizard";
+import { SyncPanel } from "@/components/sync/sync-panel";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/migration")({
-  component: MigrationPage,
+export const Route = createFileRoute("/sync")({
+  component: SyncPage,
 });
 
-function MigrationPage() {
+function SyncPage() {
   return (
     <DashboardLayout sidebar={<Sidebar />}>
-      <MigrationWizard />
+      <SyncPanel />
     </DashboardLayout>
   );
 }

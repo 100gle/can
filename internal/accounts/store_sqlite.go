@@ -30,43 +30,43 @@ func NewSQLiteStore(dsn string) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
 	}
-	if err := db.AutoMigrate(&StorageAccount{}); err != nil {
+	if err := db.AutoMigrate(&accountRecord{}); err != nil {
 		return nil, fmt.Errorf("auto migrate accounts: %w", err)
 	}
 	return &sqliteStore{db: db}, nil
 }
 
-func (s *sqliteStore) List(ctx context.Context) ([]StorageAccount, error) {
-	var records []StorageAccount
+func (s *sqliteStore) List(ctx context.Context) ([]accountRecord, error) {
+	var records []accountRecord
 	if err := s.db.WithContext(ctx).Order("name ASC").Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
 }
 
-func (s *sqliteStore) Get(ctx context.Context, id string) (StorageAccount, error) {
-	var record StorageAccount
+func (s *sqliteStore) Get(ctx context.Context, id string) (accountRecord, error) {
+	var record accountRecord
 	if err := s.db.WithContext(ctx).First(&record, "id = ?", id).Error; err != nil {
-		return StorageAccount{}, err
+		return accountRecord{}, err
 	}
 	return record, nil
 }
 
-func (s *sqliteStore) Save(ctx context.Context, account StorageAccount) error {
+func (s *sqliteStore) Save(ctx context.Context, account accountRecord) error {
 	return s.db.WithContext(ctx).Create(&account).Error
 }
 
-func (s *sqliteStore) Update(ctx context.Context, account StorageAccount) error {
+func (s *sqliteStore) Update(ctx context.Context, account accountRecord) error {
 	return s.db.WithContext(ctx).Save(&account).Error
 }
 
 func (s *sqliteStore) Delete(ctx context.Context, id string) error {
-	return s.db.WithContext(ctx).Delete(&StorageAccount{}, "id = ?", id).Error
+	return s.db.WithContext(ctx).Delete(&accountRecord{}, "id = ?", id).Error
 }
 
 func (s *sqliteStore) Count(ctx context.Context) (int, error) {
 	var count int64
-	if err := s.db.WithContext(ctx).Model(&StorageAccount{}).Count(&count).Error; err != nil {
+	if err := s.db.WithContext(ctx).Model(&accountRecord{}).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return int(count), nil

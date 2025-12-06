@@ -3,6 +3,7 @@
 import {accounts} from '../models';
 import {backup} from '../models';
 import {migration} from '../models';
+import {sync} from '../models';
 import {transfer} from '../models';
 import {search} from '../models';
 import {analytics} from '../models';
@@ -36,6 +37,8 @@ export function CreateBucketSnapshot(arg1:string,arg2:string):Promise<backup.Bac
 
 export function CreateMigrationJob(arg1:migration.EndpointInfo,arg2:migration.EndpointInfo,arg3:migration.MigrationOptions):Promise<migration.MigrationJob>;
 
+export function CreateSyncRule(arg1:sync.SyncRule):Promise<void>;
+
 export function DeleteAccount(arg1:string):Promise<void>;
 
 export function DeleteBucket(arg1:string,arg2:string):Promise<void>;
@@ -48,11 +51,15 @@ export function DeleteBucketLifecycle(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteBucketPolicy(arg1:string,arg2:string):Promise<void>;
 
+export function DeleteBucketSnapshot(arg1:string):Promise<void>;
+
 export function DeleteBucketWebsite(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteObject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function DeleteSavedSearchQuery(arg1:string):Promise<void>;
+
+export function DeleteSyncRule(arg1:string):Promise<void>;
 
 export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
@@ -82,6 +89,8 @@ export function GetPresignedDownloadURL(arg1:string,arg2:string,arg3:string,arg4
 
 export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
+export function GetSyncRule(arg1:string):Promise<sync.SyncRule>;
+
 export function GetSystemMetrics():Promise<system.SystemMetrics>;
 
 export function GetTransferSpeedLimit():Promise<number>;
@@ -98,6 +107,8 @@ export function InitiateMultipartUpload(arg1:string,arg2:string,arg3:string):Pro
 
 export function ListAccounts():Promise<Array<accounts.Account>>;
 
+export function ListBucketSnapshots(arg1:string,arg2:string):Promise<Array<backup.BackupHeader>>;
+
 export function ListBuckets(arg1:string):Promise<Array<buckets.BucketInfo>>;
 
 export function ListMigrationJobs():Promise<Array<migration.MigrationJob>>;
@@ -105,6 +116,10 @@ export function ListMigrationJobs():Promise<Array<migration.MigrationJob>>;
 export function ListObjects(arg1:string,arg2:objects.ListObjectsInput):Promise<objects.ListObjectsResult>;
 
 export function ListSavedSearchQueries():Promise<Array<search.SavedQuery>>;
+
+export function ListSyncRules():Promise<Array<sync.SyncRule>>;
+
+export function ListSyncTasks(arg1:string):Promise<Array<sync.SyncTask>>;
 
 export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
 
@@ -124,6 +139,8 @@ export function SaveSearchQuery(arg1:string,arg2:search.SearchQuery):Promise<sea
 
 export function SearchObjects(arg1:string,arg2:search.SearchQuery):Promise<search.SearchResponse>;
 
+export function SelectLocalFolder():Promise<string>;
+
 export function SetActiveAccount(arg1:string):Promise<accounts.Account>;
 
 export function SetBucketCORS(arg1:string,arg2:string,arg3:config.BucketCORS):Promise<void>;
@@ -140,6 +157,10 @@ export function SetTransferSpeedLimit(arg1:number):Promise<void>;
 
 export function StartMigrationJob(arg1:string):Promise<void>;
 
+export function StartSyncRule(arg1:string):Promise<sync.SyncTask>;
+
+export function StopSyncRule(arg1:string):Promise<void>;
+
 export function SupportedProviders():Promise<Array<types.ProviderMetadata>>;
 
 export function SuspendBucketVersioning(arg1:string,arg2:string):Promise<void>;
@@ -151,6 +172,8 @@ export function TestAccountConnectionPreview(arg1:accounts.CreateAccountInput):P
 export function UpdateAccount(arg1:string,arg2:accounts.UpdateAccountInput):Promise<accounts.Account>;
 
 export function UpdateSavedSearchQuery(arg1:string,arg2:string,arg3:search.SearchQuery):Promise<search.SavedQuery>;
+
+export function UpdateSyncRule(arg1:sync.SyncRule):Promise<void>;
 
 export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 

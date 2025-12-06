@@ -1,7 +1,7 @@
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { createFileRoute } from "@tanstack/react-router";
-import { AnalyticsPage } from '../pages/analytics-page';
+import { AnalyticsPage } from "../pages/analytics-page";
 
 const AnalyticsRouteComponent = () => (
   <DashboardLayout sidebar={<Sidebar />} showSettingsShortcut={true} accountName="Analytics">
@@ -11,6 +11,6 @@ const AnalyticsRouteComponent = () => (
   </DashboardLayout>
 );
 
-export const Route = createFileRoute('/analytics')({
+export const Route = createFileRoute("/analytics")({
   component: AnalyticsRouteComponent,
-})
+});

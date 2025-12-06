@@ -1,3 +1,4 @@
+import { SearchPanel } from "@/components/search/search-panel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,13 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
@@ -49,14 +44,12 @@ import { objectsStore, useObjectsStore } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
 import { GetPresignedDownloadURL } from "@wailsjs/go/main/App";
 import {
-  ArrowLeft,
   Download,
   File,
   FileArchive,
   FileCode,
   FileImage,
   FileText,
-  Filter,
   Folder,
   FolderPlus,
   HardDrive,
@@ -69,6 +62,7 @@ import {
   Search,
   Settings2,
   Share2,
+  SlidersHorizontal,
   Trash2,
   Upload,
   X,
@@ -77,25 +71,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 type FileExplorerProps = {
   accountId?: string;
-  providerId?: string;
   onOpenBucketSettings?: (bucket: string) => void;
   className?: string;
 };
 
-type BrowseLevel = "buckets" | "objects";
+type BrowseLevel = "buckets" | "objects" | "search";
 
-export function FileExplorer({
-  accountId,
-  providerId,
-  onOpenBucketSettings,
-  className,
-}: FileExplorerProps) {
+export function FileExplorer({ accountId, onOpenBucketSettings, className }: FileExplorerProps) {
   // Bucket state
   const {
     buckets,
     loading: bucketsLoading,
     creating,
-    deleting,
     error: bucketsError,
   } = useBucketsStore((state) => state);
 
@@ -108,7 +95,6 @@ export function FileExplorer({
     error: objectsError,
     prefix,
     truncated,
-    pendingKeys,
   } = useObjectsStore((state) => state);
 
   // Browser state
@@ -235,14 +221,6 @@ export function FileExplorer({
     void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
   };
 
-  const handleGoUp = () => {
-    if (level === "objects" && !prefix) {
-      handleGoToRoot();
-    } else if (level === "objects" && prefix) {
-      void objectsStore.goUp();
-    }
-  };
-
   // Bucket actions
   const handleCreateBucket = async () => {
     if (!accountId || !newBucketName.trim()) return;
@@ -323,7 +301,7 @@ export function FileExplorer({
   };
 
   // Render item
-  const renderItem = (item: any, index: number) => {
+  const renderItem = (item: any) => {
     if (level === "buckets") {
       return (
         <ContextMenu key={item.name}>
@@ -469,250 +447,267 @@ export function FileExplorer({
       />
 
       <Card className={cn("flex h-full flex-col", className)}>
-        {/* Header */}
-        <div className="flex flex-col gap-3 border-b border-border/40 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">文件浏览器</p>
-              <h3 className="text-lg font-semibold">
-                {level === "buckets" ? "存储桶" : currentBucket}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={handleRefresh}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCcw className="h-4 w-4" />
-                )}
-                刷新
-              </Button>
-              {level === "objects" && (
-                <>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    {uploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    上传
-                  </Button>
-                </>
-              )}
-              {level === "buckets" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => setCreateBucketOpen(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  新建桶
-                </Button>
+        {/* Unified Toolbar */}
+        <div className="flex h-14 items-center border-b border-border/40 px-4">
+          {/* Breadcrumbs - 2/3 Width */}
+          <div className="w-2/3 overflow-x-auto whitespace-nowrap scrollbar-none pr-4 border-r border-border/10">
+            <div className="flex items-center text-sm font-medium h-full">
+              {level === "search" ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Search className="h-4 w-4" />
+                  高级搜索
+                </span>
+              ) : (
+                <Breadcrumb>
+                  <BreadcrumbList className="flex-nowrap">
+                    {breadcrumbs.map((crumb, i) => {
+                      const isLast = i === breadcrumbs.length - 1;
+                      return (
+                        <BreadcrumbItem key={i} className="whitespace-nowrap">
+                          {isLast ? (
+                            <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                          ) : (
+                            <BreadcrumbLink asChild>
+                              <button
+                                type="button"
+                                onClick={crumb.onClick}
+                                className="hover:text-foreground transition-colors"
+                              >
+                                {crumb.label}
+                              </button>
+                            </BreadcrumbLink>
+                          )}
+                          {!isLast && <BreadcrumbSeparator />}
+                        </BreadcrumbItem>
+                      );
+                    })}
+                  </BreadcrumbList>
+                </Breadcrumb>
               )}
             </div>
           </div>
 
-          {/* Search and filters */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={level === "buckets" ? "搜索存储桶..." : "搜索文件..."}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-8"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
+          {/* Right Actions Area - 1/3 Width */}
+          <div className="w-1/3 h-full pl-4 grid grid-cols-4 gap-2 items-center">
+            {level === "search" ? (
+              <div className="col-span-4 flex justify-end">
+                <Button variant="ghost" size="sm" className="gap-1" onClick={handleGoToRoot}>
                   <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {level === "objects" && (
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[130px]">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="folder">文件夹</SelectItem>
-                  <SelectItem value="image">图片</SelectItem>
-                  <SelectItem value="document">文档</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            <div className="flex items-center rounded-md border border-border/40">
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="sm"
-                className="rounded-r-none"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                size="sm"
-                className="rounded-l-none"
-                onClick={() => setViewMode("grid")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Breadcrumb */}
-          <div className="flex items-center justify-between">
-            <Breadcrumb>
-              <BreadcrumbList>
-                {breadcrumbs.map((crumb, i) => {
-                  const isLast = i === breadcrumbs.length - 1;
-                  return (
-                    <BreadcrumbItem key={i}>
-                      {isLast ? (
-                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  关闭搜索
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Search + View - 3/4 */}
+                <div className="col-span-3 flex items-center gap-2">
+                  {/* Search Bar - Flex to fill */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder={level === "buckets" ? "搜索存储桶..." : "搜索文件..."}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-8 pl-8 pr-8 w-full"
+                    />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+                      {searchTerm ? (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm("")}
+                          className="p-1 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       ) : (
-                        <BreadcrumbLink asChild>
-                          <button type="button" onClick={crumb.onClick}>
-                            {crumb.label}
-                          </button>
-                        </BreadcrumbLink>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  setLevel("search");
+                                  setSearchTerm("");
+                                }}
+                              >
+                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>高级搜索</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
-                      {!isLast && <BreadcrumbSeparator />}
-                    </BreadcrumbItem>
-                  );
-                })}
-              </BreadcrumbList>
-            </Breadcrumb>
-            {(level === "objects" || currentBucket) && (
-              <Button variant="ghost" size="sm" className="gap-1" onClick={handleGoUp}>
-                <ArrowLeft className="h-3 w-3" />
-                返回
-              </Button>
+                    </div>
+                  </div>
+
+                  {/* View Mode */}
+                  <div className="flex items-center rounded-md border border-border/40 bg-background shrink-0">
+                    <Button
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-8 w-8 rounded-r-none"
+                      onClick={() => setViewMode("list")}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-8 w-8 rounded-l-none"
+                      onClick={() => setViewMode("grid")}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Actions - 1/4 */}
+                <div className="col-span-1 flex justify-end">
+                  {level === "objects" && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="gap-1 h-8 w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                      <span className="truncate">上传</span>
+                    </Button>
+                  )}
+                  {level === "buckets" && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="gap-1 h-8 w-full"
+                      onClick={() => setCreateBucketOpen(true)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span className="truncate">新建桶</span>
+                    </Button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Error */}
-        {error && <p className="px-4 pt-2 text-sm text-destructive">{error}</p>}
+        {level === "search" ? (
+          <div className="flex-1 overflow-y-auto p-4">
+            <SearchPanel buckets={buckets.map((b) => b.name)} />
+          </div>
+        ) : (
+          <>
+            {/* Error */}
+            {error && <p className="px-4 pt-2 text-sm text-destructive">{error}</p>}
 
-        {/* Content with context menu on background */}
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <div
-              className="flex-1 overflow-auto p-4"
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (level === "objects") setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-            >
-              {dragActive && (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/90">
-                  <div className="text-center">
-                    <Upload className="mx-auto h-10 w-10 text-primary" />
-                    <p className="mt-2 font-medium">释放以上传</p>
-                  </div>
-                </div>
-              )}
-
-              {loading && filteredItems.length === 0 ? (
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  加载中...
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Folder className="h-12 w-12 text-muted-foreground/40" />
-                  <p className="mt-4 text-muted-foreground">
-                    {hasActiveFilters
-                      ? "没有匹配的项目"
-                      : level === "buckets"
-                        ? "暂无存储桶"
-                        : "文件夹为空"}
-                  </p>
-                  {hasActiveFilters && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => {
-                        setSearchTerm("");
-                        setTypeFilter("all");
-                      }}
-                    >
-                      清除过滤
-                    </Button>
-                  )}
-                </div>
-              ) : (
+            {/* Content with context menu on background */}
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
                 <div
-                  className={cn(
-                    viewMode === "grid"
-                      ? "grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-                      : "flex flex-col gap-2",
-                  )}
+                  className="flex-1 overflow-auto p-4"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (level === "objects") setDragActive(true);
+                  }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={handleDrop}
                 >
-                  {filteredItems.map((item, i) => renderItem(item, i))}
-                </div>
-              )}
+                  {dragActive && (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/90">
+                      <div className="text-center">
+                        <Upload className="mx-auto h-10 w-10 text-primary" />
+                        <p className="mt-2 font-medium">释放以上传</p>
+                      </div>
+                    </div>
+                  )}
 
-              {level === "objects" && truncated && (
-                <div className="mt-4 text-center">
-                  <Button
-                    variant="outline"
-                    onClick={() => objectsStore.loadMore()}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    加载更多
-                  </Button>
+                  {loading && filteredItems.length === 0 ? (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      加载中...
+                    </div>
+                  ) : filteredItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Folder className="h-12 w-12 text-muted-foreground/40" />
+                      <p className="mt-4 text-muted-foreground">
+                        {hasActiveFilters
+                          ? "没有匹配的项目"
+                          : level === "buckets"
+                            ? "暂无存储桶"
+                            : "文件夹为空"}
+                      </p>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => {
+                            setSearchTerm("");
+                            setTypeFilter("all");
+                          }}
+                        >
+                          清除过滤
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        viewMode === "grid"
+                          ? "grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                          : "flex flex-col gap-2",
+                      )}
+                    >
+                      {filteredItems.map((item) => renderItem(item))}
+                    </div>
+                  )}
+
+                  {level === "objects" && truncated && (
+                    <div className="mt-4 text-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => objectsStore.loadMore()}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        加载更多
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            {level === "buckets" ? (
-              <ContextMenuItem onClick={() => setCreateBucketOpen(true)}>
-                <FolderPlus className="mr-2 h-4 w-4" />
-                新建存储桶
-              </ContextMenuItem>
-            ) : (
-              <>
-                <ContextMenuItem onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  上传文件
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                {level === "buckets" ? (
+                  <ContextMenuItem onClick={() => setCreateBucketOpen(true)}>
+                    <FolderPlus className="mr-2 h-4 w-4" />
+                    新建存储桶
+                  </ContextMenuItem>
+                ) : (
+                  <>
+                    <ContextMenuItem onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      上传文件
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => folderInputRef.current?.click()}>
+                      <FolderPlus className="mr-2 h-4 w-4" />
+                      上传文件夹
+                    </ContextMenuItem>
+                  </>
+                )}
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={handleRefresh}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  刷新
                 </ContextMenuItem>
-                <ContextMenuItem onClick={() => folderInputRef.current?.click()}>
-                  <FolderPlus className="mr-2 h-4 w-4" />
-                  上传文件夹
-                </ContextMenuItem>
-              </>
-            )}
-            <ContextMenuSeparator />
-            <ContextMenuItem onClick={handleRefresh}>
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              刷新
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
+              </ContextMenuContent>
+            </ContextMenu>
+          </>
+        )}
       </Card>
 
       {/* Create Bucket Dialog */}

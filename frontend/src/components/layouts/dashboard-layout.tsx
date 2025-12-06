@@ -22,7 +22,7 @@ export const DashboardLayout = ({
 }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const breadcrumbs = useDashboardBreadcrumbs();
+  const { items: breadcrumbs, isSubPage } = useDashboardBreadcrumbs();
 
   const handleOpenSettings = () => {
     navigate({ to: "/settings" });
@@ -95,7 +95,7 @@ export const DashboardLayout = ({
           请在桌面端展开侧边栏以获得完整体验
         </div>
         <div className="flex-1 overflow-y-auto">
-          {breadcrumbs.length > 1 && (
+          {isSubPage && breadcrumbs.length > 1 && (
             <div className="px-4 pt-4 md:px-8">
               <Button
                 variant="ghost"

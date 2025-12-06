@@ -130,7 +130,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
       await searchStore.saveQuery(saveName);
       setSaveOpen(false);
       setSaveName("");
-    } catch (err) {
+    } catch {
       window.alert?.("保存失败");
     }
   };

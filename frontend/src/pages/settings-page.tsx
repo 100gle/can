@@ -3,20 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
-    DEFAULT_ADVANCED_OPTIONS,
-    usePreferencesStore,
-    type AdvancedOptions,
-    type DatabaseDriver,
-    type LogLevel,
-    type ThemePreference,
+  DEFAULT_ADVANCED_OPTIONS,
+  usePreferencesStore,
+  type AdvancedOptions,
+  type DatabaseDriver,
+  type LogLevel,
+  type ThemePreference,
 } from "@/state/preferences";
 import { CreateAppBackup, RestoreAppBackup } from "@wailsjs/go/main/App";
 
@@ -70,14 +70,14 @@ function PerformanceCard() {
               <p className="text-2xl font-bold">{formatBytes(metrics.memoryAlloc)}</p>
             </div>
             <div className="space-y-1">
-               <p className="text-sm font-medium text-muted-foreground">系统内存 (Sys)</p>
-               <p className="text-2xl font-bold">{formatBytes(metrics.memorySys)}</p>
+              <p className="text-sm font-medium text-muted-foreground">系统内存 (Sys)</p>
+              <p className="text-2xl font-bold">{formatBytes(metrics.memorySys)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Goroutines</p>
               <p className="text-2xl font-bold">{metrics.numGoroutines}</p>
             </div>
-             <div className="space-y-1">
+            <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">活跃传输任务</p>
               <p className="text-2xl font-bold">{metrics.activeTransfers}</p>
             </div>
@@ -264,10 +264,25 @@ export default function SettingsPage() {
             <CardDescription>创建包含应用设置、账户配置和偏好设置的完整备份。</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 sm:flex-row">
-            <Button variant="outline" onClick={() => RestoreAppBackup().then(() => window.alert("Restore Completed")).catch((e) => window.alert(e))} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() =>
+                RestoreAppBackup()
+                  .then(() => window.alert("Restore Completed"))
+                  .catch((e) => window.alert(e))
+              }
+              className="w-full sm:w-auto"
+            >
               从文件恢复
             </Button>
-            <Button onClick={() => CreateAppBackup(false, "").then(() => window.alert("Backup Created")).catch((e) => window.alert(e))} className="w-full sm:w-auto">
+            <Button
+              onClick={() =>
+                CreateAppBackup(false, "")
+                  .then(() => window.alert("Backup Created"))
+                  .catch((e) => window.alert(e))
+              }
+              className="w-full sm:w-auto"
+            >
               创建完整备份
             </Button>
           </CardContent>

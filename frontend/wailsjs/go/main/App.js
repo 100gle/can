@@ -50,6 +50,10 @@ export function CreateMigrationJob(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateMigrationJob'](arg1, arg2, arg3);
 }
 
+export function CreateSyncRule(arg1) {
+  return window['go']['main']['App']['CreateSyncRule'](arg1);
+}
+
 export function DeleteAccount(arg1) {
   return window['go']['main']['App']['DeleteAccount'](arg1);
 }
@@ -74,6 +78,10 @@ export function DeleteBucketPolicy(arg1, arg2) {
   return window['go']['main']['App']['DeleteBucketPolicy'](arg1, arg2);
 }
 
+export function DeleteBucketSnapshot(arg1) {
+  return window['go']['main']['App']['DeleteBucketSnapshot'](arg1);
+}
+
 export function DeleteBucketWebsite(arg1, arg2) {
   return window['go']['main']['App']['DeleteBucketWebsite'](arg1, arg2);
 }
@@ -84,6 +92,10 @@ export function DeleteObject(arg1, arg2, arg3) {
 
 export function DeleteSavedSearchQuery(arg1) {
   return window['go']['main']['App']['DeleteSavedSearchQuery'](arg1);
+}
+
+export function DeleteSyncRule(arg1) {
+  return window['go']['main']['App']['DeleteSyncRule'](arg1);
 }
 
 export function DownloadObject(arg1, arg2, arg3, arg4) {
@@ -142,6 +154,10 @@ export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['GetPresignedUploadURL'](arg1, arg2, arg3, arg4);
 }
 
+export function GetSyncRule(arg1) {
+  return window['go']['main']['App']['GetSyncRule'](arg1);
+}
+
 export function GetSystemMetrics() {
   return window['go']['main']['App']['GetSystemMetrics']();
 }
@@ -174,6 +190,10 @@ export function ListAccounts() {
   return window['go']['main']['App']['ListAccounts']();
 }
 
+export function ListBucketSnapshots(arg1, arg2) {
+  return window['go']['main']['App']['ListBucketSnapshots'](arg1, arg2);
+}
+
 export function ListBuckets(arg1) {
   return window['go']['main']['App']['ListBuckets'](arg1);
 }
@@ -188,6 +208,14 @@ export function ListObjects(arg1, arg2) {
 
 export function ListSavedSearchQueries() {
   return window['go']['main']['App']['ListSavedSearchQueries']();
+}
+
+export function ListSyncRules() {
+  return window['go']['main']['App']['ListSyncRules']();
+}
+
+export function ListSyncTasks(arg1) {
+  return window['go']['main']['App']['ListSyncTasks'](arg1);
 }
 
 export function ListTransferTasks() {
@@ -226,6 +254,10 @@ export function SearchObjects(arg1, arg2) {
   return window['go']['main']['App']['SearchObjects'](arg1, arg2);
 }
 
+export function SelectLocalFolder() {
+  return window['go']['main']['App']['SelectLocalFolder']();
+}
+
 export function SetActiveAccount(arg1) {
   return window['go']['main']['App']['SetActiveAccount'](arg1);
 }
@@ -258,6 +290,14 @@ export function StartMigrationJob(arg1) {
   return window['go']['main']['App']['StartMigrationJob'](arg1);
 }
 
+export function StartSyncRule(arg1) {
+  return window['go']['main']['App']['StartSyncRule'](arg1);
+}
+
+export function StopSyncRule(arg1) {
+  return window['go']['main']['App']['StopSyncRule'](arg1);
+}
+
 export function SupportedProviders() {
   return window['go']['main']['App']['SupportedProviders']();
 }
@@ -280,6 +320,10 @@ export function UpdateAccount(arg1, arg2) {
 
 export function UpdateSavedSearchQuery(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateSavedSearchQuery'](arg1, arg2, arg3);
+}
+
+export function UpdateSyncRule(arg1) {
+  return window['go']['main']['App']['UpdateSyncRule'](arg1);
 }
 
 export function UploadObject(arg1, arg2, arg3, arg4) {

@@ -808,6 +808,73 @@ export namespace search {
 
 }
 
+export namespace sync {
+	
+	export class SyncRule {
+	    id: string;
+	    name: string;
+	    accountId: string;
+	    bucket: string;
+	    prefix: string;
+	    localPath: string;
+	    direction: string;
+	    interval: number;
+	    lastSync: string;
+	    nextSync: string;
+	    enabled: boolean;
+	    excludeGlob: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SyncRule(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.accountId = source["accountId"];
+	        this.bucket = source["bucket"];
+	        this.prefix = source["prefix"];
+	        this.localPath = source["localPath"];
+	        this.direction = source["direction"];
+	        this.interval = source["interval"];
+	        this.lastSync = source["lastSync"];
+	        this.nextSync = source["nextSync"];
+	        this.enabled = source["enabled"];
+	        this.excludeGlob = source["excludeGlob"];
+	    }
+	}
+	export class SyncTask {
+	    id: string;
+	    ruleId: string;
+	    status: string;
+	    startTime: string;
+	    endTime: string;
+	    added: number;
+	    updated: number;
+	    deleted: number;
+	    errors: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SyncTask(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.ruleId = source["ruleId"];
+	        this.status = source["status"];
+	        this.startTime = source["startTime"];
+	        this.endTime = source["endTime"];
+	        this.added = source["added"];
+	        this.updated = source["updated"];
+	        this.deleted = source["deleted"];
+	        this.errors = source["errors"];
+	    }
+	}
+
+}
+
 export namespace system {
 	
 	export class SystemMetrics {

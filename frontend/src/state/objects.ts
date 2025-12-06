@@ -187,7 +187,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     }
   },
   uploadFromPath: async (filePath: string, key: string) => {
-    const { accountId, bucket, prefix } = get();
+    const { accountId, bucket } = get();
     if (!accountId || !bucket) {
       throw new Error("请选择 Bucket");
     }

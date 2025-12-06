@@ -2,14 +2,25 @@ import logo from "@/assets/images/logo-universal.png";
 import { AccountSwitcher } from "@/components/accounts/account-switcher";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRightLeft, BarChart, HelpCircle, Moon, Plus, Settings, Sun } from "lucide-react";
+import {
+  ArrowRightLeft,
+  BarChart,
+  FolderSync,
+  HelpCircle,
+  Moon,
+  Plus,
+  Settings,
+  Share2,
+  Sun,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
+  accountId?: string;
 };
 
-export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
+export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
   const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
 
@@ -22,6 +33,15 @@ export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle("dark");
     setIsDark((prev) => !prev);
+  };
+
+  const goTo = (path: string) => {
+    if (accountId) {
+      navigate({ to: `/accounts/${accountId}${path}` });
+    } else {
+      // Fallback or global route if needed, though most should be under account
+      navigate({ to: path });
+    }
   };
 
   return (
@@ -54,23 +74,37 @@ export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
           新建账户
         </Button>
         <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2"
-            onClick={() => navigate({ to: "/migration" })}
-          >
-            <ArrowRightLeft className="h-4 w-4" />
-            数据迁移
-          </Button>
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => goTo("/transfers")}
+        >
+          <Share2 className="h-4 w-4" />
+          传输队列
+        </Button>
         <Button
           variant="outline"
           size="sm"
           className="w-full gap-2"
-          onClick={() => navigate({ to: "/analytics" })}
+          onClick={() => goTo("/migration")}
+        >
+          <ArrowRightLeft className="h-4 w-4" />
+          数据迁移
+        </Button>
+        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => goTo("/sync")}>
+          <FolderSync className="h-4 w-4" />
+          同步管理
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => goTo("/analytics")}
         >
           <BarChart className="h-4 w-4" />
           数据分析
         </Button>
+
         <Button
           variant="outline"
           size="sm"

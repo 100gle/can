@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,15 +7,18 @@ import { Switch } from "@/components/ui/switch";
 import { useParams } from "@tanstack/react-router";
 import { GetBucketWebsite, SetBucketWebsite } from "@wailsjs/go/main/App";
 import { config } from "@wailsjs/go/models";
-import { Globe } from "lucide-react";
+import { AlertCircle, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function WebsitePanel() {
-  const { accountId, bucketId } = useParams({ from: "/accounts/$accountId/buckets/$bucketId/settings" });
+  const { accountId, bucketId } = useParams({
+    from: "/accounts/$accountId/buckets/$bucketId/settings",
+  });
   const [loading, setLoading] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [indexKey, setIndexKey] = useState("index.html");
   const [errorKey, setErrorKey] = useState("error.html");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accountId || !bucketId) return;
@@ -39,6 +43,7 @@ export function WebsitePanel() {
   };
 
   const handleSave = async () => {
+    setError(null);
     try {
       setLoading(true);
       const cfg = new config.BucketWebsite({
@@ -47,9 +52,8 @@ export function WebsitePanel() {
         errorKey: errorKey,
       });
       await SetBucketWebsite(accountId, bucketId, cfg);
-      window.alert("Website configuration updated");
     } catch (err) {
-      window.alert("Failed to update website configuration: " + String(err));
+      setError("Failed to update website configuration: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -62,11 +66,16 @@ export function WebsitePanel() {
           <Globe className="h-5 w-5" />
           静态网站托管
         </CardTitle>
-        <CardDescription>
-          将 Bucket 配置为托管静态网站 (HTML, CSS, JS)。
-        </CardDescription>
+        <CardDescription>将 Bucket 配置为托管静态网站 (HTML, CSS, JS)。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="flex items-center justify-between space-x-2">
           <Label htmlFor="website-mode" className="flex flex-col space-y-1">
             <span>启用网站托管</span>

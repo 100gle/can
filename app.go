@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -15,6 +13,7 @@ import (
 	"can/internal/accounts"
 	"can/internal/analytics"
 	"can/internal/backup"
+	"can/internal/bootstrap"
 	"can/internal/buckets"
 	"can/internal/config"
 	"can/internal/configfacade"
@@ -48,10 +47,10 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	store := initStoreFromEnv()
+	store := bootstrap.InitAccountsStore()
 	cipher := security.DefaultCipher()
 	// Analytics
-	analyticsDBPath, _ := defaultAnalyticsPath()
+	analyticsDBPath, _ := bootstrap.DefaultAnalyticsPath()
 	var analyticsSvc *analytics.Service
 
 	analyticsSQLStore, err := analytics.NewSQLiteStoreFromFile(analyticsDBPath)
@@ -68,16 +67,16 @@ func NewApp() *App {
 	storageFactory := providers.NewStorageFactory(s3Factory, providers.WithAnalytics(analyticsSvc))
 	clientPool := providers.NewClientPool(storageFactory)
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
-	sessionStore := initSessionStore()
+	sessionStore := bootstrap.InitSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	accountSvc.SetClientPool(clientPool)
 	bucketSvc := buckets.NewService(accountSvc, clientPool)
-	transferStore := initTransferStore()
+	transferStore := bootstrap.InitTransferStore()
 	transferSvc := transfer.NewService(accountSvc, clientPool, transferStore)
 	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc)
 	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
 	configFacade := configfacade.NewService(accountSvc, configSvc)
-	searchStore := initSearchStore()
+	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 	syncSvc := sync.NewService(accountSvc, transferSvc, clientPool)
 
@@ -92,11 +91,11 @@ func NewApp() *App {
 	migrationSvc := migration.NewService(migrationStore, migrator)
 
 	// Backup Service Init
-	dataDir, _ := defaultDataDir() // Best effort
+	dataDir, _ := bootstrap.DefaultDataDir() // Best effort
 	backupSvc := backup.NewService(accountSvc, objectSvc, dataDir)
 
 	return &App{
-		requestTimeout: resolveRequestTimeout(),
+		requestTimeout: bootstrap.ResolveRequestTimeout(),
 		accounts:       accountSvc,
 		buckets:        bucketSvc,
 		objects:        objectSvc,
@@ -624,146 +623,19 @@ func (a *App) ImportAccounts() (accounts.ImportSummary, error) {
 	return summary, nil
 }
 
-const defaultRequestTimeout = 60 * time.Second
-
-func resolveRequestTimeout() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("CAN_REQUEST_TIMEOUT"))
-	if raw == "" {
-		return defaultRequestTimeout
-	}
-	if duration, err := time.ParseDuration(raw); err == nil && duration > 0 {
-		return duration
-	}
-	if seconds, err := strconv.Atoi(raw); err == nil && seconds > 0 {
-		return time.Duration(seconds) * time.Second
-	}
-	fmt.Printf("invalid CAN_REQUEST_TIMEOUT %q, fallback to %s\n", raw, defaultRequestTimeout)
-	return defaultRequestTimeout
-}
-
 func (a *App) requestContext(parent context.Context) (context.Context, context.CancelFunc) {
 	if parent == nil {
 		parent = context.Background()
 	}
 	timeout := a.requestTimeout
 	if timeout <= 0 {
-		timeout = defaultRequestTimeout
+		timeout = bootstrap.ResolveRequestTimeout() // Fallback check
 	}
 	return context.WithTimeout(parent, timeout)
 }
 
 func (a *App) backgroundContext() (context.Context, context.CancelFunc) {
 	return a.requestContext(context.Background())
-}
-
-func initStoreFromEnv() accounts.Store {
-	driver := strings.TrimSpace(os.Getenv("CAN_DB_DRIVER"))
-	if driver == "" {
-		driver = "sqlite"
-	}
-	switch strings.ToLower(driver) {
-	case "memory":
-		return accounts.NewMemoryStore()
-	case "sqlite":
-		dsn := strings.TrimSpace(os.Getenv("CAN_DB_DSN"))
-		if dsn == "" {
-			path, err := defaultSQLitePath()
-			if err != nil {
-				fmt.Printf("failed to resolve default sqlite path, fallback to memory: %v\n", err)
-				break
-			}
-			dsn = path
-		}
-		store, err := accounts.NewSQLiteStore(dsn)
-		if err != nil {
-			fmt.Printf("failed to init sqlite store (%s): %v\n", dsn, err)
-			break
-		}
-		return store
-	default:
-		fmt.Printf("unknown CAN_DB_DRIVER %q, fallback to sqlite\n", driver)
-		os.Setenv("CAN_DB_DRIVER", "sqlite")
-		return initStoreFromEnv()
-	}
-	return accounts.NewMemoryStore()
-}
-
-func initTransferStore() transfer.Store {
-	path := strings.TrimSpace(os.Getenv("CAN_TRANSFER_DB"))
-	if path == "" {
-		var err error
-		path, err = defaultTransferPath()
-		if err != nil {
-			fmt.Printf("failed to resolve default transfer db path, using memory store: %v\n", err)
-			return transfer.NewMemoryStore()
-		}
-	}
-	store, err := transfer.NewSQLiteStore(path)
-	if err != nil {
-		fmt.Printf("failed to init transfer sqlite store (%s): %v\n", path, err)
-		return transfer.NewMemoryStore()
-	}
-	return store
-}
-
-func defaultSQLitePath() (string, error) {
-	dir, err := defaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "accounts.db"), nil
-}
-
-func defaultTransferPath() (string, error) {
-	dir, err := defaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "transfers.db"), nil
-}
-
-func defaultAnalyticsPath() (string, error) {
-	dir, err := defaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "analytics.db"), nil
-}
-
-func defaultDataDir() (string, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil || dir == "" {
-		dir = filepath.Join(os.TempDir(), "can")
-	} else {
-		dir = filepath.Join(dir, "can")
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	return dir, nil
-}
-
-func initSessionStore() accounts.ActiveSessionStore {
-	path := strings.TrimSpace(os.Getenv("CAN_SESSION_PATH"))
-	if path == "" {
-		dir, err := os.UserConfigDir()
-		if err != nil || dir == "" {
-			dir = filepath.Join(os.TempDir(), "can")
-		} else {
-			dir = filepath.Join(dir, "can")
-		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			fmt.Printf("failed to prepare session directory, using memory store: %v\n", err)
-			return accounts.NewMemorySessionStore()
-		}
-		path = filepath.Join(dir, "session.json")
-	}
-	store, err := accounts.NewFileSessionStore(path)
-	if err != nil {
-		fmt.Printf("failed to create session store (%s), using memory store: %v\n", path, err)
-		return accounts.NewMemorySessionStore()
-	}
-	return store
 }
 
 // Greet returns a greeting for the given name (legacy sample kept for smoke tests).

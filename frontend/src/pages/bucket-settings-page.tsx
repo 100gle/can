@@ -142,7 +142,7 @@ export const BucketSettingsPage = () => {
         <CapabilityGate capability={featureMatrix.policy}>
           <PolicyPanel />
         </CapabilityGate>
-      )
+      ),
     },
     {
       id: "snapshot",

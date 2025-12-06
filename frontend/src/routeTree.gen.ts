@@ -9,15 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TransfersRouteImport } from './routes/transfers'
+import { Route as SyncRouteImport } from './routes/sync'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
 import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
-import { Route as AccountsAccountIdSearchRouteImport } from './routes/accounts/$accountId/search'
 import { Route as AccountsAccountIdDashboardRouteImport } from './routes/accounts/$accountId/dashboard'
 import { Route as AccountsAccountIdBucketsBucketIdSettingsRouteImport } from './routes/accounts/$accountId/buckets/$bucketId/settings'
 
+const TransfersRoute = TransfersRouteImport.update({
+  id: '/transfers',
+  path: '/transfers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyncRoute = SyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -38,28 +50,28 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AccountsAccountIdTransfersRoute =
-  AccountsAccountIdTransfersRouteImport.update({
-    id: '/accounts/$accountId/transfers',
-    path: '/accounts/$accountId/transfers',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AccountsAccountIdSearchRoute = AccountsAccountIdSearchRouteImport.update({
-  id: '/accounts/$accountId/search',
-  path: '/accounts/$accountId/search',
+const AccountsAccountIdRoute = AccountsAccountIdRouteImport.update({
+  id: '/accounts/$accountId',
+  path: '/accounts/$accountId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountsAccountIdTransfersRoute =
+  AccountsAccountIdTransfersRouteImport.update({
+    id: '/transfers',
+    path: '/transfers',
+    getParentRoute: () => AccountsAccountIdRoute,
+  } as any)
 const AccountsAccountIdDashboardRoute =
   AccountsAccountIdDashboardRouteImport.update({
-    id: '/accounts/$accountId/dashboard',
-    path: '/accounts/$accountId/dashboard',
-    getParentRoute: () => rootRouteImport,
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AccountsAccountIdRoute,
   } as any)
 const AccountsAccountIdBucketsBucketIdSettingsRoute =
   AccountsAccountIdBucketsBucketIdSettingsRouteImport.update({
-    id: '/accounts/$accountId/buckets/$bucketId/settings',
-    path: '/accounts/$accountId/buckets/$bucketId/settings',
-    getParentRoute: () => rootRouteImport,
+    id: '/buckets/$bucketId/settings',
+    path: '/buckets/$bucketId/settings',
+    getParentRoute: () => AccountsAccountIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -67,8 +79,10 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
+  '/sync': typeof SyncRoute
+  '/transfers': typeof TransfersRoute
+  '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
-  '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
   '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
@@ -77,8 +91,10 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
+  '/sync': typeof SyncRoute
+  '/transfers': typeof TransfersRoute
+  '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
-  '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
   '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
@@ -88,8 +104,10 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
+  '/sync': typeof SyncRoute
+  '/transfers': typeof TransfersRoute
+  '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
-  '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
   '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
@@ -100,8 +118,10 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/migration'
     | '/settings'
+    | '/sync'
+    | '/transfers'
+    | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
-    | '/accounts/$accountId/search'
     | '/accounts/$accountId/transfers'
     | '/accounts/$accountId/buckets/$bucketId/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -110,8 +130,10 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/migration'
     | '/settings'
+    | '/sync'
+    | '/transfers'
+    | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
-    | '/accounts/$accountId/search'
     | '/accounts/$accountId/transfers'
     | '/accounts/$accountId/buckets/$bucketId/settings'
   id:
@@ -120,8 +142,10 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/migration'
     | '/settings'
+    | '/sync'
+    | '/transfers'
+    | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
-    | '/accounts/$accountId/search'
     | '/accounts/$accountId/transfers'
     | '/accounts/$accountId/buckets/$bucketId/settings'
   fileRoutesById: FileRoutesById
@@ -131,14 +155,27 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   MigrationRoute: typeof MigrationRoute
   SettingsRoute: typeof SettingsRoute
-  AccountsAccountIdDashboardRoute: typeof AccountsAccountIdDashboardRoute
-  AccountsAccountIdSearchRoute: typeof AccountsAccountIdSearchRoute
-  AccountsAccountIdTransfersRoute: typeof AccountsAccountIdTransfersRoute
-  AccountsAccountIdBucketsBucketIdSettingsRoute: typeof AccountsAccountIdBucketsBucketIdSettingsRoute
+  SyncRoute: typeof SyncRoute
+  TransfersRoute: typeof TransfersRoute
+  AccountsAccountIdRoute: typeof AccountsAccountIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/transfers': {
+      id: '/transfers'
+      path: '/transfers'
+      fullPath: '/transfers'
+      preLoaderRoute: typeof TransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sync': {
+      id: '/sync'
+      path: '/sync'
+      fullPath: '/sync'
+      preLoaderRoute: typeof SyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -167,47 +204,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/accounts/$accountId/transfers': {
-      id: '/accounts/$accountId/transfers'
-      path: '/accounts/$accountId/transfers'
-      fullPath: '/accounts/$accountId/transfers'
-      preLoaderRoute: typeof AccountsAccountIdTransfersRouteImport
+    '/accounts/$accountId': {
+      id: '/accounts/$accountId'
+      path: '/accounts/$accountId'
+      fullPath: '/accounts/$accountId'
+      preLoaderRoute: typeof AccountsAccountIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/accounts/$accountId/search': {
-      id: '/accounts/$accountId/search'
-      path: '/accounts/$accountId/search'
-      fullPath: '/accounts/$accountId/search'
-      preLoaderRoute: typeof AccountsAccountIdSearchRouteImport
-      parentRoute: typeof rootRouteImport
+    '/accounts/$accountId/transfers': {
+      id: '/accounts/$accountId/transfers'
+      path: '/transfers'
+      fullPath: '/accounts/$accountId/transfers'
+      preLoaderRoute: typeof AccountsAccountIdTransfersRouteImport
+      parentRoute: typeof AccountsAccountIdRoute
     }
     '/accounts/$accountId/dashboard': {
       id: '/accounts/$accountId/dashboard'
-      path: '/accounts/$accountId/dashboard'
+      path: '/dashboard'
       fullPath: '/accounts/$accountId/dashboard'
       preLoaderRoute: typeof AccountsAccountIdDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AccountsAccountIdRoute
     }
     '/accounts/$accountId/buckets/$bucketId/settings': {
       id: '/accounts/$accountId/buckets/$bucketId/settings'
-      path: '/accounts/$accountId/buckets/$bucketId/settings'
+      path: '/buckets/$bucketId/settings'
       fullPath: '/accounts/$accountId/buckets/$bucketId/settings'
       preLoaderRoute: typeof AccountsAccountIdBucketsBucketIdSettingsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AccountsAccountIdRoute
     }
   }
 }
+
+interface AccountsAccountIdRouteChildren {
+  AccountsAccountIdDashboardRoute: typeof AccountsAccountIdDashboardRoute
+  AccountsAccountIdTransfersRoute: typeof AccountsAccountIdTransfersRoute
+  AccountsAccountIdBucketsBucketIdSettingsRoute: typeof AccountsAccountIdBucketsBucketIdSettingsRoute
+}
+
+const AccountsAccountIdRouteChildren: AccountsAccountIdRouteChildren = {
+  AccountsAccountIdDashboardRoute: AccountsAccountIdDashboardRoute,
+  AccountsAccountIdTransfersRoute: AccountsAccountIdTransfersRoute,
+  AccountsAccountIdBucketsBucketIdSettingsRoute:
+    AccountsAccountIdBucketsBucketIdSettingsRoute,
+}
+
+const AccountsAccountIdRouteWithChildren =
+  AccountsAccountIdRoute._addFileChildren(AccountsAccountIdRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   MigrationRoute: MigrationRoute,
   SettingsRoute: SettingsRoute,
-  AccountsAccountIdDashboardRoute: AccountsAccountIdDashboardRoute,
-  AccountsAccountIdSearchRoute: AccountsAccountIdSearchRoute,
-  AccountsAccountIdTransfersRoute: AccountsAccountIdTransfersRoute,
-  AccountsAccountIdBucketsBucketIdSettingsRoute:
-    AccountsAccountIdBucketsBucketIdSettingsRoute,
+  SyncRoute: SyncRoute,
+  TransfersRoute: TransfersRoute,
+  AccountsAccountIdRoute: AccountsAccountIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

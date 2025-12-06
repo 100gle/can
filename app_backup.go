@@ -71,3 +71,21 @@ func (a *App) CreateBucketSnapshot(accountID, bucket string) (*backup.BackupHead
 	defer cancel()
 	return a.backup.CreateBucketSnapshot(ctx, accountID, bucket)
 }
+
+// ListBucketSnapshots returns all snapshots for a bucket.
+func (a *App) ListBucketSnapshots(accountID, bucket string) ([]*backup.BackupHeader, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.backup.ListSnapshots(ctx, accountID, bucket)
+}
+
+// DeleteBucketSnapshot removes a snapshot by ID.
+func (a *App) DeleteBucketSnapshot(snapshotID string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	// Type assert to access DeleteSnapshot method
+	if impl, ok := a.backup.(*backup.ServiceImpl); ok {
+		return impl.DeleteSnapshot(ctx, snapshotID)
+	}
+	return nil
+}

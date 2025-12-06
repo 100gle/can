@@ -6,8 +6,8 @@ import (
 	"can/internal/types"
 )
 
-// StorageAccount is the persisted representation containing encrypted secrets.
-type StorageAccount struct {
+// accountRecord is the persisted representation containing encrypted secrets.
+type accountRecord struct {
 	ID              string         `json:"id" gorm:"primaryKey;size:64"`
 	Name            string         `json:"name" gorm:"size:128;index"`
 	Tag             string         `json:"tag" gorm:"size:64"`
@@ -23,7 +23,7 @@ type StorageAccount struct {
 }
 
 // TableName overrides the default table for GORM to keep naming explicit.
-func (StorageAccount) TableName() string {
+func (accountRecord) TableName() string {
 	return "accounts"
 }
 
