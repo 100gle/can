@@ -66,7 +66,10 @@
 - 允许用户自定义快捷键映射（可选）
 - 避免与浏览器默认快捷键冲突
 
-### 4. 多语言支持
+### 4. 多语言支持 (Deprioritized/Out of Scope)
+> [!NOTE]
+> This feature has been deprioritized and is currently out of scope for the immediate sprints.
+
 **支持语言**：
 - 中文（简体/繁体）
 - 英文
@@ -135,9 +138,6 @@
 - [ ] 实现快捷键事件监听和处理
 - [ ] 在UI中显示快捷键提示
 - [ ] 构建快捷键帮助页面
-- [ ] 选择和集成i18n库
-- [ ] 提取和翻译所有文本字符串
-- [ ] 构建语言设置UI
-- [ ] 实现日期/时间的地区化格式
+
 - [ ] 实现自定义布局保存/加载（可选）
 - [ ] 可访问性测试（屏幕阅读器、键盘导航等）
