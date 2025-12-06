@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   DownloadCloud,
+  Edit3,
   Filter,
   FolderPlus,
   LayoutGrid,
@@ -14,6 +15,14 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { BatchAttributesDialog } from "@/components/objects/batch-attributes-dialog";
+import { BatchToolbar } from "@/components/objects/batch-toolbar";
+import { CreateFolderDialog } from "@/components/objects/create-folder-dialog";
+import { DownloadOptionsDialog } from "@/components/objects/download-options-dialog";
+import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
+import { ObjectContextMenu } from "@/components/objects/object-context-menu";
+import { ObjectDetailsDrawer } from "@/components/objects/object-details-drawer";
+import { RenameDialog } from "@/components/objects/rename-dialog";
 import { PresignedURLDialog } from "@/components/transfer/presigned-url-dialog";
 import {
   AlertDialog,
@@ -35,6 +44,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -53,9 +63,10 @@ import {
 } from "@/components/ui/table";
 import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
-import { objectsStore, useObjectsStore } from "@/state/objects";
+import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
 import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 import { ObjectGridView } from "./object-grid-view";
 
 export type ObjectBrowserProps = {
@@ -66,8 +77,17 @@ export type ObjectBrowserProps = {
 };
 
 export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: ObjectBrowserProps) {
-  const { objects, loading, loadingMore, uploading, error, prefix, truncated, pendingKeys } =
-    useObjectsStore((state) => state);
+  const {
+    objects,
+    loading,
+    loadingMore,
+    uploading,
+    error,
+    prefix,
+    truncated,
+    pendingKeys,
+    selectedKeys,
+  } = useObjectsStore((state) => state);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -87,6 +107,18 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
+  // Dialog states
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [moveCopyDialogOpen, setMoveCopyDialogOpen] = useState(false);
+  const [detailsDrawerState, setDetailsDrawerState] = useState<{ open: boolean; key?: string }>({
+    open: false,
+  });
+  const [renameDialogState, setRenameDialogState] = useState<{ open: boolean; key?: string }>({
+    open: false,
+  });
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [batchAttributesOpen, setBatchAttributesOpen] = useState(false);
+
   useEffect(() => {
     void objectsStore.setContext(accountId, bucket);
   }, [accountId, bucket]);
@@ -99,6 +131,10 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
 
   const breadcrumbs = useMemo(() => buildBreadcrumbs(prefix), [prefix]);
   const canUpload = Boolean(accountId && bucket);
+  const selectedObjects = useMemo(
+    () => objects.filter((object) => selectedKeys.has(object.key)),
+    [objects, selectedKeys],
+  );
 
   // Client-side filtering
   const filteredObjects = useMemo(() => {
@@ -127,6 +163,27 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
       return true;
     });
   }, [objects, searchTerm, typeFilter]);
+  const filteredFileKeys = useMemo(
+    () => filteredObjects.filter((object) => !object.isDir).map((object) => object.key),
+    [filteredObjects],
+  );
+  const filteredSelectedCount = filteredFileKeys.filter((key) => selectedKeys.has(key)).length;
+  const headerChecked: CheckedState =
+    filteredFileKeys.length === 0
+      ? false
+      : filteredSelectedCount === filteredFileKeys.length
+        ? true
+        : filteredSelectedCount > 0
+          ? "indeterminate"
+          : false;
+  const selectionCount = selectedKeys.size;
+
+  useEffect(() => {
+    if (selectionCount === 0) {
+      setBatchAttributesOpen(false);
+      setDownloadDialogOpen(false);
+    }
+  }, [selectionCount]);
 
   const hasActiveFilters = searchTerm || typeFilter !== "all";
 
@@ -137,6 +194,14 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
 
   const handleEnterDir = (key: string) => {
     void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
+  };
+
+  const handleHeaderSelection = (checked: CheckedState) => {
+    if (checked === true) {
+      objectsStore.selectAll(filteredFileKeys);
+    } else {
+      objectsStore.clearSelection();
+    }
   };
 
   const handleGoUp = () => {
@@ -235,6 +300,49 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
     }
   };
 
+  const ensureSingleSelection = (key: string) => {
+    if (selectedKeys.size === 1 && selectedKeys.has(key)) {
+      return;
+    }
+    objectsStore.selectAll([key]);
+  };
+
+  const handleOpenDetails = (key: string) => {
+    setDetailsDrawerState({ open: true, key });
+  };
+
+  const handleMoveCopySingle = (key: string) => {
+    ensureSingleSelection(key);
+    setMoveCopyDialogOpen(true);
+  };
+
+  const handleRename = (key: string) => {
+    setRenameDialogState({ open: true, key });
+  };
+
+  const getContextMenuProps = (object: ObjectModel) => {
+    const isFile = !object.isDir;
+    return {
+      object,
+      isSelected: selectedKeys.has(object.key),
+      onSelectToggle: () => {
+        if (!isFile) return;
+        objectsStore.toggleSelect(object.key);
+      },
+      onSelectOnly: () => {
+        if (!isFile) return;
+        objectsStore.selectAll([object.key]);
+      },
+      onDownload: isFile ? () => handleDownload(object.key) : undefined,
+      onCopyLink: isFile ? () => handleCopyLink(object.key) : undefined,
+      onShare: isFile ? () => openPresignDialog("download", object.key) : undefined,
+      onDetails: () => handleOpenDetails(object.key),
+      onRename: () => handleRename(object.key),
+      onMoveCopy: isFile ? () => handleMoveCopySingle(object.key) : undefined,
+      onDelete: isFile ? () => handleDelete(object.key) : undefined,
+    };
+  };
+
   return (
     <>
       <Card className={cn("flex h-full flex-col", className)}>
@@ -299,8 +407,28 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                 <FolderPlus className="h-4 w-4" />
                 上传文件夹
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => setFolderDialogOpen(true)}
+                disabled={!canUpload}
+              >
+                <FolderPlus className="h-4 w-4" />
+                新建文件夹
+              </Button>
             </div>
           </div>
+
+          {/* Batch Toolbar - shown when items are selected */}
+          {selectedKeys.size > 0 && (
+            <BatchToolbar
+              className="mt-2"
+              onBatchMoveCopy={() => setMoveCopyDialogOpen(true)}
+              onBatchDownload={() => setDownloadDialogOpen(true)}
+              onBatchEdit={() => setBatchAttributesOpen(true)}
+            />
+          )}
 
           {/* Search, Filter, and View Toggle Row */}
           <div className="flex flex-wrap items-center gap-3">
@@ -447,96 +575,145 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
               ) : null}
             </div>
           ) : viewMode === "grid" ? (
-            <ObjectGridView objects={filteredObjects} prefix={prefix} onEnterDir={handleEnterDir} />
+            <ObjectGridView
+              objects={filteredObjects}
+              prefix={prefix}
+              onEnterDir={handleEnterDir}
+              onFileClick={handleOpenDetails}
+              selectedKeys={selectedKeys}
+              onToggleSelect={(key) => objectsStore.toggleSelect(key)}
+              wrapItem={(object, node) => (
+                <ObjectContextMenu {...getContextMenuProps(object as ObjectModel)}>
+                  {node}
+                </ObjectContextMenu>
+              )}
+            />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-1/3 min-w-40">名称</TableHead>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={headerChecked}
+                      onCheckedChange={handleHeaderSelection}
+                      disabled={filteredFileKeys.length === 0}
+                    />
+                  </TableHead>
+                  <TableHead className="min-w-40">名称</TableHead>
                   <TableHead>大小</TableHead>
                   <TableHead>最近更新</TableHead>
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredObjects.map((object) => (
-                  <TableRow key={object.key}>
-                    <TableCell>
-                      {object.isDir ? (
-                        <button
-                          className="flex items-center gap-2 font-medium text-primary hover:underline"
-                          onClick={() => handleEnterDir(object.key)}
-                        >
-                          📁 {deriveLabel(object, prefix)}
-                        </button>
-                      ) : (
-                        <span className="font-medium">{deriveLabel(object, prefix)}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {object.isDir ? "-" : formatSize(object.size)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(object.lastModified)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {object.isDir ? null : (
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => handleDownload(object.key)}
-                            disabled={pendingKeys[object.key] === "downloading"}
+                {filteredObjects.map((object) => {
+                  const row = (
+                    <TableRow>
+                      <TableCell>
+                        {object.isDir ? null : (
+                          <Checkbox
+                            checked={selectedKeys.has(object.key)}
+                            onCheckedChange={() => objectsStore.toggleSelect(object.key)}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {object.isDir ? (
+                          <button
+                            className="flex items-center gap-2 font-medium text-primary hover:underline"
+                            onClick={() => handleEnterDir(object.key)}
                           >
-                            {pendingKeys[object.key] === "downloading" ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <DownloadCloud className="h-4 w-4" />
-                            )}
-                            下载
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => handleCopyLink(object.key)}
-                            disabled={!canUpload || copyingKey === object.key}
+                            📁 {deriveLabel(object, prefix)}
+                          </button>
+                        ) : (
+                          <button
+                            className="font-medium hover:underline"
+                            onClick={() => handleOpenDetails(object.key)}
                           >
-                            {copyingKey === object.key ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Link2 className="h-4 w-4" />
-                            )}
-                            复制链接
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => openPresignDialog("download", object.key)}
-                            disabled={!canUpload}
-                          >
-                            分享
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1 text-destructive"
-                            onClick={() => handleDelete(object.key)}
-                            disabled={pendingKeys[object.key] === "deleting"}
-                          >
-                            {pendingKeys[object.key] === "deleting" ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              "删除"
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            {deriveLabel(object, prefix)}
+                          </button>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {object.isDir ? "-" : formatSize(object.size)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(object.lastModified)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {object.isDir ? null : (
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleDownload(object.key)}
+                              disabled={pendingKeys[object.key] === "downloading"}
+                            >
+                              {pendingKeys[object.key] === "downloading" ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <DownloadCloud className="h-4 w-4" />
+                              )}
+                              下载
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleCopyLink(object.key)}
+                              disabled={!canUpload || copyingKey === object.key}
+                            >
+                              {copyingKey === object.key ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Link2 className="h-4 w-4" />
+                              )}
+                              复制链接
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => openPresignDialog("download", object.key)}
+                              disabled={!canUpload}
+                            >
+                              分享
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleRename(object.key)}
+                              disabled={!canUpload}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                              重命名
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 text-destructive"
+                              onClick={() => handleDelete(object.key)}
+                              disabled={pendingKeys[object.key] === "deleting"}
+                            >
+                              {pendingKeys[object.key] === "deleting" ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "删除"
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                  return (
+                    <ObjectContextMenu key={object.key} {...getContextMenuProps(object)}>
+                      {row}
+                    </ObjectContextMenu>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -580,6 +757,40 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateFolderDialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen} />
+
+      <MoveCopyDialog
+        open={moveCopyDialogOpen}
+        onOpenChange={setMoveCopyDialogOpen}
+        defaultMode="copy"
+      />
+
+      <BatchAttributesDialog
+        open={batchAttributesOpen && selectedObjects.length > 0}
+        onOpenChange={setBatchAttributesOpen}
+        objects={selectedObjects}
+      />
+
+      <DownloadOptionsDialog
+        open={downloadDialogOpen && selectedObjects.length > 0}
+        onOpenChange={setDownloadDialogOpen}
+        objects={selectedObjects}
+        prefix={prefix}
+      />
+
+      <RenameDialog
+        open={renameDialogState.open}
+        objectKey={renameDialogState.key}
+        prefix={prefix}
+        onOpenChange={(open: boolean) => setRenameDialogState((s) => ({ ...s, open }))}
+      />
+
+      <ObjectDetailsDrawer
+        open={detailsDrawerState.open}
+        objectKey={detailsDrawerState.key}
+        onClose={() => setDetailsDrawerState({ open: false })}
+      />
     </>
   );
 }

@@ -1,6 +1,19 @@
 import { isBridgeAvailable } from "@/lib/bridge";
 import { transfersStore } from "@/state/transfers";
-import { DeleteObject, DownloadObject, ListObjects, UploadObject } from "@wailsjs/go/app/App";
+import {
+  BatchUpdateObjectAttributes,
+  CopyObject,
+  CreateFolder,
+  DeleteObject,
+  DownloadBatch,
+  DownloadObject,
+  GetObjectAttributes,
+  ListObjects,
+  MoveObjects,
+  RenameObject,
+  UpdateObjectAttributes,
+  UploadObject,
+} from "@wailsjs/go/app/App";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { create } from "zustand";
 
@@ -18,6 +31,9 @@ export type ObjectsState = {
   nextMarker?: string;
   truncated: boolean;
   pendingKeys: Record<string, "deleting" | "downloading">;
+  // Selection state
+  selectedKeys: Set<string>;
+  selecting: boolean;
 };
 
 export type ObjectsActions = {
@@ -30,6 +46,29 @@ export type ObjectsActions = {
   downloadToPath: (key: string, savePath: string) => Promise<void>;
   deleteObject: (key: string) => Promise<void>;
   reset: () => void;
+  // Selection actions
+  toggleSelect: (key: string) => void;
+  selectAll: (keys?: string[]) => void;
+  clearSelection: () => void;
+  // Object operations
+  copyObject: (sourceKey: string, targetBucket: string, targetKey: string) => Promise<void>;
+  renameObject: (oldKey: string, newKey: string) => Promise<void>;
+  moveObjects: (
+    requests: ObjectModels.MoveObjectRequest[],
+  ) => Promise<ObjectModels.MoveObjectsResult>;
+  createFolder: (folderName: string) => Promise<void>;
+  // Attributes
+  getObjectAttributes: (key: string) => Promise<ObjectModels.ObjectAttributes>;
+  updateObjectAttributes: (
+    patch: ObjectModels.ObjectAttributesPatch,
+  ) => Promise<ObjectModels.ObjectAttributes>;
+  batchUpdateAttributes: (
+    patches: ObjectModels.ObjectAttributesPatch[],
+  ) => Promise<ObjectModels.BatchAttributesResult>;
+  // Batch download
+  downloadBatch: (input: ObjectModels.DownloadBatchInput) => Promise<void>;
+  // Batch delete
+  deleteSelected: () => Promise<void>;
 };
 
 type ObjectsStore = ObjectsState & ObjectsActions;
@@ -42,6 +81,8 @@ const createInitialState = (): ObjectsState => ({
   uploading: false,
   truncated: false,
   pendingKeys: {},
+  selectedKeys: new Set<string>(),
+  selecting: false,
 });
 
 const FALLBACK_OBJECTS: ObjectModel[] = [
@@ -290,6 +331,124 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     }
   },
   reset: () => set({ ...createInitialState(), accountId: undefined, bucket: undefined }),
+
+  // Selection actions
+  toggleSelect: (key: string) => {
+    set((state) => {
+      const newSet = new Set(state.selectedKeys);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return { selectedKeys: newSet };
+    });
+  },
+  selectAll: (keys?: string[]) => {
+    set((state) => {
+      const fallback = state.objects.filter((o) => !o.isDir).map((o) => o.key);
+      const nextKeys = keys && keys.length > 0 ? keys : fallback;
+      return { selectedKeys: new Set(nextKeys) };
+    });
+  },
+  clearSelection: () => {
+    set({ selectedKeys: new Set<string>() });
+  },
+
+  // Object operations
+  copyObject: async (sourceKey: string, targetBucket: string, targetKey: string) => {
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) throw new Error("请选择 Bucket");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    await CopyObject(accountId, bucket, sourceKey, targetBucket, targetKey);
+    await get().refresh();
+  },
+
+  renameObject: async (oldKey: string, newKey: string) => {
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) throw new Error("请选择 Bucket");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    await RenameObject(accountId, bucket, oldKey, newKey);
+    await get().refresh();
+  },
+
+  moveObjects: async (requests: ObjectModels.MoveObjectRequest[]) => {
+    const { accountId } = get();
+    if (!accountId) throw new Error("请选择账户");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    const result = await MoveObjects(accountId, requests);
+    await get().refresh();
+    return result;
+  },
+
+  createFolder: async (folderName: string) => {
+    const { accountId, bucket, prefix } = get();
+    if (!accountId || !bucket) throw new Error("请选择 Bucket");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    const folderPrefix = prefix + folderName.replace(/\/$/, "") + "/";
+    await CreateFolder(accountId, bucket, folderPrefix);
+    await get().refresh();
+  },
+
+  // Attributes
+  getObjectAttributes: async (key: string) => {
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) throw new Error("请选择 Bucket");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    return await GetObjectAttributes(accountId, bucket, key);
+  },
+
+  updateObjectAttributes: async (patch: ObjectModels.ObjectAttributesPatch) => {
+    const { accountId } = get();
+    if (!accountId) throw new Error("请选择账户");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    const result = await UpdateObjectAttributes(accountId, patch);
+    await get().refresh();
+    return result;
+  },
+
+  batchUpdateAttributes: async (patches: ObjectModels.ObjectAttributesPatch[]) => {
+    const { accountId } = get();
+    if (!accountId) throw new Error("请选择账户");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    const result = await BatchUpdateObjectAttributes(accountId, patches);
+    await get().refresh();
+    return result;
+  },
+
+  // Batch download
+  downloadBatch: async (input: ObjectModels.DownloadBatchInput) => {
+    const { accountId } = get();
+    if (!accountId) throw new Error("请选择账户");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    const task = await DownloadBatch(accountId, input);
+    if (task?.id) {
+      await transfersStore.syncBackendTasks();
+    }
+  },
+
+  // Batch delete
+  deleteSelected: async () => {
+    const { accountId, bucket, selectedKeys } = get();
+    if (!accountId || !bucket) throw new Error("请选择 Bucket");
+    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (selectedKeys.size === 0) return;
+
+    set({ selecting: true, error: undefined });
+    const errors: string[] = [];
+    for (const key of selectedKeys) {
+      try {
+        await DeleteObject(accountId, bucket, key);
+      } catch (e) {
+        errors.push(`${key}: ${e instanceof Error ? e.message : "失败"}`);
+      }
+    }
+    set({ selecting: false, selectedKeys: new Set<string>() });
+    if (errors.length > 0) {
+      set({ error: `部分删除失败: ${errors.join(", ")}` });
+    }
+    await get().refresh();
+  },
 }));
 
 export const useObjectsStore = <T>(selector: (state: ObjectsState) => T): T =>
@@ -311,4 +470,22 @@ export const objectsStore = {
   downloadToPath: relay((store) => store.downloadToPath),
   deleteObject: relay((store) => store.deleteObject),
   reset: relay((store) => store.reset),
+  // Selection
+  toggleSelect: relay((store) => store.toggleSelect),
+  selectAll: relay((store) => store.selectAll),
+  clearSelection: relay((store) => store.clearSelection),
+  // Operations
+  copyObject: relay((store) => store.copyObject),
+  renameObject: relay((store) => store.renameObject),
+  moveObjects: relay((store) => store.moveObjects),
+  createFolder: relay((store) => store.createFolder),
+  // Attributes
+  getObjectAttributes: relay((store) => store.getObjectAttributes),
+  updateObjectAttributes: relay((store) => store.updateObjectAttributes),
+  batchUpdateAttributes: relay((store) => store.batchUpdateAttributes),
+  // Batch
+  downloadBatch: relay((store) => store.downloadBatch),
+  deleteSelected: relay((store) => store.deleteSelected),
+  // Helper to get current state snapshot
+  getState: () => useObjectsStoreBase.getState(),
 };

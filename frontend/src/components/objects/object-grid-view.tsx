@@ -1,3 +1,5 @@
+import { type ReactNode } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   File,
@@ -23,6 +25,9 @@ type ObjectGridViewProps = {
   prefix: string;
   onEnterDir: (key: string) => void;
   onFileClick?: (key: string) => void;
+  selectedKeys?: Set<string>;
+  onToggleSelect?: (key: string) => void;
+  wrapItem?: (object: ObjectGridItem, node: ReactNode) => ReactNode;
   className?: string;
 };
 
@@ -104,6 +109,9 @@ export function ObjectGridView({
   prefix,
   onEnterDir,
   onFileClick,
+  selectedKeys,
+  onToggleSelect,
+  wrapItem,
   className,
 }: ObjectGridViewProps) {
   if (objects.length === 0) {
@@ -120,10 +128,10 @@ export function ObjectGridView({
       {objects.map((object) => {
         const label = deriveLabel(object.key, prefix, object.isDir);
         const sizeText = !object.isDir ? formatSize(object.size) : "";
+        const isSelected = selectedKeys?.has(object.key) ?? false;
 
-        return (
+        const card = (
           <button
-            key={object.key}
             type="button"
             onClick={() => {
               if (object.isDir) {
@@ -133,11 +141,23 @@ export function ObjectGridView({
               }
             }}
             className={cn(
-              "group flex flex-col items-center gap-2 rounded-xl border border-border/40 bg-card/50 p-4 text-center transition-all",
+              "group relative flex flex-col items-center gap-2 rounded-xl border border-border/40 bg-card/50 p-4 text-center transition-all",
               "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              isSelected && "border-primary/60 bg-primary/5",
             )}
           >
+            {!object.isDir && onToggleSelect ? (
+              <div className="absolute left-3 top-3">
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => {
+                    onToggleSelect(object.key);
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                />
+              </div>
+            ) : null}
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 transition-transform group-hover:scale-110">
               {object.isDir ? <Folder className="h-8 w-8 text-primary" /> : getFileIcon(object.key)}
             </div>
@@ -150,6 +170,13 @@ export function ObjectGridView({
               ) : null}
             </div>
           </button>
+        );
+
+        const content = wrapItem ? wrapItem(object, card) : card;
+        return (
+          <div key={object.key} className="contents">
+            {content}
+          </div>
         );
       })}
     </div>
