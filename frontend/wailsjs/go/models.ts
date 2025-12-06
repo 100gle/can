@@ -159,6 +159,82 @@ export namespace accounts {
 
 }
 
+export namespace analytics {
+	
+	export class CostEstimate {
+	    storageCost: number;
+	    trafficCost: number;
+	    requestCost: number;
+	    totalCost: number;
+	    currency: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CostEstimate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.storageCost = source["storageCost"];
+	        this.trafficCost = source["trafficCost"];
+	        this.requestCost = source["requestCost"];
+	        this.totalCost = source["totalCost"];
+	        this.currency = source["currency"];
+	    }
+	}
+	export class TrafficStats {
+	    uploadBytes: number;
+	    downloadBytes: number;
+	    requestCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TrafficStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uploadBytes = source["uploadBytes"];
+	        this.downloadBytes = source["downloadBytes"];
+	        this.requestCount = source["requestCount"];
+	    }
+	}
+	export class AnalyticsSummary {
+	    trafficToday: TrafficStats;
+	    trafficMonth: TrafficStats;
+	    costMonth: CostEstimate;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnalyticsSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.trafficToday = this.convertValues(source["trafficToday"], TrafficStats);
+	        this.trafficMonth = this.convertValues(source["trafficMonth"], TrafficStats);
+	        this.costMonth = this.convertValues(source["costMonth"], CostEstimate);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+
+}
+
 export namespace buckets {
 	
 	export class BucketInfo {
@@ -589,6 +665,35 @@ export namespace search {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace system {
+	
+	export class SystemMetrics {
+	    timestamp: string;
+	    memoryAlloc: number;
+	    memoryTotal: number;
+	    memorySys: number;
+	    numGoroutines: number;
+	    numCgoCalls: number;
+	    activeTransfers: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemMetrics(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.timestamp = source["timestamp"];
+	        this.memoryAlloc = source["memoryAlloc"];
+	        this.memoryTotal = source["memoryTotal"];
+	        this.memorySys = source["memorySys"];
+	        this.numGoroutines = source["numGoroutines"];
+	        this.numCgoCalls = source["numCgoCalls"];
+	        this.activeTransfers = source["activeTransfers"];
+	    }
 	}
 
 }

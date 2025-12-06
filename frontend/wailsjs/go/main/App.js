@@ -86,6 +86,10 @@ export function ExportSearchResults(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExportSearchResults'](arg1, arg2, arg3);
 }
 
+export function GetAnalyticsSummary(arg1) {
+  return window['go']['main']['App']['GetAnalyticsSummary'](arg1);
+}
+
 export function GetBucketCORS(arg1, arg2) {
   return window['go']['main']['App']['GetBucketCORS'](arg1, arg2);
 }
@@ -116,6 +120,10 @@ export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
 
 export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['GetPresignedUploadURL'](arg1, arg2, arg3, arg4);
+}
+
+export function GetSystemMetrics() {
+  return window['go']['main']['App']['GetSystemMetrics']();
 }
 
 export function GetTransferSpeedLimit() {

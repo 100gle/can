@@ -1,10 +1,10 @@
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useAccountsStore } from "@/state/accounts";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
@@ -28,6 +28,18 @@ export const useDashboardBreadcrumbs = () => {
         items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
       }
       items.push({ label: "系统设置", to: "/settings" });
+      return items;
+    }
+
+    // Handle Analytics Page
+    if (location.pathname === "/analytics") {
+      // If we have an active account, insert it as the parent
+      if (activeAccountId) {
+        const account = accounts.find((a) => a.id === activeAccountId);
+        const label = account ? account.name : activeAccountId;
+        items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
+      }
+      items.push({ label: "数据分析", to: "/analytics" });
       return items;
     }
 

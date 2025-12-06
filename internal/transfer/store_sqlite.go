@@ -95,3 +95,15 @@ func mapRecords(records []taskRecord) ([]*TransferTask, error) {
 	}
 	return tasks, nil
 }
+
+func (s *sqliteStore) CountByStatus(ctx context.Context, statuses ...TaskStatus) (int, error) {
+	var count int64
+	query := s.db.WithContext(ctx).Model(&taskRecord{})
+	if len(statuses) > 0 {
+		query = query.Where("status IN ?", statuses)
+	}
+	if err := query.Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}

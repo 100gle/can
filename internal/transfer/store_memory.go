@@ -82,3 +82,22 @@ func (s *memoryStore) exportLocked() ([]*TransferTask, error) {
 	})
 	return tasks, nil
 }
+
+func (s *memoryStore) CountByStatus(_ context.Context, statuses ...TaskStatus) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(statuses) == 0 {
+		return len(s.tasks), nil
+	}
+	set := make(map[TaskStatus]struct{}, len(statuses))
+	for _, status := range statuses {
+		set[status] = struct{}{}
+	}
+	count := 0
+	for _, task := range s.tasks {
+		if _, ok := set[task.Status]; ok {
+			count++
+		}
+	}
+	return count, nil
+}

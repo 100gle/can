@@ -13,6 +13,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"can/internal/accounts"
+	"can/internal/analytics"
 	"can/internal/buckets"
 	"can/internal/config"
 	"can/internal/configfacade"
@@ -21,6 +22,7 @@ import (
 	"can/internal/search"
 	"can/internal/security"
 	"can/internal/sync"
+	"can/internal/system"
 	"can/internal/transfer"
 	"can/internal/types"
 )
@@ -36,14 +38,30 @@ type App struct {
 	config         *configfacade.Service
 	search         *search.Service
 	sync           sync.Service
+	analytics      *analytics.Service
+	system         *system.Service
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	store := initStoreFromEnv()
 	cipher := security.DefaultCipher()
+	// Analytics
+	analyticsDBPath, _ := defaultAnalyticsPath()
+	var analyticsSvc *analytics.Service
+
+	analyticsSQLStore, err := analytics.NewSQLiteStoreFromFile(analyticsDBPath)
+	if err != nil {
+		fmt.Printf("failed to open analytics db: %v\n", err)
+	} else {
+		if err := analyticsSQLStore.Init(); err != nil {
+			fmt.Printf("failed to init analytics schema: %v\n", err)
+		}
+		analyticsSvc = analytics.NewService(analyticsSQLStore)
+	}
+
 	s3Factory := providers.NewS3ClientFactory()
-	storageFactory := providers.NewStorageFactory(s3Factory)
+	storageFactory := providers.NewStorageFactory(s3Factory, providers.WithAnalytics(analyticsSvc))
 	clientPool := providers.NewClientPool(storageFactory)
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
 	sessionStore := initSessionStore()
@@ -58,6 +76,12 @@ func NewApp() *App {
 	searchStore := initSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 	syncSvc := sync.NewService(accountSvc, transferSvc, clientPool)
+
+	systemSvc := system.NewService(func() int {
+		count, _ := transferSvc.CountActiveTasks(context.Background())
+		return count
+	})
+
 	return &App{
 		requestTimeout: resolveRequestTimeout(),
 		accounts:       accountSvc,
@@ -67,6 +91,8 @@ func NewApp() *App {
 		config:         configFacade,
 		search:         searchSvc,
 		sync:           syncSvc,
+		analytics:      analyticsSvc,
+		system:         systemSvc,
 	}
 }
 
@@ -481,6 +507,31 @@ func (a *App) UpdateSavedSearchQuery(id string, name string, query *search.Searc
 	return a.search.UpdateSavedQuery(ctx, id, name, query)
 }
 
+// GetAnalyticsSummary returns cost and traffic analysis for the given provider type (or 'all').
+func (a *App) GetAnalyticsSummary(providerType string) (*analytics.AnalyticsSummary, error) {
+	// Fallback alias for demo if frontend sends "all" or empty
+	if providerType == "" || providerType == "all" {
+		providerType = "aws" // Default to showing AWS pricing model for aggregate view
+	}
+	if a.analytics == nil {
+		pricing := analytics.GetPricingModel(providerType)
+		return &analytics.AnalyticsSummary{
+			CostMonth: analytics.CostEstimate{
+				Currency: pricing.Currency,
+			},
+		}, nil
+	}
+
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.analytics.GetMonthlySummary(ctx, providerType)
+}
+
+// GetSystemMetrics returns current system performance snapshot.
+func (a *App) GetSystemMetrics() system.SystemMetrics {
+	return a.system.GetMetrics()
+}
+
 // ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.
 func (a *App) ExportAccounts() (accounts.ExportSummary, error) {
 	var summary accounts.ExportSummary
@@ -654,6 +705,14 @@ func defaultTransferPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "transfers.db"), nil
+}
+
+func defaultAnalyticsPath() (string, error) {
+	dir, err := defaultDataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "analytics.db"), nil
 }
 
 func defaultDataDir() (string, error) {

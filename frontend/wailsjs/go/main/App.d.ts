@@ -3,7 +3,9 @@
 import {accounts} from '../models';
 import {transfer} from '../models';
 import {search} from '../models';
+import {analytics} from '../models';
 import {config} from '../models';
+import {system} from '../models';
 import {objects} from '../models';
 import {buckets} from '../models';
 import {types} from '../models';
@@ -50,6 +52,8 @@ export function ExportAccounts():Promise<accounts.ExportSummary>;
 
 export function ExportSearchResults(arg1:string,arg2:search.SearchQuery,arg3:string):Promise<Array<number>>;
 
+export function GetAnalyticsSummary(arg1:string):Promise<analytics.AnalyticsSummary>;
+
 export function GetBucketCORS(arg1:string,arg2:string):Promise<config.BucketCORS>;
 
 export function GetBucketEncryption(arg1:string,arg2:string):Promise<config.BucketEncryption>;
@@ -65,6 +69,8 @@ export function GetBucketWebsite(arg1:string,arg2:string):Promise<config.BucketW
 export function GetPresignedDownloadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
 export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
+
+export function GetSystemMetrics():Promise<system.SystemMetrics>;
 
 export function GetTransferSpeedLimit():Promise<number>;
 

@@ -248,6 +248,11 @@ func (s *Service) ListTasks(ctx context.Context) ([]*TransferTask, error) {
 	return tasks, nil
 }
 
+// CountActiveTasks returns the number of currently running or pending tasks.
+func (s *Service) CountActiveTasks(ctx context.Context) (int, error) {
+	return s.store.CountByStatus(ctx, TaskRunning, TaskPending)
+}
+
 // GetTaskProgress returns a snapshot of the requested task.
 func (s *Service) GetTaskProgress(ctx context.Context, taskID string) (*TransferTask, error) {
 	taskID = strings.TrimSpace(taskID)

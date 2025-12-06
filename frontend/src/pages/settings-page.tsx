@@ -3,29 +3,91 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
-  DEFAULT_ADVANCED_OPTIONS,
-  usePreferencesStore,
-  type AdvancedOptions,
-  type DatabaseDriver,
-  type LogLevel,
-  type ThemePreference,
+    DEFAULT_ADVANCED_OPTIONS,
+    usePreferencesStore,
+    type AdvancedOptions,
+    type DatabaseDriver,
+    type LogLevel,
+    type ThemePreference,
 } from "@/state/preferences";
+
+import { useEffect, useState } from "react";
+import { GetSystemMetrics } from "../../wailsjs/go/main/App";
+import { system } from "../../wailsjs/go/models";
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 const ISSUES_URL = "https://github.com/100gle/can/issues/new/choose";
 
 const openExternalLink = (url: string) => {
-  if (typeof window === "undefined") return;
   window.open(url, "_blank", "noreferrer");
 };
+
+function PerformanceCard() {
+  const [metrics, setMetrics] = useState<system.SystemMetrics | null>(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const data = await GetSystemMetrics();
+        setMetrics(data);
+      } catch (e) {
+        console.error("Failed to fetch system metrics", e);
+      }
+    };
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>性能监控</CardTitle>
+        <CardDescription>实时系统指标监控 (每2秒刷新)。</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {metrics ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">内存使用 (Alloc)</p>
+              <p className="text-2xl font-bold">{formatBytes(metrics.memoryAlloc)}</p>
+            </div>
+            <div className="space-y-1">
+               <p className="text-sm font-medium text-muted-foreground">系统内存 (Sys)</p>
+               <p className="text-2xl font-bold">{formatBytes(metrics.memorySys)}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Goroutines</p>
+              <p className="text-2xl font-bold">{metrics.numGoroutines}</p>
+            </div>
+             <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">活跃传输任务</p>
+              <p className="text-2xl font-bold">{metrics.activeTransfers}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading metrics...</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const accounts = useAccountsStore((state) => state.accounts);
@@ -260,6 +322,8 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <PerformanceCard />
 
         <Card>
           <CardHeader>
