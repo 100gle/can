@@ -1,0 +1,118 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useParams } from "@tanstack/react-router";
+import { GetBucketWebsite, SetBucketWebsite } from "@wailsjs/go/main/App";
+import { config } from "@wailsjs/go/models";
+import { Globe } from "lucide-react";
+import { useEffect, useState } from "react";
+
+export function WebsitePanel() {
+  const { accountId, bucketId } = useParams({ from: "/accounts/$accountId/buckets/$bucketId/settings" });
+  const [loading, setLoading] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [indexKey, setIndexKey] = useState("index.html");
+  const [errorKey, setErrorKey] = useState("error.html");
+
+  useEffect(() => {
+    if (!accountId || !bucketId) return;
+    loadConfig();
+  }, [accountId, bucketId]);
+
+  const loadConfig = async () => {
+    try {
+      setLoading(true);
+      const res = await GetBucketWebsite(accountId, bucketId);
+      if (res) {
+        setEnabled(res.enabled);
+        if (res.indexKey) setIndexKey(res.indexKey);
+        if (res.errorKey) setErrorKey(res.errorKey);
+      }
+    } catch (err) {
+      console.error(err);
+      // If it fails, likely no website config, keep defaults
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      const cfg = new config.BucketWebsite({
+        enabled: enabled,
+        indexKey: indexKey,
+        errorKey: errorKey,
+      });
+      await SetBucketWebsite(accountId, bucketId, cfg);
+      window.alert("Website configuration updated");
+    } catch (err) {
+      window.alert("Failed to update website configuration: " + String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          静态网站托管
+        </CardTitle>
+        <CardDescription>
+          将 Bucket 配置为托管静态网站 (HTML, CSS, JS)。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="website-mode" className="flex flex-col space-y-1">
+            <span>启用网站托管</span>
+            <span className="font-normal text-muted-foreground">
+              启用后，Bucket 内容将可以通过 HTTP 访问。
+            </span>
+          </Label>
+          <Switch
+            id="website-mode"
+            checked={enabled}
+            onCheckedChange={setEnabled}
+            disabled={loading}
+          />
+        </div>
+
+        {enabled && (
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="index-doc">首页文档 (Index Document)</Label>
+              <Input
+                id="index-doc"
+                value={indexKey}
+                onChange={(e) => setIndexKey(e.target.value)}
+                placeholder="index.html"
+                disabled={loading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="error-doc">错误页面 (Error Document)</Label>
+              <Input
+                id="error-doc"
+                value={errorKey}
+                onChange={(e) => setErrorKey(e.target.value)}
+                placeholder="error.html"
+                disabled={loading}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={loading}>
+            保存更改
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -4,7 +4,9 @@ import { CORSPanel } from "@/components/buckets/cors-panel";
 import { EncryptionPanel } from "@/components/buckets/encryption-panel";
 import { LifecyclePanel } from "@/components/buckets/lifecycle-panel";
 import { PolicyPanel } from "@/components/buckets/policy-panel";
+import { SnapshotPanel } from "@/components/buckets/snapshot-panel";
 import { VersioningPanel } from "@/components/buckets/versioning-panel";
+import { WebsitePanel } from "@/components/buckets/website-panel";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { Button } from "@/components/ui/button";
@@ -139,6 +141,20 @@ export const BucketSettingsPage = () => {
       render: () => (
         <CapabilityGate capability={featureMatrix.policy}>
           <PolicyPanel />
+        </CapabilityGate>
+      )
+    },
+    {
+      id: "snapshot",
+      label: "快照备份",
+      render: () => <SnapshotPanel />,
+    },
+    {
+      id: "website",
+      label: "静态网站",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.website}>
+          <WebsitePanel />
         </CapabilityGate>
       ),
     },

@@ -24,8 +24,8 @@ type SyncRule struct {
 	LocalPath   string        `json:"localPath"`
 	Direction   SyncDirection `json:"direction"`
 	Interval    int           `json:"interval"` // in seconds, 0 for manual/once
-	LastSync    time.Time     `json:"lastSync"`
-	NextSync    time.Time     `json:"nextSync"`
+	LastSync    time.Time     `json:"lastSync" ts_type:"string"`
+	NextSync    time.Time     `json:"nextSync" ts_type:"string"`
 	Enabled     bool          `json:"enabled"`
 	ExcludeGlob []string      `json:"excludeGlob"`
 }
@@ -35,8 +35,8 @@ type SyncTask struct {
 	ID        string    `json:"id"`
 	RuleID    string    `json:"ruleId"`
 	Status    string    `json:"status"` // pending, running, completed, partly_failed, failed
-	StartTime time.Time `json:"startTime"`
-	EndTime   time.Time `json:"endTime"`
+	StartTime time.Time `json:"startTime" ts_type:"string"`
+	EndTime   time.Time `json:"endTime" ts_type:"string"`
 	Added     int64     `json:"added"`
 	Updated   int64     `json:"updated"`
 	Deleted   int64     `json:"deleted"`

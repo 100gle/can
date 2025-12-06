@@ -235,6 +235,37 @@ export namespace analytics {
 
 }
 
+export namespace backup {
+	
+	export class BackupHeader {
+	    id: string;
+	    type: string;
+	    created_at: string;
+	    version: string;
+	    encrypted: boolean;
+	    account_id?: string;
+	    bucket_name?: string;
+	    object_count?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupHeader(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.type = source["type"];
+	        this.created_at = source["created_at"];
+	        this.version = source["version"];
+	        this.encrypted = source["encrypted"];
+	        this.account_id = source["account_id"];
+	        this.bucket_name = source["bucket_name"];
+	        this.object_count = source["object_count"];
+	    }
+	}
+
+}
+
 export namespace buckets {
 	
 	export class BucketInfo {
@@ -439,6 +470,114 @@ export namespace config {
 	        this.noncurrentDays = source["noncurrentDays"];
 	    }
 	}
+
+}
+
+export namespace migration {
+	
+	export class EndpointInfo {
+	    account_id: string;
+	    bucket_name: string;
+	    prefix?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.account_id = source["account_id"];
+	        this.bucket_name = source["bucket_name"];
+	        this.prefix = source["prefix"];
+	    }
+	}
+	export class MigrationStats {
+	    total_objects: number;
+	    processed_objects: number;
+	    copied_objects: number;
+	    failed_objects: number;
+	    skipped_objects: number;
+	    total_bytes: number;
+	    processed_bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MigrationStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_objects = source["total_objects"];
+	        this.processed_objects = source["processed_objects"];
+	        this.copied_objects = source["copied_objects"];
+	        this.failed_objects = source["failed_objects"];
+	        this.skipped_objects = source["skipped_objects"];
+	        this.total_bytes = source["total_bytes"];
+	        this.processed_bytes = source["processed_bytes"];
+	    }
+	}
+	export class MigrationOptions {
+	    delete_source: boolean;
+	    overwrite: boolean;
+	    max_concurrency: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MigrationOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.delete_source = source["delete_source"];
+	        this.overwrite = source["overwrite"];
+	        this.max_concurrency = source["max_concurrency"];
+	    }
+	}
+	export class MigrationJob {
+	    id: string;
+	    source: EndpointInfo;
+	    destination: EndpointInfo;
+	    options: MigrationOptions;
+	    status: string;
+	    stats: MigrationStats;
+	    error?: string;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MigrationJob(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.source = this.convertValues(source["source"], EndpointInfo);
+	        this.destination = this.convertValues(source["destination"], EndpointInfo);
+	        this.options = this.convertValues(source["options"], MigrationOptions);
+	        this.status = source["status"];
+	        this.stats = this.convertValues(source["stats"], MigrationStats);
+	        this.error = source["error"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 
 }
 

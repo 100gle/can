@@ -11,7 +11,7 @@ import (
 // BucketDescriptor represents a bucket summary independent of provider.
 type BucketDescriptor struct {
 	Name        string    `json:"name"`
-	CreatedAt   time.Time `json:"createdAt"`
+	CreatedAt   time.Time `json:"createdAt" ts_type:"string"`
 	Region      string    `json:"region"`
 	ObjectCount int64     `json:"objectCount"`
 	Size        int64     `json:"size"`
@@ -21,7 +21,7 @@ type BucketDescriptor struct {
 type ObjectDescriptor struct {
 	Key          string    `json:"key"`
 	Size         int64     `json:"size"`
-	LastModified time.Time `json:"lastModified"`
+	LastModified time.Time `json:"lastModified" ts_type:"string"`
 	ETag         string    `json:"etag"`
 	ContentType  string    `json:"contentType"`
 	StorageClass string    `json:"storageClass"`

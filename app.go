@@ -14,9 +14,11 @@ import (
 
 	"can/internal/accounts"
 	"can/internal/analytics"
+	"can/internal/backup"
 	"can/internal/buckets"
 	"can/internal/config"
 	"can/internal/configfacade"
+	"can/internal/migration"
 	"can/internal/objects"
 	"can/internal/providers"
 	"can/internal/search"
@@ -40,6 +42,8 @@ type App struct {
 	sync           sync.Service
 	analytics      *analytics.Service
 	system         *system.Service
+	migration      migration.Service
+	backup         backup.Service
 }
 
 // NewApp creates a new App application struct
@@ -82,6 +86,15 @@ func NewApp() *App {
 		return count
 	})
 
+	// Migration Service Init
+	migrationStore := migration.NewInMemoryJobStore()
+	migrator := migration.NewGenericMigrator(accountSvc, clientPool)
+	migrationSvc := migration.NewService(migrationStore, migrator)
+
+	// Backup Service Init
+	dataDir, _ := defaultDataDir() // Best effort
+	backupSvc := backup.NewService(accountSvc, objectSvc, dataDir)
+
 	return &App{
 		requestTimeout: resolveRequestTimeout(),
 		accounts:       accountSvc,
@@ -93,6 +106,8 @@ func NewApp() *App {
 		sync:           syncSvc,
 		analytics:      analyticsSvc,
 		system:         systemSvc,
+		migration:      migrationSvc,
+		backup:         backupSvc,
 	}
 }
 

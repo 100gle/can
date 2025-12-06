@@ -14,6 +14,10 @@ export function BucketLocation(arg1, arg2) {
   return window['go']['main']['App']['BucketLocation'](arg1, arg2);
 }
 
+export function CancelMigrationJob(arg1) {
+  return window['go']['main']['App']['CancelMigrationJob'](arg1);
+}
+
 export function CancelTransferTask(arg1) {
   return window['go']['main']['App']['CancelTransferTask'](arg1);
 }
@@ -30,8 +34,20 @@ export function CreateAccount(arg1) {
   return window['go']['main']['App']['CreateAccount'](arg1);
 }
 
+export function CreateAppBackup(arg1, arg2) {
+  return window['go']['main']['App']['CreateAppBackup'](arg1, arg2);
+}
+
 export function CreateBucket(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateBucket'](arg1, arg2, arg3);
+}
+
+export function CreateBucketSnapshot(arg1, arg2) {
+  return window['go']['main']['App']['CreateBucketSnapshot'](arg1, arg2);
+}
+
+export function CreateMigrationJob(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateMigrationJob'](arg1, arg2, arg3);
 }
 
 export function DeleteAccount(arg1) {
@@ -114,6 +130,10 @@ export function GetBucketWebsite(arg1, arg2) {
   return window['go']['main']['App']['GetBucketWebsite'](arg1, arg2);
 }
 
+export function GetMigrationJob(arg1) {
+  return window['go']['main']['App']['GetMigrationJob'](arg1);
+}
+
 export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['GetPresignedDownloadURL'](arg1, arg2, arg3, arg4);
 }
@@ -158,6 +178,10 @@ export function ListBuckets(arg1) {
   return window['go']['main']['App']['ListBuckets'](arg1);
 }
 
+export function ListMigrationJobs() {
+  return window['go']['main']['App']['ListMigrationJobs']();
+}
+
 export function ListObjects(arg1, arg2) {
   return window['go']['main']['App']['ListObjects'](arg1, arg2);
 }
@@ -170,6 +194,10 @@ export function ListTransferTasks() {
   return window['go']['main']['App']['ListTransferTasks']();
 }
 
+export function PauseMigrationJob(arg1) {
+  return window['go']['main']['App']['PauseMigrationJob'](arg1);
+}
+
 export function PauseTransferTask(arg1) {
   return window['go']['main']['App']['PauseTransferTask'](arg1);
 }
@@ -180,6 +208,10 @@ export function ProviderCapabilities() {
 
 export function RenameObject(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['RenameObject'](arg1, arg2, arg3, arg4);
+}
+
+export function RestoreAppBackup() {
+  return window['go']['main']['App']['RestoreAppBackup']();
 }
 
 export function ResumeTransferTask(arg1) {
@@ -220,6 +252,10 @@ export function SetBucketWebsite(arg1, arg2, arg3) {
 
 export function SetTransferSpeedLimit(arg1) {
   return window['go']['main']['App']['SetTransferSpeedLimit'](arg1);
+}
+
+export function StartMigrationJob(arg1) {
+  return window['go']['main']['App']['StartMigrationJob'](arg1);
 }
 
 export function SupportedProviders() {

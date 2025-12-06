@@ -2,7 +2,7 @@ import logo from "@/assets/images/logo-universal.png";
 import { AccountSwitcher } from "@/components/accounts/account-switcher";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { BarChart, HelpCircle, Moon, Plus, Settings, Sun } from "lucide-react";
+import { ArrowRightLeft, BarChart, HelpCircle, Moon, Plus, Settings, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type SidebarProps = {
@@ -53,6 +53,15 @@ export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
           <Plus className="h-4 w-4" />
           新建账户
         </Button>
+        <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={() => navigate({ to: "/migration" })}
+          >
+            <ArrowRightLeft className="h-4 w-4" />
+            数据迁移
+          </Button>
         <Button
           variant="outline"
           size="sm"

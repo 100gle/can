@@ -18,6 +18,7 @@ import {
     type LogLevel,
     type ThemePreference,
 } from "@/state/preferences";
+import { CreateAppBackup, RestoreAppBackup } from "@wailsjs/go/main/App";
 
 import { useEffect, useState } from "react";
 import { GetSystemMetrics } from "../../wailsjs/go/main/App";
@@ -249,10 +250,25 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4 sm:flex-row">
             <Button variant="outline" onClick={handleImport} className="w-full sm:w-auto">
-              导入配置
+              导入账户
             </Button>
             <Button onClick={handleExport} disabled={!accounts.length} className="w-full sm:w-auto">
-              导出配置 ({accounts.length})
+              导出账户 ({accounts.length})
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>系统备份</CardTitle>
+            <CardDescription>创建包含应用设置、账户配置和偏好设置的完整备份。</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 sm:flex-row">
+            <Button variant="outline" onClick={() => RestoreAppBackup().then(() => window.alert("Restore Completed")).catch((e) => window.alert(e))} className="w-full sm:w-auto">
+              从文件恢复
+            </Button>
+            <Button onClick={() => CreateAppBackup(false, "").then(() => window.alert("Backup Created")).catch((e) => window.alert(e))} className="w-full sm:w-auto">
+              创建完整备份
             </Button>
           </CardContent>
         </Card>

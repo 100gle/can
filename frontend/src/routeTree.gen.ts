@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
@@ -20,6 +21,11 @@ import { Route as AccountsAccountIdBucketsBucketIdSettingsRouteImport } from './
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MigrationRoute = MigrationRouteImport.update({
+  id: '/migration',
+  path: '/migration',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -59,6 +65,7 @@ const AccountsAccountIdBucketsBucketIdSettingsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
   '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
@@ -68,6 +75,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
   '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
   '/accounts/$accountId/search': typeof AccountsAccountIdSearchRoute
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/migration'
     | '/settings'
     | '/accounts/$accountId/dashboard'
     | '/accounts/$accountId/search'
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analytics'
+    | '/migration'
     | '/settings'
     | '/accounts/$accountId/dashboard'
     | '/accounts/$accountId/search'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analytics'
+    | '/migration'
     | '/settings'
     | '/accounts/$accountId/dashboard'
     | '/accounts/$accountId/search'
@@ -117,6 +129,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  MigrationRoute: typeof MigrationRoute
   SettingsRoute: typeof SettingsRoute
   AccountsAccountIdDashboardRoute: typeof AccountsAccountIdDashboardRoute
   AccountsAccountIdSearchRoute: typeof AccountsAccountIdSearchRoute
@@ -131,6 +144,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/migration': {
+      id: '/migration'
+      path: '/migration'
+      fullPath: '/migration'
+      preLoaderRoute: typeof MigrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -181,6 +201,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  MigrationRoute: MigrationRoute,
   SettingsRoute: SettingsRoute,
   AccountsAccountIdDashboardRoute: AccountsAccountIdDashboardRoute,
   AccountsAccountIdSearchRoute: AccountsAccountIdSearchRoute,
