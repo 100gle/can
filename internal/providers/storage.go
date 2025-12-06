@@ -19,13 +19,15 @@ type BucketDescriptor struct {
 
 // ObjectDescriptor represents either a file or pseudo-folder.
 type ObjectDescriptor struct {
-	Key          string    `json:"key"`
-	Size         int64     `json:"size"`
-	LastModified time.Time `json:"lastModified" ts_type:"string"`
-	ETag         string    `json:"etag"`
-	ContentType  string    `json:"contentType"`
-	StorageClass string    `json:"storageClass"`
-	IsDir        bool      `json:"isDir"`
+	Key          string            `json:"key"`
+	Size         int64             `json:"size"`
+	LastModified time.Time         `json:"lastModified" ts_type:"string"`
+	ETag         string            `json:"etag"`
+	ContentType  string            `json:"contentType"`
+	StorageClass string            `json:"storageClass"`
+	IsDir        bool              `json:"isDir"`
+	Metadata     map[string]string `json:"metadata"`
+	VersionID    string            `json:"versionId"`
 }
 
 // ListObjectsInput mirrors the UI filtering options.
@@ -75,6 +77,32 @@ type ObjectDriver interface {
 	CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error
 	AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error
 	GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error)
+	PutObjectTags(ctx context.Context, bucket, key string, tags map[string]string) error
+	UpdateObjectMetadata(ctx context.Context, bucket, key string, input ObjectMetadataUpdate) error
+	GetObjectACL(ctx context.Context, bucket, key string) (ObjectACL, error)
+	PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error
+}
+
+// ObjectMetadataUpdate describes metadata/content type/storage class changes.
+type ObjectMetadataUpdate struct {
+	Metadata     map[string]string
+	ContentType  string
+	StorageClass string
+}
+
+// ObjectACL captures the simplified ACL state of an object.
+type ObjectACL struct {
+	Canned           string        `json:"canned"`
+	OwnerID          string        `json:"ownerId"`
+	OwnerDisplayName string        `json:"ownerDisplayName"`
+	Grants           []AccessGrant `json:"grants"`
+}
+
+// AccessGrant represents a single ACL grant entry.
+type AccessGrant struct {
+	GranteeType string `json:"granteeType"`
+	Grantee     string `json:"grantee"`
+	Permission  string `json:"permission"`
 }
 
 // StorageClient bundles bucket/object drivers plus capability metadata.

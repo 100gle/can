@@ -45,14 +45,7 @@ func (s *Service) ListObjects(ctx context.Context, accountID string, input ListO
 	}
 	items := make([]ObjectInfo, 0, len(data.Objects))
 	for _, object := range data.Objects {
-		items = append(items, ObjectInfo{
-			Key:          object.Key,
-			Size:         object.Size,
-			LastModified: object.LastModified,
-			ETag:         object.ETag,
-			ContentType:  object.ContentType,
-			IsDir:        object.IsDir,
-		})
+		items = append(items, toObjectInfo(object))
 	}
 	result.Objects = items
 	result.Truncated = data.Truncated
@@ -154,6 +147,87 @@ func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, n
 	return nil
 }
 
+// MoveObjects copies objects to their new destination and deletes the originals.
+func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []MoveObjectRequest) (MoveObjectsResult, error) {
+	var result MoveObjectsResult
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return result, err
+	}
+	driver := client.Objects()
+	result.Total = len(requests)
+	for _, req := range requests {
+		srcBucket := strings.TrimSpace(req.SourceBucket)
+		srcKey := strings.TrimSpace(req.SourceKey)
+		dstBucket := strings.TrimSpace(req.TargetBucket)
+		dstKey := strings.TrimSpace(req.TargetKey)
+		if srcBucket == "" || srcKey == "" || dstBucket == "" || dstKey == "" {
+			result.Failed = append(result.Failed, BatchOperationFailure{
+				Bucket: srcBucket,
+				Key:    srcKey,
+				Error:  "source/target bucket and key are required",
+			})
+			continue
+		}
+		if srcBucket == dstBucket && srcKey == dstKey {
+			result.Failed = append(result.Failed, BatchOperationFailure{
+				Bucket: srcBucket,
+				Key:    srcKey,
+				Error:  "target must be different from source",
+			})
+			continue
+		}
+		if err := driver.CopyObject(ctx, srcBucket, srcKey, dstBucket, dstKey); err != nil {
+			result.Failed = append(result.Failed, BatchOperationFailure{
+				Bucket: srcBucket,
+				Key:    srcKey,
+				Error:  err.Error(),
+			})
+			continue
+		}
+		if err := driver.DeleteObject(ctx, srcBucket, srcKey); err != nil {
+			cleanupErr := driver.DeleteObject(ctx, dstBucket, dstKey)
+			message := fmt.Sprintf("删除源对象失败: %v", err)
+			if cleanupErr != nil {
+				message = fmt.Sprintf("%s；目标对象已复制但无法回滚：%v", message, cleanupErr)
+			} else {
+				message = fmt.Sprintf("%s；已回滚目标对象", message)
+			}
+			result.Failed = append(result.Failed, BatchOperationFailure{
+				Bucket: srcBucket,
+				Key:    srcKey,
+				Error:  message,
+			})
+			continue
+		}
+		result.Succeeded++
+	}
+	return result, nil
+}
+
+// CreateFolder creates a zero-byte object to represent a pseudo-folder.
+func (s *Service) CreateFolder(ctx context.Context, accountID, bucket, prefix string) error {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return errors.New("bucket is required")
+	}
+	key := strings.TrimSpace(prefix)
+	key = strings.Trim(key, " ")
+	key = strings.TrimPrefix(key, "/")
+	if key == "" {
+		return errors.New("folder name is required")
+	}
+	if !strings.HasSuffix(key, "/") {
+		key += "/"
+	}
+	body := bytes.NewReader(nil)
+	return client.Objects().UploadObject(ctx, bucket, key, body, 0, "application/x-directory")
+}
+
 // HeadObject fetches metadata for a single object.
 func (s *Service) HeadObject(ctx context.Context, accountID, bucket, key string) (ObjectInfo, error) {
 	var info ObjectInfo
@@ -173,15 +247,81 @@ func (s *Service) HeadObject(ctx context.Context, accountID, bucket, key string)
 	if err != nil {
 		return info, err
 	}
-	info = ObjectInfo{
-		Key:          raw.Key,
-		Size:         raw.Size,
-		LastModified: raw.LastModified,
-		ETag:         raw.ETag,
-		ContentType:  raw.ContentType,
-		IsDir:        raw.IsDir,
-	}
+	info = toObjectInfo(raw)
 	return info, nil
+}
+
+// GetObjectAttributes gathers metadata, tags and ACL information for the object.
+func (s *Service) GetObjectAttributes(ctx context.Context, accountID, bucket, key string) (ObjectAttributes, error) {
+	var attrs ObjectAttributes
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return attrs, err
+	}
+	driver := client.Objects()
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return attrs, errors.New("bucket is required")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return attrs, errors.New("object key is required")
+	}
+	desc, err := driver.HeadObject(ctx, bucket, key)
+	if err != nil {
+		return attrs, err
+	}
+	attrs.Object = toObjectInfo(desc)
+	attrs.Metadata = cloneStringMap(desc.Metadata)
+	if tags, err := driver.GetObjectTags(ctx, bucket, key); err == nil {
+		attrs.Tags = tags
+	} else if err != nil && !errors.Is(err, providers.ErrUnsupportedCapability) {
+		return attrs, err
+	}
+	if acl, err := driver.GetObjectACL(ctx, bucket, key); err == nil {
+		attrs.ACL = acl.Canned
+		attrs.OwnerID = acl.OwnerID
+		attrs.OwnerName = acl.OwnerDisplayName
+		attrs.Grants = convertAccessGrants(acl.Grants)
+	} else if err != nil && !errors.Is(err, providers.ErrUnsupportedCapability) {
+		return attrs, err
+	}
+	return attrs, nil
+}
+
+// UpdateObjectAttributes applies metadata/tag/ACL changes to a single object and returns the updated attributes.
+func (s *Service) UpdateObjectAttributes(ctx context.Context, accountID string, patch ObjectAttributesPatch) (ObjectAttributes, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return ObjectAttributes{}, err
+	}
+	if err := applyObjectPatch(ctx, client.Objects(), patch); err != nil {
+		return ObjectAttributes{}, err
+	}
+	return s.GetObjectAttributes(ctx, accountID, patch.Bucket, patch.Key)
+}
+
+// BatchUpdateObjectAttributes best-effort applies patches to multiple objects.
+func (s *Service) BatchUpdateObjectAttributes(ctx context.Context, accountID string, patches []ObjectAttributesPatch) (BatchAttributesResult, error) {
+	var result BatchAttributesResult
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return result, err
+	}
+	driver := client.Objects()
+	result.Total = len(patches)
+	for _, patch := range patches {
+		if err := applyObjectPatch(ctx, driver, patch); err != nil {
+			result.Failed = append(result.Failed, BatchOperationFailure{
+				Bucket: patch.Bucket,
+				Key:    patch.Key,
+				Error:  err.Error(),
+			})
+			continue
+		}
+		result.Succeeded++
+	}
+	return result, nil
 }
 
 // GetPresignedURL generates a time-bound URL for downloading or uploading objects.
@@ -339,4 +479,104 @@ func isNotFoundError(err error) bool {
 		strings.Contains(msg, "nosuchobject") ||
 		strings.Contains(msg, "no such object") ||
 		strings.Contains(msg, "不存在")
+}
+
+func toObjectInfo(desc providers.ObjectDescriptor) ObjectInfo {
+	return ObjectInfo{
+		Key:          desc.Key,
+		Size:         desc.Size,
+		LastModified: desc.LastModified,
+		ETag:         desc.ETag,
+		ContentType:  desc.ContentType,
+		StorageClass: desc.StorageClass,
+		VersionID:    desc.VersionID,
+		IsDir:        desc.IsDir,
+	}
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	clone := make(map[string]string, len(input))
+	for k, v := range input {
+		clone[k] = v
+	}
+	return clone
+}
+
+func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch ObjectAttributesPatch) error {
+	bucket := strings.TrimSpace(patch.Bucket)
+	key := strings.TrimSpace(patch.Key)
+	if bucket == "" || key == "" {
+		return errors.New("bucket and key are required")
+	}
+	var unsupported []string
+	applied := false
+	if patch.Metadata != nil || patch.ContentType != "" || patch.StorageClass != "" {
+		update := providers.ObjectMetadataUpdate{
+			Metadata:     patch.Metadata,
+			ContentType:  patch.ContentType,
+			StorageClass: patch.StorageClass,
+		}
+		if err := driver.UpdateObjectMetadata(ctx, bucket, key, update); err != nil {
+			if errors.Is(err, providers.ErrUnsupportedCapability) {
+				unsupported = appendUnsupported(unsupported, "metadata")
+			} else {
+				return err
+			}
+		} else {
+			applied = true
+		}
+	}
+	if patch.Tags != nil {
+		if err := driver.PutObjectTags(ctx, bucket, key, patch.Tags); err != nil {
+			if errors.Is(err, providers.ErrUnsupportedCapability) {
+				unsupported = appendUnsupported(unsupported, "tags")
+			} else {
+				return err
+			}
+		} else {
+			applied = true
+		}
+	}
+	if acl := strings.TrimSpace(patch.ACL); acl != "" {
+		if err := driver.PutObjectACL(ctx, bucket, key, acl); err != nil {
+			if errors.Is(err, providers.ErrUnsupportedCapability) {
+				unsupported = appendUnsupported(unsupported, "acl")
+			} else {
+				return err
+			}
+		} else {
+			applied = true
+		}
+	}
+	if len(unsupported) > 0 && !applied {
+		return fmt.Errorf("当前存储供应商不支持以下操作：%s", strings.Join(unsupported, "、"))
+	}
+	return nil
+}
+
+func appendUnsupported(list []string, feature string) []string {
+	for _, existing := range list {
+		if existing == feature {
+			return list
+		}
+	}
+	return append(list, feature)
+}
+
+func convertAccessGrants(grants []providers.AccessGrant) []AccessGrant {
+	if len(grants) == 0 {
+		return nil
+	}
+	out := make([]AccessGrant, 0, len(grants))
+	for _, grant := range grants {
+		out = append(out, AccessGrant{
+			GranteeType: grant.GranteeType,
+			Grantee:     grant.Grantee,
+			Permission:  grant.Permission,
+		})
+	}
+	return out
 }

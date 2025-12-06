@@ -200,6 +200,8 @@ func (d *s3ObjectDriver) ListObjects(ctx context.Context, input ListObjectsInput
 			ContentType:  "",
 			StorageClass: string(obj.StorageClass),
 			IsDir:        false,
+			Metadata:     nil,
+			VersionID:    "",
 		})
 	}
 	sort.Slice(entries, func(i, j int) bool {
@@ -317,8 +319,21 @@ func (d *s3ObjectDriver) HeadObject(ctx context.Context, bucket, key string) (Ob
 		ContentType:  aws.ToString(out.ContentType),
 		StorageClass: string(out.StorageClass),
 		IsDir:        false,
+		Metadata:     cloneMetadata(out.Metadata),
+		VersionID:    aws.ToString(out.VersionId),
 	}
 	return info, nil
+}
+
+func cloneMetadata(src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 func (d *s3ObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
@@ -403,6 +418,33 @@ func (d *s3ObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) 
 		result[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
 	}
 	return result, nil
+}
+
+func (d *s3ObjectDriver) PutObjectTags(ctx context.Context, bucket, key string, tags map[string]string) error {
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	tagging := &s3types.Tagging{}
+	if len(tags) > 0 {
+		tagging.TagSet = make([]s3types.Tag, 0, len(tags))
+		for k, v := range tags {
+			tagging.TagSet = append(tagging.TagSet, s3types.Tag{
+				Key:   aws.String(k),
+				Value: aws.String(v),
+			})
+		}
+	}
+	if _, err := d.client.PutObjectTagging(ctx, &s3.PutObjectTaggingInput{
+		Bucket:  aws.String(bucket),
+		Key:     aws.String(key),
+		Tagging: tagging,
+	}); err != nil {
+		return WrapS3Error("更新对象标签", err)
+	}
+	return nil
 }
 
 func (d *s3ObjectDriver) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error) {
@@ -495,6 +537,101 @@ func (d *s3ObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, 
 	return nil
 }
 
+func (d *s3ObjectDriver) UpdateObjectMetadata(ctx context.Context, bucket, key string, input ObjectMetadataUpdate) error {
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	copySource := fmt.Sprintf("%s/%s", bucket, escapeCopyKey(key))
+	params := &s3.CopyObjectInput{
+		Bucket:     aws.String(bucket),
+		Key:        aws.String(key),
+		CopySource: aws.String(copySource),
+	}
+	changeMetadata := input.Metadata != nil || input.ContentType != ""
+	if input.Metadata != nil {
+		params.MetadataDirective = s3types.MetadataDirectiveReplace
+		params.Metadata = make(map[string]string, len(input.Metadata))
+		for k, v := range input.Metadata {
+			params.Metadata[k] = v
+		}
+	}
+	if input.ContentType != "" {
+		params.MetadataDirective = s3types.MetadataDirectiveReplace
+		params.ContentType = aws.String(input.ContentType)
+	}
+	if params.MetadataDirective == "" {
+		params.MetadataDirective = s3types.MetadataDirectiveCopy
+	}
+	if input.StorageClass != "" {
+		params.StorageClass = s3types.StorageClass(input.StorageClass)
+	}
+	if !changeMetadata && input.StorageClass == "" {
+		// Nothing to do.
+		return nil
+	}
+	if _, err := d.client.CopyObject(ctx, params); err != nil {
+		return WrapS3Error("更新对象元数据", err)
+	}
+	return nil
+}
+
+func (d *s3ObjectDriver) GetObjectACL(ctx context.Context, bucket, key string) (ObjectACL, error) {
+	var acl ObjectACL
+	if strings.TrimSpace(bucket) == "" {
+		return acl, errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return acl, errors.New("object key is required")
+	}
+	out, err := d.client.GetObjectAcl(ctx, &s3.GetObjectAclInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return acl, WrapS3Error("获取对象 ACL", err)
+	}
+	grants := make([]AccessGrant, 0, len(out.Grants))
+	for _, grant := range out.Grants {
+		grants = append(grants, AccessGrant{
+			GranteeType: string(grant.Grantee.Type),
+			Grantee:     describeS3Grantee(grant.Grantee),
+			Permission:  string(grant.Permission),
+		})
+	}
+	acl = ObjectACL{
+		Canned:           detectS3CannedACL(out.Grants),
+		OwnerID:          aws.ToString(out.Owner.ID),
+		OwnerDisplayName: aws.ToString(out.Owner.DisplayName),
+		Grants:           grants,
+	}
+	return acl, nil
+}
+
+func (d *s3ObjectDriver) PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error {
+	if strings.TrimSpace(bucket) == "" {
+		return errors.New("bucket is required")
+	}
+	if strings.TrimSpace(key) == "" {
+		return errors.New("object key is required")
+	}
+	cannedACL = strings.TrimSpace(cannedACL)
+	if cannedACL == "" {
+		return errors.New("acl is required")
+	}
+	input := &s3.PutObjectAclInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		ACL:    s3types.ObjectCannedACL(cannedACL),
+	}
+	if _, err := d.client.PutObjectAcl(ctx, input); err != nil {
+		return WrapS3Error("更新对象 ACL", err)
+	}
+	return nil
+}
+
 func shouldIncludeLocationConstraint(provider types.Provider, region string) bool {
 	if region == "" {
 		return false
@@ -514,4 +651,75 @@ func escapeCopyKey(key string) string {
 		segments[i] = url.PathEscape(segment)
 	}
 	return strings.Join(segments, "/")
+}
+
+func describeS3Grantee(grantee *s3types.Grantee) string {
+	if grantee == nil {
+		return ""
+	}
+	if grantee.URI != nil {
+		return aws.ToString(grantee.URI)
+	}
+	if grantee.ID != nil {
+		return aws.ToString(grantee.ID)
+	}
+	if grantee.EmailAddress != nil {
+		return aws.ToString(grantee.EmailAddress)
+	}
+	if grantee.DisplayName != nil {
+		return aws.ToString(grantee.DisplayName)
+	}
+	return ""
+}
+
+func detectS3CannedACL(grants []s3types.Grant) string {
+	const (
+		allUsersURL    = "http://acs.amazonaws.com/groups/global/AllUsers"
+		authUsersURL   = "http://acs.amazonaws.com/groups/global/AuthenticatedUsers"
+		logDeliveryURL = "http://acs.amazonaws.com/groups/s3/LogDelivery"
+	)
+	var (
+		ownerFullControl bool
+		allUsersRead     bool
+		allUsersWrite    bool
+		authUsersRead    bool
+	)
+
+	for _, grant := range grants {
+		if grant.Grantee == nil {
+			continue
+		}
+		switch aws.ToString(grant.Grantee.URI) {
+		case allUsersURL:
+			if grant.Permission == s3types.PermissionRead {
+				allUsersRead = true
+			}
+			if grant.Permission == s3types.PermissionWrite {
+				allUsersWrite = true
+			}
+		case authUsersURL:
+			if grant.Permission == s3types.PermissionRead {
+				authUsersRead = true
+			}
+		case logDeliveryURL:
+			// ignore log delivery grants when detecting canonical ACLs
+		default:
+			if grant.Grantee.Type == s3types.TypeCanonicalUser && grant.Permission == s3types.PermissionFullControl {
+				ownerFullControl = true
+			}
+		}
+	}
+
+	switch {
+	case ownerFullControl && allUsersRead && allUsersWrite:
+		return string(s3types.ObjectCannedACLPublicReadWrite)
+	case ownerFullControl && allUsersRead:
+		return string(s3types.ObjectCannedACLPublicRead)
+	case ownerFullControl && authUsersRead:
+		return string(s3types.ObjectCannedACLAuthenticatedRead)
+	case ownerFullControl && !allUsersRead && !allUsersWrite && !authUsersRead:
+		return string(s3types.ObjectCannedACLPrivate)
+	default:
+		return ""
+	}
 }

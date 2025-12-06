@@ -314,8 +314,24 @@ func (d *ossObjectDriver) HeadObject(ctx context.Context, bucketName, key string
 		ContentType:  headerValue(meta, "Content-Type"),
 		StorageClass: headerValue(meta, "x-oss-storage-class"),
 		IsDir:        false,
+		Metadata:     extractOSSMeta(meta),
+		VersionID:    headerValue(meta, "x-oss-version-id"),
 	}
 	return info, nil
+}
+
+func extractOSSMeta(meta http.Header) map[string]string {
+	result := make(map[string]string)
+	for key, values := range meta {
+		lower := strings.ToLower(key)
+		if strings.HasPrefix(lower, "x-oss-meta-") && len(values) > 0 {
+			result[strings.TrimPrefix(lower, "x-oss-meta-")] = values[0]
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func (d *ossObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
@@ -430,6 +446,22 @@ func (d *ossObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key,
 
 func (d *ossObjectDriver) GetObjectTags(ctx context.Context, bucketName, key string) (map[string]string, error) {
 	return nil, ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) PutObjectTags(ctx context.Context, bucketName, key string, tags map[string]string) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) UpdateObjectMetadata(ctx context.Context, bucketName, key string, input ObjectMetadataUpdate) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) GetObjectACL(ctx context.Context, bucketName, key string) (ObjectACL, error) {
+	return ObjectACL{}, ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) PutObjectACL(ctx context.Context, bucketName, key, cannedACL string) error {
+	return ErrUnsupportedCapability
 }
 
 func headerValue(header http.Header, key string) string {

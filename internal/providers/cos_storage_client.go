@@ -361,8 +361,24 @@ func (d *cosObjectDriver) HeadObject(ctx context.Context, bucket, key string) (O
 		ContentType:  resp.Header.Get("Content-Type"),
 		StorageClass: resp.Header.Get("x-cos-storage-class"),
 		IsDir:        false,
+		Metadata:     extractCOSMeta(resp.Header),
+		VersionID:    resp.Header.Get("x-cos-version-id"),
 	}
 	return info, nil
+}
+
+func extractCOSMeta(header http.Header) map[string]string {
+	result := make(map[string]string)
+	for key, values := range header {
+		lower := strings.ToLower(key)
+		if strings.HasPrefix(lower, "x-cos-meta-") && len(values) > 0 {
+			result[strings.TrimPrefix(lower, "x-cos-meta-")] = values[0]
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func (d *cosObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
@@ -469,6 +485,22 @@ func (d *cosObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key,
 
 func (d *cosObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error) {
 	return nil, ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) PutObjectTags(ctx context.Context, bucket, key string, tags map[string]string) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) UpdateObjectMetadata(ctx context.Context, bucket, key string, input ObjectMetadataUpdate) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) GetObjectACL(ctx context.Context, bucket, key string) (ObjectACL, error) {
+	return ObjectACL{}, ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error {
+	return ErrUnsupportedCapability
 }
 
 func buildCOSBucketURL(bucket string, serviceURL *url.URL) (*url.URL, error) {

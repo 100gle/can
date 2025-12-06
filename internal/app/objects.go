@@ -47,11 +47,46 @@ func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
 	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
 }
 
+// MoveObjects performs batch move operations (copy + delete).
+func (a *App) MoveObjects(accountID string, requests []objects.MoveObjectRequest) (objects.MoveObjectsResult, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.MoveObjects(ctx, accountID, requests)
+}
+
+// CreateFolder materialises a pseudo-folder marker object.
+func (a *App) CreateFolder(accountID, bucket, prefix string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.CreateFolder(ctx, accountID, bucket, prefix)
+}
+
 // HeadObject fetches metadata for a specific key.
 func (a *App) HeadObject(accountID, bucket, key string) (objects.ObjectInfo, error) {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.HeadObject(ctx, accountID, bucket, key)
+}
+
+// GetObjectAttributes returns metadata, tags and ACL information.
+func (a *App) GetObjectAttributes(accountID, bucket, key string) (objects.ObjectAttributes, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetObjectAttributes(ctx, accountID, bucket, key)
+}
+
+// UpdateObjectAttributes applies attribute changes and returns the updated state.
+func (a *App) UpdateObjectAttributes(accountID string, patch objects.ObjectAttributesPatch) (objects.ObjectAttributes, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.UpdateObjectAttributes(ctx, accountID, patch)
+}
+
+// BatchUpdateObjectAttributes best-effort applies patches to multiple objects.
+func (a *App) BatchUpdateObjectAttributes(accountID string, patches []objects.ObjectAttributesPatch) (objects.BatchAttributesResult, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.BatchUpdateObjectAttributes(ctx, accountID, patches)
 }
 
 // GetPresignedDownloadURL returns a GET URL valid for the requested duration in minutes.

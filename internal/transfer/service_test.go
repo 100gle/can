@@ -244,3 +244,19 @@ func (d *fakeObjectDriver) AbortMultipartUpload(context.Context, string, string,
 func (d *fakeObjectDriver) GetObjectTags(context.Context, string, string) (map[string]string, error) {
 	return nil, nil
 }
+
+func (d *fakeObjectDriver) PutObjectTags(context.Context, string, string, map[string]string) error {
+	return nil
+}
+
+func (d *fakeObjectDriver) UpdateObjectMetadata(context.Context, string, string, providers.ObjectMetadataUpdate) error {
+	return nil
+}
+
+func (d *fakeObjectDriver) GetObjectACL(context.Context, string, string) (providers.ObjectACL, error) {
+	return providers.ObjectACL{}, providers.ErrUnsupportedCapability
+}
+
+func (d *fakeObjectDriver) PutObjectACL(context.Context, string, string, string) error {
+	return providers.ErrUnsupportedCapability
+}

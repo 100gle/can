@@ -77,12 +77,87 @@ func TestRenameObjectValidatesKeys(t *testing.T) {
 	}
 }
 
+func TestMoveObjectsMovesAndDeletes(t *testing.T) {
+	driver := newStubObjectDriver()
+	svc, accountID := newTestObjectsService(t, driver)
+	ctx := context.Background()
+	reqs := []MoveObjectRequest{
+		{SourceBucket: "src", SourceKey: "a.txt", TargetBucket: "dst", TargetKey: "b.txt"},
+	}
+	result, err := svc.MoveObjects(ctx, accountID, reqs)
+	if err != nil {
+		t.Fatalf("move objects: %v", err)
+	}
+	if result.Succeeded != 1 || len(result.Failed) != 0 {
+		t.Fatalf("unexpected move result: %+v", result)
+	}
+	if len(driver.copyCalls) != 1 {
+		t.Fatalf("expected copy call")
+	}
+	if len(driver.deleteCalls) != 1 {
+		t.Fatalf("expected delete call")
+	}
+}
+
+func TestCreateFolderValidatesInputs(t *testing.T) {
+	svc, accountID := newTestObjectsService(t, newStubObjectDriver())
+	ctx := context.Background()
+	if err := svc.CreateFolder(ctx, accountID, "", "prefix"); err == nil {
+		t.Fatalf("expected error when bucket missing")
+	}
+	if err := svc.CreateFolder(ctx, accountID, "docs", ""); err == nil {
+		t.Fatalf("expected error when folder name missing")
+	}
+}
+
+func TestUpdateObjectAttributesUnsupportedOnly(t *testing.T) {
+	driver := newStubObjectDriver()
+	driver.metadataErr = providers.ErrUnsupportedCapability
+	driver.tagsErr = providers.ErrUnsupportedCapability
+	driver.aclErr = providers.ErrUnsupportedCapability
+	driver.headResponses[driver.key("docs", "file.txt")] = headResponse{
+		desc: providers.ObjectDescriptor{Key: "file.txt"},
+		err:  nil,
+	}
+	svc, accountID := newTestObjectsService(t, driver)
+	patch := ObjectAttributesPatch{
+		Bucket:   "docs",
+		Key:      "file.txt",
+		Metadata: map[string]string{"owner": "dev"},
+	}
+	if _, err := svc.UpdateObjectAttributes(context.Background(), accountID, patch); err == nil {
+		t.Fatalf("expected unsupported error")
+	}
+}
+
+func TestUpdateObjectAttributesPartialSuccess(t *testing.T) {
+	driver := newStubObjectDriver()
+	driver.metadataErr = providers.ErrUnsupportedCapability
+	driver.headResponses[driver.key("docs", "file.txt")] = headResponse{
+		desc: providers.ObjectDescriptor{Key: "file.txt"},
+		err:  nil,
+	}
+	svc, accountID := newTestObjectsService(t, driver)
+	patch := ObjectAttributesPatch{
+		Bucket:   "docs",
+		Key:      "file.txt",
+		Metadata: map[string]string{"owner": "dev"},
+		Tags:     map[string]string{"env": "test"},
+	}
+	if _, err := svc.UpdateObjectAttributes(context.Background(), accountID, patch); err != nil {
+		t.Fatalf("expected partial success, got %v", err)
+	}
+}
+
 type stubObjectDriver struct {
 	headResponses map[string]headResponse
 	copyCalls     []copyCall
 	deleteCalls   []deleteCall
 	copyErr       error
 	deleteErr     error
+	metadataErr   error
+	tagsErr       error
+	aclErr        error
 }
 
 type headResponse struct {
@@ -144,6 +219,34 @@ func (s *stubObjectDriver) AbortMultipartUpload(context.Context, string, string,
 
 func (s *stubObjectDriver) GetObjectTags(context.Context, string, string) (map[string]string, error) {
 	return nil, nil
+}
+
+func (s *stubObjectDriver) PutObjectTags(context.Context, string, string, map[string]string) error {
+	if s.tagsErr != nil {
+		return s.tagsErr
+	}
+	return nil
+}
+
+func (s *stubObjectDriver) UpdateObjectMetadata(context.Context, string, string, providers.ObjectMetadataUpdate) error {
+	if s.metadataErr != nil {
+		return s.metadataErr
+	}
+	return nil
+}
+
+func (s *stubObjectDriver) GetObjectACL(context.Context, string, string) (providers.ObjectACL, error) {
+	if s.aclErr != nil {
+		return providers.ObjectACL{}, s.aclErr
+	}
+	return providers.ObjectACL{}, providers.ErrUnsupportedCapability
+}
+
+func (s *stubObjectDriver) PutObjectACL(context.Context, string, string, string) error {
+	if s.aclErr != nil {
+		return s.aclErr
+	}
+	return providers.ErrUnsupportedCapability
 }
 
 func (s *stubObjectDriver) DeleteObject(_ context.Context, bucket, key string) error {
