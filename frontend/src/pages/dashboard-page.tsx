@@ -1,21 +1,19 @@
 import { AccountFormDrawer } from "@/components/accounts/account-form-drawer";
 import { ConnectionTestButton } from "@/components/accounts/connection-test-button";
-import { BucketBrowser } from "@/components/buckets/bucket-browser";
+import { FileExplorer } from "@/components/browser/file-explorer";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
-import { ObjectBrowser } from "@/components/objects/object-browser";
 import { UploadProgress } from "@/components/transfer/upload-progress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
-import { useBucketsStore } from "@/state/buckets";
 import { transfersStore } from "@/state/transfers";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   DownloadCloud,
   Loader2,
-  Plus,
   Plug,
+  Plus,
   RefreshCcw,
   Server,
   Share2,
@@ -32,7 +30,6 @@ export default function DashboardPage() {
   const { accounts, providers, capabilities, loading, error, activeAccountId } = useAccountsStore(
     (state) => state,
   );
-  const selectedBucket = useBucketsStore((state) => state.selectedBucket);
   const [drawerState, setDrawerState] = useState<{
     open: boolean;
     mode: "create" | "edit";
@@ -150,15 +147,6 @@ export default function DashboardPage() {
     });
   };
 
-  const handleOpenSearch = () => {
-    if (!activeAccount) return;
-    navigate({
-      to: "/accounts/$accountId/search",
-      params: { accountId: activeAccount.id },
-      search: { bucket: selectedBucket },
-    });
-  };
-
   const sidebar = (
     <Sidebar onCreateAccount={() => openDrawer("create")} onOpenSettings={handleOpenSettings} />
   );
@@ -190,21 +178,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardLayout sidebar={sidebar}>
+    <DashboardLayout
+      sidebar={sidebar}
+      accountName={activeAccount.name}
+      accountMeta={`${activeAccount.providerLabel} · ${activeAccount.region || "Region 未设置"}`}
+    >
       <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <header className="border-b border-border/40 bg-gradient-to-br from-background via-background/80 to-background/40 p-4 md:p-6">
-          <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                当前会话账户
-              </p>
-              <h2 className="mt-1 truncate text-2xl font-semibold sm:text-3xl">
-                {activeAccount.name}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {activeAccount.providerLabel} · {activeAccount.region || "Region 未设置"}
-              </p>
-            </div>
+        <header className="border-b border-border/40 bg-gradient-to-br from-background via-background/80 to-background/40 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -306,19 +287,12 @@ export default function DashboardPage() {
           </Card>
         </section>
 
-        <section className="grid gap-4 p-4 lg:grid-cols-3">
-          <BucketBrowser
+        <section className="flex-1 p-4">
+          <FileExplorer
             accountId={activeAccount.id}
             providerId={activeAccount.provider}
-            capabilities={activeCapabilities}
-            onOpenSettings={handleOpenBucketSettings}
-            className="lg:col-span-1"
-          />
-          <ObjectBrowser
-            accountId={activeAccount.id}
-            bucket={selectedBucket}
-            onOpenSearch={handleOpenSearch}
-            className="lg:col-span-2"
+            onOpenBucketSettings={handleOpenBucketSettings}
+            className="h-full"
           />
         </section>
         <section className="p-4">

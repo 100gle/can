@@ -135,7 +135,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
   };
 
   return (
-    <section className="rounded-3xl border border-border/40 bg-background/70 p-6 shadow-2xl shadow-primary/5 backdrop-blur-xl">
+    <section>
       <Tabs
         value={viewMode}
         onValueChange={(value) => setViewMode(value as "cards" | "list")}

@@ -1,12 +1,16 @@
 import {
   ArrowLeft,
   DownloadCloud,
+  Filter,
   FolderPlus,
+  LayoutGrid,
   Link2,
+  List,
   Loader2,
   RefreshCcw,
   Search,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -31,6 +35,14 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -44,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
 import { GetPresignedDownloadURL } from "@wailsjs/go/main/App";
+import { ObjectGridView } from "./object-grid-view";
 
 export type ObjectBrowserProps = {
   accountId?: string;
@@ -69,6 +82,11 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
   const [copyingKey, setCopyingKey] = useState<string>();
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
 
+  // View mode and filter state
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+
   useEffect(() => {
     void objectsStore.setContext(accountId, bucket);
   }, [accountId, bucket]);
@@ -81,6 +99,41 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
 
   const breadcrumbs = useMemo(() => buildBreadcrumbs(prefix), [prefix]);
   const canUpload = Boolean(accountId && bucket);
+
+  // Client-side filtering
+  const filteredObjects = useMemo(() => {
+    return objects.filter((obj) => {
+      // Keyword filtering
+      if (searchTerm) {
+        const label = obj.key.toLowerCase();
+        if (!label.includes(searchTerm.toLowerCase())) {
+          return false;
+        }
+      }
+      // Type filtering
+      if (typeFilter !== "all") {
+        const ext = obj.key.split(".").pop()?.toLowerCase() || "";
+        if (typeFilter === "folder" && !obj.isDir) return false;
+        if (
+          typeFilter === "image" &&
+          !["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext)
+        )
+          return false;
+        if (typeFilter === "document" && !["pdf", "doc", "docx", "txt", "rtf", "md"].includes(ext))
+          return false;
+        if (typeFilter === "archive" && !["zip", "rar", "7z", "tar", "gz"].includes(ext))
+          return false;
+      }
+      return true;
+    });
+  }, [objects, searchTerm, typeFilter]);
+
+  const hasActiveFilters = searchTerm || typeFilter !== "all";
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setTypeFilter("all");
+  };
 
   const handleEnterDir = (key: string) => {
     void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
@@ -223,16 +276,6 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                 刷新
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => onOpenSearch?.()}
-                disabled={!accountId}
-              >
-                <Search className="h-4 w-4" />
-                搜索
-              </Button>
-              <Button
                 variant="secondary"
                 size="sm"
                 className="gap-1"
@@ -257,6 +300,83 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                 上传文件夹
               </Button>
             </div>
+          </div>
+
+          {/* Search, Filter, and View Toggle Row */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="搜索当前目录下的文件..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-8"
+                disabled={!bucket}
+              />
+              {searchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter} disabled={!bucket}>
+              <SelectTrigger className="w-[140px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="类型" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部类型</SelectItem>
+                <SelectItem value="folder">文件夹</SelectItem>
+                <SelectItem value="image">图片</SelectItem>
+                <SelectItem value="document">文档</SelectItem>
+                <SelectItem value="archive">压缩包</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center rounded-md border border-border/40">
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-r-none"
+                onClick={() => setViewMode("list")}
+                aria-label="列表视图"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-l-none"
+                onClick={() => setViewMode("grid")}
+                aria-label="网格视图"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => onOpenSearch?.()}
+              disabled={!accountId}
+            >
+              高级搜索
+            </Button>
+            {hasActiveFilters ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-muted-foreground"
+                onClick={clearFilters}
+              >
+                <X className="h-3 w-3" />
+                清除过滤
+              </Button>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Breadcrumb>
@@ -315,8 +435,19 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> 正在加载对象
             </div>
-          ) : objects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">当前路径下暂无对象。</p>
+          ) : filteredObjects.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
+                {hasActiveFilters ? "没有匹配过滤条件的对象" : "当前路径下暂无对象。"}
+              </p>
+              {hasActiveFilters ? (
+                <Button variant="link" size="sm" onClick={clearFilters} className="mt-2">
+                  清除所有过滤条件
+                </Button>
+              ) : null}
+            </div>
+          ) : viewMode === "grid" ? (
+            <ObjectGridView objects={filteredObjects} prefix={prefix} onEnterDir={handleEnterDir} />
           ) : (
             <Table>
               <TableHeader>
@@ -328,7 +459,7 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {objects.map((object) => (
+                {filteredObjects.map((object) => (
                   <TableRow key={object.key}>
                     <TableCell>
                       {object.isDir ? (

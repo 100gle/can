@@ -8,9 +8,16 @@ import { type ReactNode, useState } from "react";
 type DashboardLayoutProps = {
   sidebar: ReactNode;
   children: ReactNode;
+  accountName?: string;
+  accountMeta?: string;
 };
 
-export const DashboardLayout = ({ sidebar, children }: DashboardLayoutProps) => {
+export const DashboardLayout = ({
+  sidebar,
+  children,
+  accountName,
+  accountMeta,
+}: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const handleBack = useBackNavigation(() => {
@@ -47,7 +54,7 @@ export const DashboardLayout = ({ sidebar, children }: DashboardLayoutProps) => 
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-border/40 bg-card/60 px-4 py-3 backdrop-blur">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
@@ -61,6 +68,14 @@ export const DashboardLayout = ({ sidebar, children }: DashboardLayoutProps) => 
                 <PanelLeftClose className="h-4 w-4" />
               )}
             </Button>
+            {accountName ? (
+              <div className="hidden min-w-0 lg:block">
+                <p className="truncate text-sm font-semibold">{accountName}</p>
+                {accountMeta ? (
+                  <p className="truncate text-xs text-muted-foreground">{accountMeta}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <Button
             variant="outline"
