@@ -27,8 +27,9 @@ const (
 
 // Service provides high-level object search and export utilities.
 type Service struct {
-	accounts *accounts.Service
-	pool     providers.ClientPool
+	accounts     *accounts.Service
+	pool         providers.ClientPool
+	savedQueries SavedQueryStore
 }
 
 type listTask struct {
@@ -39,8 +40,9 @@ type listTask struct {
 // NewService constructs a search service instance.
 func NewService(accounts *accounts.Service, pool providers.ClientPool) *Service {
 	return &Service{
-		accounts: accounts,
-		pool:     pool,
+		accounts:     accounts,
+		pool:         pool,
+		savedQueries: NewMemorySavedQueryStore(),
 	}
 }
 
@@ -437,4 +439,62 @@ func scoreRecord(record objectRecord, query *SearchQuery) float64 {
 		score += 0.25
 	}
 	return score
+}
+
+// SaveQuery persists a search query configuration with the given name.
+func (s *Service) SaveQuery(ctx context.Context, name string, query *SearchQuery) (*SavedQuery, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("name is required")
+	}
+	if query == nil {
+		return nil, errors.New("query is required")
+	}
+	saved := &SavedQuery{
+		Name:  name,
+		Query: query,
+	}
+	if err := s.savedQueries.Create(ctx, saved); err != nil {
+		return nil, err
+	}
+	return saved, nil
+}
+
+// ListSavedQueries returns all saved search queries.
+func (s *Service) ListSavedQueries(ctx context.Context) ([]*SavedQuery, error) {
+	return s.savedQueries.List(ctx)
+}
+
+// DeleteSavedQuery removes a saved query by ID.
+func (s *Service) DeleteSavedQuery(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("id is required")
+	}
+	return s.savedQueries.Delete(ctx, id)
+}
+
+// UpdateSavedQuery updates an existing saved query's name and/or query configuration.
+func (s *Service) UpdateSavedQuery(ctx context.Context, id string, name string, query *SearchQuery) (*SavedQuery, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("name is required")
+	}
+	if query == nil {
+		return nil, errors.New("query is required")
+	}
+	existing, err := s.savedQueries.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	existing.Name = name
+	existing.Query = query
+	if err := s.savedQueries.Update(ctx, existing); err != nil {
+		return nil, err
+	}
+	return existing, nil
 }

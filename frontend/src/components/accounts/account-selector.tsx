@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
@@ -19,6 +29,7 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
   const error = useAccountsStore((state) => state.error);
   const connectionTests = useAccountsStore((state) => state.connectionTests);
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [pendingDelete, setPendingDelete] = useState<AccountModel | null>(null);
 
   useEffect(() => {
     void accountsStore.bootstrap();
@@ -46,12 +57,16 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
     void accountsStore.refresh();
   };
 
-  const handleDeleteAccount = async (account: AccountModel) => {
-    const confirmed = window.confirm?.(`确定删除账户“${account.name}”吗？此操作不可恢复。`);
-    if (!confirmed) return;
-    await accountsStore.deleteAccount(account.id).catch(() => {
+  const handleDeleteAccount = (account: AccountModel) => {
+    setPendingDelete(account);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await accountsStore.deleteAccount(pendingDelete.id).catch(() => {
       /* error handled in store */
     });
+    setPendingDelete(null);
   };
 
   const statusByAccount = useMemo(() => {
@@ -165,6 +180,21 @@ export const AccountSelector = ({ onCreateAccount, onEditAccount }: AccountSelec
         <TabsContent value="cards">{renderGrid("cards")}</TabsContent>
         <TabsContent value="list">{renderGrid("list")}</TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定删除账户？</AlertDialogTitle>
+            <AlertDialogDescription>
+              即将删除账户"{pendingDelete?.name}"，此操作不可恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };

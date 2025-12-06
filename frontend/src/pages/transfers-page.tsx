@@ -1,8 +1,18 @@
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { UploadProgress } from "@/components/transfer/upload-progress";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -16,6 +26,15 @@ const statusLabel: Record<string, string> = {
   completed: "已完成",
   failed: "失败",
   canceled: "已取消",
+};
+
+const statusVariant: Record<string, "default" | "outline" | "success"> = {
+  pending: "outline",
+  running: "default",
+  paused: "outline",
+  completed: "success",
+  failed: "outline",
+  canceled: "outline",
 };
 
 const formatBytes = (bytes: number) => {
@@ -92,54 +111,48 @@ export default function TransfersPage() {
         <section className="space-y-4 p-4">
           <UploadProgress />
           <Card className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">任务</th>
-                  <th className="px-4 py-3 text-left">类型</th>
-                  <th className="px-4 py-3 text-left">进度</th>
-                  <th className="px-4 py-3 text-left">状态</th>
-                  <th className="px-4 py-3 text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>任务</TableHead>
+                  <TableHead>类型</TableHead>
+                  <TableHead>进度</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {tasks.length ? (
                   tasks.map((task) => {
                     const percent = task.total
                       ? Math.min(100, Math.round((task.progress / task.total) * 100))
                       : 0;
                     const label = statusLabel[task.status] || task.status;
+                    const variant = statusVariant[task.status] || "outline";
                     return (
-                      <tr key={task.id} className="border-b border-border/40">
-                        <td className="px-4 py-3">
+                      <TableRow key={task.id}>
+                        <TableCell>
                           <p className="font-semibold">{task.name}</p>
                           <p className="text-xs text-muted-foreground">{task.bucket}</p>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
                           {task.type === "upload" ? "上传" : "下载"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
                             <div className="flex items-center justify-between text-xs text-muted-foreground">
                               <span>{percent}%</span>
                               <span>
                                 {formatBytes(task.progress)} / {formatBytes(task.total)}
                               </span>
                             </div>
-                            <div className="mt-1 h-1.5 rounded-full bg-muted">
-                              <div
-                                className="h-full rounded-full bg-primary"
-                                style={{ width: `${percent}%` }}
-                              />
-                            </div>
+                            <Progress value={percent} className="h-1.5" />
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-foreground">
-                            {label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={variant}>{label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {task.status === "paused" ? (
                               <Button
@@ -167,19 +180,19 @@ export default function TransfersPage() {
                               删除
                             </Button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 ) : (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       暂无传输任务。
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </Card>
         </section>
       </main>

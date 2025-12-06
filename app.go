@@ -442,6 +442,45 @@ func (a *App) ExportSearchResults(accountID string, query *search.SearchQuery, f
 	return a.search.ExportSearchResults(ctx, accountID, query, format)
 }
 
+// SetTransferSpeedLimit sets the global transfer speed limit in bytes per second.
+// A value of 0 or negative disables rate limiting.
+func (a *App) SetTransferSpeedLimit(bytesPerSec int64) {
+	a.transfers.SetGlobalSpeedLimit(bytesPerSec)
+}
+
+// GetTransferSpeedLimit returns the current global speed limit in bytes per second.
+func (a *App) GetTransferSpeedLimit() int64 {
+	return a.transfers.GetGlobalSpeedLimit()
+}
+
+// SaveSearchQuery persists a search query configuration with the given name.
+func (a *App) SaveSearchQuery(name string, query *search.SearchQuery) (*search.SavedQuery, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.search.SaveQuery(ctx, name, query)
+}
+
+// ListSavedSearchQueries returns all saved search queries.
+func (a *App) ListSavedSearchQueries() ([]*search.SavedQuery, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.search.ListSavedQueries(ctx)
+}
+
+// DeleteSavedSearchQuery removes a saved query by ID.
+func (a *App) DeleteSavedSearchQuery(id string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.search.DeleteSavedQuery(ctx, id)
+}
+
+// UpdateSavedSearchQuery updates an existing saved query's name and/or query configuration.
+func (a *App) UpdateSavedSearchQuery(id string, name string, query *search.SearchQuery) (*search.SavedQuery, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.search.UpdateSavedQuery(ctx, id, name, query)
+}
+
 // ExportAccounts writes all stored account configs into an encrypted bundle via SaveFileDialog.
 func (a *App) ExportAccounts() (accounts.ExportSummary, error) {
 	var summary accounts.ExportSummary

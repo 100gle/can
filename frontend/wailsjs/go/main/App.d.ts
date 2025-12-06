@@ -40,6 +40,8 @@ export function DeleteBucketWebsite(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteObject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function DeleteSavedSearchQuery(arg1:string):Promise<void>;
+
 export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
 export function EnableBucketVersioning(arg1:string,arg2:string):Promise<void>;
@@ -64,6 +66,8 @@ export function GetPresignedDownloadURL(arg1:string,arg2:string,arg3:string,arg4
 
 export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
+export function GetTransferSpeedLimit():Promise<number>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function HeadBucket(arg1:string,arg2:string):Promise<void>;
@@ -80,6 +84,8 @@ export function ListBuckets(arg1:string):Promise<Array<buckets.BucketInfo>>;
 
 export function ListObjects(arg1:string,arg2:objects.ListObjectsInput):Promise<objects.ListObjectsResult>;
 
+export function ListSavedSearchQueries():Promise<Array<search.SavedQuery>>;
+
 export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
 
 export function PauseTransferTask(arg1:string):Promise<void>;
@@ -89,6 +95,8 @@ export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
 export function RenameObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function ResumeTransferTask(arg1:string):Promise<void>;
+
+export function SaveSearchQuery(arg1:string,arg2:search.SearchQuery):Promise<search.SavedQuery>;
 
 export function SearchObjects(arg1:string,arg2:search.SearchQuery):Promise<search.SearchResponse>;
 
@@ -104,6 +112,8 @@ export function SetBucketPolicy(arg1:string,arg2:string,arg3:config.BucketPolicy
 
 export function SetBucketWebsite(arg1:string,arg2:string,arg3:config.BucketWebsite):Promise<void>;
 
+export function SetTransferSpeedLimit(arg1:number):Promise<void>;
+
 export function SupportedProviders():Promise<Array<types.ProviderMetadata>>;
 
 export function SuspendBucketVersioning(arg1:string,arg2:string):Promise<void>;
@@ -113,6 +123,8 @@ export function TestAccountConnection(arg1:string):Promise<accounts.ConnectionTe
 export function TestAccountConnectionPreview(arg1:accounts.CreateAccountInput):Promise<accounts.ConnectionTestResult>;
 
 export function UpdateAccount(arg1:string,arg2:accounts.UpdateAccountInput):Promise<accounts.Account>;
+
+export function UpdateSavedSearchQuery(arg1:string,arg2:string,arg3:search.SearchQuery):Promise<search.SavedQuery>;
 
 export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 

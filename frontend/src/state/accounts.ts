@@ -381,6 +381,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
   testConnectionPreview: async (input: AccountFormInput) => {
     const payload: WailsCreateInput = {
       name: (input.name ?? "").trim() || "连接测试",
+      tag: (input.tag ?? "").trim(),
       provider: (input.provider ?? "aws") as any,
       endpoint: (input.endpoint ?? "").trim(),
       accessKeyId: (input.accessKeyId ?? "").trim(),

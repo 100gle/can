@@ -66,6 +66,10 @@ export function DeleteObject(arg1, arg2, arg3) {
   return window['go']['main']['App']['DeleteObject'](arg1, arg2, arg3);
 }
 
+export function DeleteSavedSearchQuery(arg1) {
+  return window['go']['main']['App']['DeleteSavedSearchQuery'](arg1);
+}
+
 export function DownloadObject(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DownloadObject'](arg1, arg2, arg3, arg4);
 }
@@ -114,6 +118,10 @@ export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['GetPresignedUploadURL'](arg1, arg2, arg3, arg4);
 }
 
+export function GetTransferSpeedLimit() {
+  return window['go']['main']['App']['GetTransferSpeedLimit']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
@@ -146,6 +154,10 @@ export function ListObjects(arg1, arg2) {
   return window['go']['main']['App']['ListObjects'](arg1, arg2);
 }
 
+export function ListSavedSearchQueries() {
+  return window['go']['main']['App']['ListSavedSearchQueries']();
+}
+
 export function ListTransferTasks() {
   return window['go']['main']['App']['ListTransferTasks']();
 }
@@ -164,6 +176,10 @@ export function RenameObject(arg1, arg2, arg3, arg4) {
 
 export function ResumeTransferTask(arg1) {
   return window['go']['main']['App']['ResumeTransferTask'](arg1);
+}
+
+export function SaveSearchQuery(arg1, arg2) {
+  return window['go']['main']['App']['SaveSearchQuery'](arg1, arg2);
 }
 
 export function SearchObjects(arg1, arg2) {
@@ -194,6 +210,10 @@ export function SetBucketWebsite(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetBucketWebsite'](arg1, arg2, arg3);
 }
 
+export function SetTransferSpeedLimit(arg1) {
+  return window['go']['main']['App']['SetTransferSpeedLimit'](arg1);
+}
+
 export function SupportedProviders() {
   return window['go']['main']['App']['SupportedProviders']();
 }
@@ -212,6 +232,10 @@ export function TestAccountConnectionPreview(arg1) {
 
 export function UpdateAccount(arg1, arg2) {
   return window['go']['main']['App']['UpdateAccount'](arg1, arg2);
+}
+
+export function UpdateSavedSearchQuery(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateSavedSearchQuery'](arg1, arg2, arg3);
 }
 
 export function UploadObject(arg1, arg2, arg3, arg4) {

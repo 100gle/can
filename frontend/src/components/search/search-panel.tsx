@@ -1,5 +1,3 @@
-import { useEffect, useMemo } from "react";
-import { DownloadCloud, Loader2, Search, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useForm, useStore } from "@tanstack/react-form";
-import { searchStore, useSearchStore, type SearchQueryModel } from "@/state/search";
 import { getFieldErrorMessage } from "@/lib/forms";
 import { formatBytes } from "@/lib/utils";
+import { searchStore, useSearchStore } from "@/state/search";
+import { useForm, useStore } from "@tanstack/react-form";
+import { DownloadCloud, Loader2, Search, UploadCloud } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { z } from "zod";
 
 type SearchPanelProps = {
@@ -48,7 +48,7 @@ const searchFormSchema = z
     startTime: z.string().optional(),
     endTime: z.string().optional(),
     fileTypes: z.array(z.string()),
-    tags: z.record(z.string()),
+    tags: z.record(z.string(), z.string()),
     limit: z.number().int().positive(),
     offset: z.number().int().nonnegative(),
   })
@@ -81,7 +81,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
   const error = useSearchStore((state) => state.error);
   const total = useSearchStore((state) => state.total);
 
-  const form = useForm<SearchQueryModel>({
+  const form = useForm({
     defaultValues: query,
     validators: {
       onSubmit: ({ value }) => {

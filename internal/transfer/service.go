@@ -75,8 +75,9 @@ type Service struct {
 	queue   chan string
 	workers int
 
-	mu       sync.RWMutex
-	runtimes map[string]*taskRuntime
+	mu            sync.RWMutex
+	runtimes      map[string]*taskRuntime
+	globalLimiter *RateLimiter
 }
 
 type taskRuntime struct {
@@ -134,12 +135,13 @@ func NewService(accounts *accounts.Service, pool providers.ClientPool, store Sto
 		cfg.queueSize = defaultQueueSize
 	}
 	svc := &Service{
-		accounts: accounts,
-		pool:     pool,
-		store:    store,
-		queue:    make(chan string, cfg.queueSize),
-		workers:  cfg.workers,
-		runtimes: make(map[string]*taskRuntime),
+		accounts:      accounts,
+		pool:          pool,
+		store:         store,
+		queue:         make(chan string, cfg.queueSize),
+		workers:       cfg.workers,
+		runtimes:      make(map[string]*taskRuntime),
+		globalLimiter: NewRateLimiter(0), // 0 means no limit
 	}
 	svc.restorePendingTasks()
 	svc.startWorkers()
@@ -317,6 +319,22 @@ func (s *Service) ResumeTask(ctx context.Context, taskID string) error {
 	return nil
 }
 
+// SetGlobalSpeedLimit sets the global transfer speed limit in bytes per second.
+// A value of 0 or negative disables rate limiting.
+func (s *Service) SetGlobalSpeedLimit(bytesPerSec int64) {
+	if s.globalLimiter != nil {
+		s.globalLimiter.SetLimit(bytesPerSec)
+	}
+}
+
+// GetGlobalSpeedLimit returns the current global speed limit in bytes per second.
+func (s *Service) GetGlobalSpeedLimit() int64 {
+	if s.globalLimiter != nil {
+		return s.globalLimiter.Limit()
+	}
+	return 0
+}
+
 func (s *Service) startWorkers() {
 	for i := 0; i < s.workers; i++ {
 		go s.worker()
@@ -373,6 +391,25 @@ func (s *Service) runTask(taskID string) error {
 		task.Speed = 0
 		task.EstimatedTime = -1
 	default:
+		// Check if we can retry
+		if task.Retries < task.MaxRetries {
+			task.Retries++
+			backoff := s.computeBackoff(task.Retries)
+			message := fmt.Sprintf("attempt %d failed: %v, retrying in %v", task.Retries, err, backoff)
+			task.Error = &message
+			task.Status = TaskPending
+			task.Speed = 0
+			task.EstimatedTime = -1
+			if err := s.store.Update(context.Background(), task); err != nil {
+				return err
+			}
+			// Schedule re-queue after backoff without blocking the worker
+			time.AfterFunc(backoff, func() {
+				s.enqueue(task.ID)
+			})
+			return nil
+		}
+		// Max retries exceeded, mark as failed
 		now := time.Now()
 		task.Status = TaskFailed
 		task.EndTime = &now
@@ -416,8 +453,13 @@ func (s *Service) executeUpload(ctx context.Context, task *TransferTask) error {
 	reader := newProgressReader(file, func(n int64) {
 		s.updateTaskProgress(task, n)
 	})
+	// Apply global rate limiting if configured
+	var finalReader io.Reader = reader
+	if s.globalLimiter != nil && s.globalLimiter.Limit() > 0 {
+		finalReader = s.wrapWithRateLimiter(ctx, reader)
+	}
 	contentType := detectContentType(task.Key)
-	if err := client.Objects().UploadObject(ctx, task.Bucket, task.Key, reader, stat.Size(), contentType); err != nil {
+	if err := client.Objects().UploadObject(ctx, task.Bucket, task.Key, finalReader, stat.Size(), contentType); err != nil {
 		return err
 	}
 	s.persistTask(task)
@@ -451,7 +493,12 @@ func (s *Service) executeDownload(ctx context.Context, task *TransferTask) error
 	reader := newProgressReader(download.Body, func(n int64) {
 		s.updateTaskProgress(task, n)
 	})
-	if _, err := io.Copy(file, reader); err != nil {
+	// Apply global rate limiting if configured
+	var finalReader io.Reader = reader
+	if s.globalLimiter != nil && s.globalLimiter.Limit() > 0 {
+		finalReader = s.wrapWithRateLimiter(ctx, reader)
+	}
+	if _, err := io.Copy(file, finalReader); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 	s.persistTask(task)
@@ -635,4 +682,49 @@ func detectContentType(key string) string {
 // mimeTypeByExtension is separated to avoid pulling the entire mime package during tests.
 func mimeTypeByExtension(ext string) string { //nolint:unparam
 	return mime.TypeByExtension(ext)
+}
+
+// computeBackoff returns exponential backoff duration: 1s, 2s, 4s, 8s... capped at 30s.
+func (s *Service) computeBackoff(attempt int) time.Duration {
+	if attempt <= 0 {
+		attempt = 1
+	}
+	backoff := time.Duration(1<<(attempt-1)) * time.Second
+	const maxBackoff = 30 * time.Second
+	if backoff > maxBackoff {
+		backoff = maxBackoff
+	}
+	return backoff
+}
+
+// wrapWithRateLimiter wraps a reader with rate limiting.
+func (s *Service) wrapWithRateLimiter(ctx context.Context, r io.Reader) io.Reader {
+	if s.globalLimiter == nil {
+		return r
+	}
+	return &rateLimitedReader{
+		reader:  r,
+		limiter: s.globalLimiter,
+		ctx:     ctx,
+	}
+}
+
+// rateLimitedReader wraps an io.Reader and applies rate limiting.
+// Tokens are consumed AFTER read based on actual bytes read, not buffer size.
+type rateLimitedReader struct {
+	reader  io.Reader
+	limiter *RateLimiter
+	ctx     context.Context
+}
+
+func (r *rateLimitedReader) Read(p []byte) (int, error) {
+	// Read first, then consume tokens based on actual bytes read
+	n, err := r.reader.Read(p)
+	if n > 0 {
+		// Consume tokens based on actual bytes read
+		if waitErr := r.limiter.WaitAndConsume(r.ctx, int64(n)); waitErr != nil {
+			return n, waitErr
+		}
+	}
+	return n, err
 }
