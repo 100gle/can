@@ -58,13 +58,13 @@
 4. 返回结果和错误信息
 
 ## 开发任务清单
-- [ ] 设计权限配置数据结构
-- [ ] 实现调用S3 GetBucketPolicy/PutBucketPolicy API
-- [ ] 实现调用S3 GetBucketAcl/PutBucketAcl API
-- [ ] 开发JSON编辑器组件
-- [ ] 实现Policy格式验证
-- [ ] 构建ACL管理UI
-- [ ] 实现服务商特有选项显示
-- [ ] 添加权限变更确认流程
-- [ ] 实现错误处理和提示
-- [ ] 添加权限配置日志记录
+- [x] 设计权限配置数据结构
+- [x] 实现调用S3 GetBucketPolicy/PutBucketPolicy API
+- [x] 实现调用S3 GetBucketAcl/PutBucketAcl API
+- [x] 开发JSON编辑器组件
+- [x] 实现Policy格式验证
+- [x] 构建ACL管理UI
+- [x] 实现服务商特有选项显示
+- [x] 添加权限变更确认流程
+- [x] 实现错误处理和提示
+- [x] 添加权限配置日志记录
