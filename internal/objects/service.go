@@ -3,14 +3,20 @@ package objects
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"can/internal/accounts"
 	"can/internal/providers"
 	"can/internal/transfer"
+
+	"github.com/google/uuid"
+	"github.com/skip2/go-qrcode"
 )
 
 // Service exposes object CRUD operations.
@@ -18,11 +24,15 @@ type Service struct {
 	accounts  *accounts.Service
 	pool      providers.ClientPool
 	transfers *transfer.Service
+	history   LinkHistoryStore
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service) *Service {
-	return &Service{accounts: accounts, pool: pool, transfers: transfers}
+func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service, history LinkHistoryStore) *Service {
+	if history == nil {
+		history = NewMemoryLinkHistoryStore()
+	}
+	return &Service{accounts: accounts, pool: pool, transfers: transfers, history: history}
 }
 
 // ListObjects returns a single page of objects for the requested prefix.
@@ -68,15 +78,58 @@ func (s *Service) UploadObject(ctx context.Context, accountID, bucket, key, file
 
 // DownloadObject enqueues a download task handled by the transfer service.
 func (s *Service) DownloadObject(ctx context.Context, accountID, bucket, key, savePath string) (*transfer.TransferTask, error) {
+	return s.DownloadObjectWithOptions(ctx, accountID, DownloadObjectInput{
+		Bucket:   bucket,
+		Key:      key,
+		SavePath: savePath,
+	})
+}
+
+// DownloadObjectWithOptions allows callers to customize download behavior.
+func (s *Service) DownloadObjectWithOptions(ctx context.Context, accountID string, input DownloadObjectInput) (*transfer.TransferTask, error) {
 	if s.transfers == nil {
 		return nil, errors.New("transfer service not configured")
 	}
-	return s.transfers.EnqueueDownload(ctx, transfer.DownloadRequest{
-		AccountID: accountID,
-		Bucket:    bucket,
-		Key:       key,
-		SavePath:  savePath,
-	})
+	req := transfer.DownloadRequest{
+		AccountID:        accountID,
+		Bucket:           input.Bucket,
+		Key:              input.Key,
+		SavePath:         input.SavePath,
+		TargetDirectory:  input.TargetDirectory,
+		ConflictStrategy: parseConflictStrategy(input.ConflictStrategy),
+		DisableResume:    input.DisableResume,
+		VersionID:        input.VersionID,
+		ExpectedETag:     input.ExpectedETag,
+	}
+	return s.transfers.EnqueueDownload(ctx, req)
+}
+
+// DownloadBatch bundles multiple objects into a single archive download.
+func (s *Service) DownloadBatch(ctx context.Context, accountID string, input DownloadBatchInput) (*transfer.TransferTask, error) {
+	if s.transfers == nil {
+		return nil, errors.New("transfer service not configured")
+	}
+	entries := make([]transfer.DownloadEntry, 0, len(input.Entries))
+	for _, entry := range input.Entries {
+		entries = append(entries, transfer.DownloadEntry{
+			Bucket:       entry.Bucket,
+			Key:          entry.Key,
+			RelativePath: entry.RelativePath,
+			Size:         entry.Size,
+			VersionID:    entry.VersionID,
+			IsDir:        entry.IsDir,
+		})
+	}
+	req := transfer.DownloadRequest{
+		AccountID:        accountID,
+		Bucket:           input.Bucket,
+		Mode:             transfer.DownloadModeArchive,
+		Entries:          entries,
+		ArchiveName:      input.ArchiveName,
+		TargetDirectory:  input.TargetDirectory,
+		ConflictStrategy: parseConflictStrategy(input.ConflictStrategy),
+	}
+	return s.transfers.EnqueueDownload(ctx, req)
 }
 
 // DeleteObject removes a single object from the bucket.
@@ -351,7 +404,12 @@ func (s *Service) GetPresignedURL(
 		expirationSeconds = maxTTL
 	}
 	duration := time.Duration(expirationSeconds) * time.Second
-	url, err := client.Objects().PresignURL(ctx, bucket, key, duration, method)
+	url, err := client.Objects().PresignURL(ctx, providers.PresignRequest{
+		Bucket:     bucket,
+		Key:        key,
+		Method:     method,
+		Expiration: duration,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -446,6 +504,103 @@ func (s *Service) AbortMultipartUpload(ctx context.Context, accountID, bucket, k
 		return errors.New("upload id is required")
 	}
 	return client.Objects().AbortMultipartUpload(ctx, bucket, key, uploadID)
+}
+
+// GenerateAccessLinks builds presigned URLs (one per method) and stores them in history.
+func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, input AccessLinkRequest) ([]AccessLink, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
+		return nil, errors.New("bucket is required")
+	}
+	if key == "" {
+		return nil, errors.New("object key is required")
+	}
+	methods := normalizeMethods(input.Methods)
+	expiresIn := normalizeExpiration(input.ExpirationSeconds)
+	baseHeaders := mergeResponseHeaders(input.FileName, input.ResponseHeaders)
+	label := input.FileName
+	if strings.TrimSpace(label) == "" {
+		label = filepath.Base(key)
+	}
+	results := make([]AccessLink, 0, len(methods))
+	now := time.Now()
+	if s.history != nil {
+		_ = s.history.Cleanup(ctx, now)
+	}
+	for _, method := range methods {
+		req := providers.PresignRequest{
+			Bucket:          bucket,
+			Key:             key,
+			Method:          method,
+			Expiration:      expiresIn,
+			VersionID:       input.VersionID,
+			ResponseHeaders: baseHeaders,
+		}
+		url, err := client.Objects().PresignURL(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		qr, err := qrDataURI(url)
+		if err != nil {
+			return nil, err
+		}
+		expiresAt := now.Add(expiresIn)
+		entry := LinkHistoryEntry{
+			ID:              uuid.NewString(),
+			AccountID:       accountID,
+			Bucket:          bucket,
+			Key:             key,
+			Method:          method,
+			URL:             url,
+			FileName:        input.FileName,
+			ExpiresAt:       expiresAt,
+			CreatedAt:       now,
+			ResponseHeaders: cloneHeaders(baseHeaders),
+		}
+		if s.history != nil {
+			if err := s.history.Save(ctx, &entry); err != nil {
+				return nil, err
+			}
+		}
+		results = append(results, AccessLink{
+			ID:              entry.ID,
+			Method:          method,
+			URL:             url,
+			ExpiresAt:       expiresAt,
+			Markdown:        fmt.Sprintf("[%s](%s)", label, url),
+			HTML:            fmt.Sprintf("<a href=\"%s\">%s</a>", url, label),
+			QRCode:          qr,
+			ResponseHeaders: cloneHeaders(baseHeaders),
+		})
+	}
+	return results, nil
+}
+
+// ListAccessLinkHistory returns the latest generated links for an account.
+func (s *Service) ListAccessLinkHistory(ctx context.Context, accountID string, limit int) ([]LinkHistoryEntry, error) {
+	if s.history == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if err := s.history.Cleanup(ctx, time.Now()); err != nil {
+		return nil, err
+	}
+	return s.history.List(ctx, accountID, limit)
+}
+
+// DeleteAccessLinkHistory removes a saved link from history.
+func (s *Service) DeleteAccessLinkHistory(ctx context.Context, accountID, id string) error {
+	if s.history == nil {
+		return nil
+	}
+	return s.history.Delete(ctx, accountID, strings.TrimSpace(id))
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
@@ -579,4 +734,80 @@ func convertAccessGrants(grants []providers.AccessGrant) []AccessGrant {
 		})
 	}
 	return out
+}
+
+func parseConflictStrategy(value string) transfer.FileConflictStrategy {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case string(transfer.ConflictStrategyRename):
+		return transfer.ConflictStrategyRename
+	default:
+		return transfer.ConflictStrategyOverwrite
+	}
+}
+
+func normalizeMethods(methods []string) []string {
+	result := make([]string, 0, len(methods))
+	for _, method := range methods {
+		trimmed := strings.ToUpper(strings.TrimSpace(method))
+		if trimmed == "" {
+			continue
+		}
+		switch trimmed {
+		case http.MethodGet, http.MethodPut, http.MethodHead, http.MethodDelete:
+			result = append(result, trimmed)
+		}
+	}
+	if len(result) == 0 {
+		return []string{http.MethodGet}
+	}
+	return result
+}
+
+func normalizeExpiration(seconds int64) time.Duration {
+	if seconds <= 0 {
+		return time.Hour
+	}
+	max := int64((7 * 24 * time.Hour) / time.Second)
+	if seconds > max {
+		seconds = max
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+func mergeResponseHeaders(fileName string, headers map[string]string) map[string]string {
+	merged := make(map[string]string, len(headers)+1)
+	for k, v := range headers {
+		if strings.TrimSpace(k) == "" || strings.TrimSpace(v) == "" {
+			continue
+		}
+		merged[strings.ToLower(k)] = v
+	}
+	if strings.TrimSpace(fileName) != "" {
+		disposition := fmt.Sprintf("attachment; filename=\"%s\"", fileName)
+		merged["content-disposition"] = disposition
+	}
+	return merged
+}
+
+func cloneHeaders(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	clone := make(map[string]string, len(headers))
+	for k, v := range headers {
+		clone[k] = v
+	}
+	return clone
+}
+
+func qrDataURI(url string) (string, error) {
+	if strings.TrimSpace(url) == "" {
+		return "", errors.New("url is required")
+	}
+	png, err := qrcode.Encode(url, qrcode.Medium, 256)
+	if err != nil {
+		return "", err
+	}
+	encoded := base64.StdEncoding.EncodeToString(png)
+	return "data:image/png;base64," + encoded, nil
 }

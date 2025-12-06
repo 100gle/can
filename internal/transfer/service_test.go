@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
@@ -58,6 +59,152 @@ func TestEnqueueDownloadCreatesFile(t *testing.T) {
 	}
 	if string(data) != "download-me" {
 		t.Fatalf("unexpected file content %q", string(data))
+	}
+}
+
+func TestDownloadResumesFromExistingFile(t *testing.T) {
+	driver := newFakeObjectDriver()
+	payload := bytes.Repeat([]byte("resume"), 512)
+	driver.setObject("docs", "big.bin", payload)
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+	target := filepath.Join(dir, "big.bin")
+	partial := payload[:len(payload)/2]
+	if err := os.WriteFile(target, partial, 0o644); err != nil {
+		t.Fatalf("write partial file: %v", err)
+	}
+	task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+		AccountID: accountID,
+		Bucket:    "docs",
+		Key:       "big.bin",
+		SavePath:  target,
+	})
+	if err != nil {
+		t.Fatalf("enqueue download: %v", err)
+	}
+	waitForStatus(t, svc, task.ID, TaskCompleted)
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if !bytes.Equal(data, payload) {
+		t.Fatalf("expected download to resume, got %d bytes", len(data))
+	}
+	driver.mu.Lock()
+	input := driver.last
+	driver.mu.Unlock()
+	if input.RangeStart == nil || *input.RangeStart != int64(len(partial)) {
+		t.Fatalf("expected range start %d, got %+v", len(partial), input.RangeStart)
+	}
+}
+
+func TestArchiveDownloadCreatesZip(t *testing.T) {
+	driver := newFakeObjectDriver()
+	driver.setObject("docs", "a.txt", []byte("alpha"))
+	driver.setObject("docs", "folder/b.txt", []byte("beta"))
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+	archive := filepath.Join(dir, "bundle.zip")
+	entries := []DownloadEntry{
+		{Bucket: "docs", Key: "a.txt", RelativePath: "pkg/a.txt", Size: 5},
+		{Bucket: "docs", Key: "folder/b.txt", RelativePath: "pkg/sub/b.txt", Size: 4},
+	}
+	task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+		AccountID:   accountID,
+		Bucket:      "docs",
+		Mode:        DownloadModeArchive,
+		Entries:     entries,
+		ArchiveName: "bundle.zip",
+		SavePath:    archive,
+	})
+	if err != nil {
+		t.Fatalf("enqueue archive download: %v", err)
+	}
+	waitForStatus(t, svc, task.ID, TaskCompleted)
+	r, err := zip.OpenReader(archive)
+	if err != nil {
+		t.Fatalf("open archive: %v", err)
+	}
+	defer r.Close()
+	files := map[string]string{}
+	for _, f := range r.File {
+		reader, err := f.Open()
+		if err != nil {
+			t.Fatalf("open zip entry: %v", err)
+		}
+		content, err := io.ReadAll(reader)
+		reader.Close()
+		if err != nil {
+			t.Fatalf("read zip entry: %v", err)
+		}
+		files[f.Name] = string(content)
+	}
+	if files["pkg/a.txt"] != "alpha" {
+		t.Fatalf("missing first file in archive: %#v", files)
+	}
+	if files["pkg/sub/b.txt"] != "beta" {
+		t.Fatalf("missing second file in archive: %#v", files)
+	}
+}
+
+func TestArchiveDownloadUnknownSizesUpdateTotal(t *testing.T) {
+	driver := newFakeObjectDriver()
+	alpha := []byte("alpha")
+	beta := []byte("beta-data")
+	driver.setObject("docs", "alpha.bin", alpha)
+	driver.setObject("docs", "nested/beta.bin", beta)
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+	entries := []DownloadEntry{
+		{Bucket: "docs", Key: "alpha.bin", RelativePath: "alpha.bin", Size: 0},
+		{Bucket: "docs", Key: "nested/beta.bin", RelativePath: "pkg/beta.bin", Size: 0},
+	}
+	task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+		AccountID: accountID,
+		Mode:      DownloadModeArchive,
+		Entries:   entries,
+		SavePath:  filepath.Join(dir, "bundle.zip"),
+	})
+	if err != nil {
+		t.Fatalf("enqueue archive download: %v", err)
+	}
+	finished := waitForStatus(t, svc, task.ID, TaskCompleted)
+	expected := int64(len(alpha) + len(beta))
+	if finished.Total != expected {
+		t.Fatalf("expected total %d, got %d", expected, finished.Total)
+	}
+}
+
+func TestDownloadRenameConflict(t *testing.T) {
+	driver := newFakeObjectDriver()
+	driver.setObject("docs", "report.pdf", []byte("new"))
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+	target := filepath.Join(dir, "report.pdf")
+	if err := os.WriteFile(target, []byte("existing"), 0o644); err != nil {
+		t.Fatalf("write existing file: %v", err)
+	}
+	task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+		AccountID:        accountID,
+		Bucket:           "docs",
+		Key:              "report.pdf",
+		SavePath:         target,
+		ConflictStrategy: ConflictStrategyRename,
+	})
+	if err != nil {
+		t.Fatalf("enqueue download: %v", err)
+	}
+	waitForStatus(t, svc, task.ID, TaskCompleted)
+	renamed := filepath.Join(dir, "report (1).pdf")
+	if _, err := os.Stat(renamed); err != nil {
+		t.Fatalf("expected renamed file to exist: %v", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read original file: %v", err)
+	}
+	if string(data) != "existing" {
+		t.Fatalf("original file should remain untouched, got %q", string(data))
 	}
 }
 
@@ -160,6 +307,7 @@ func (f *fakeStorageClient) Objects() providers.ObjectDriver {
 type fakeObjectDriver struct {
 	mu      sync.Mutex
 	objects map[string][]byte
+	last    providers.DownloadObjectInput
 }
 
 func newFakeObjectDriver() *fakeObjectDriver {
@@ -197,15 +345,30 @@ func (d *fakeObjectDriver) UploadObject(ctx context.Context, bucket, key string,
 	return nil
 }
 
-func (d *fakeObjectDriver) DownloadObject(ctx context.Context, bucket, key string) (providers.ObjectDownload, error) {
-	data := d.object(bucket, key)
+func (d *fakeObjectDriver) DownloadObject(ctx context.Context, input providers.DownloadObjectInput) (providers.ObjectDownload, error) {
+	d.mu.Lock()
+	d.last = input
+	d.mu.Unlock()
+	data := d.object(input.Bucket, input.Key)
 	if len(data) == 0 {
 		return providers.ObjectDownload{}, errors.New("object not found")
 	}
-	reader := io.NopCloser(bytes.NewReader(data))
+	start := int64(0)
+	end := int64(len(data))
+	if input.RangeStart != nil && *input.RangeStart > 0 {
+		if *input.RangeStart >= end {
+			return providers.ObjectDownload{}, errors.New("range exceeds object")
+		}
+		start = *input.RangeStart
+	}
+	if input.RangeEnd != nil && *input.RangeEnd >= 0 && *input.RangeEnd < end {
+		end = *input.RangeEnd + 1
+	}
+	slice := data[start:end]
+	reader := io.NopCloser(bytes.NewReader(slice))
 	return providers.ObjectDownload{
 		Body:          reader,
-		ContentLength: int64(len(data)),
+		ContentLength: int64(len(slice)),
 	}, nil
 }
 
@@ -221,7 +384,7 @@ func (d *fakeObjectDriver) HeadObject(context.Context, string, string) (provider
 	return providers.ObjectDescriptor{}, nil
 }
 
-func (d *fakeObjectDriver) PresignURL(context.Context, string, string, time.Duration, string) (string, error) {
+func (d *fakeObjectDriver) PresignURL(context.Context, providers.PresignRequest) (string, error) {
 	return "", nil
 }
 

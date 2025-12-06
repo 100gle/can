@@ -87,3 +87,71 @@ type BatchAttributesResult struct {
 	Succeeded int                     `json:"succeeded"`
 	Failed    []BatchOperationFailure `json:"failed"`
 }
+
+// DownloadObjectInput describes advanced download preferences for a single object.
+type DownloadObjectInput struct {
+	Bucket           string `json:"bucket"`
+	Key              string `json:"key"`
+	SavePath         string `json:"savePath"`
+	TargetDirectory  string `json:"targetDirectory"`
+	ConflictStrategy string `json:"conflictStrategy"`
+	DisableResume    bool   `json:"disableResume"`
+	VersionID        string `json:"versionId"`
+	ExpectedETag     string `json:"expectedEtag"`
+}
+
+// DownloadBatchInput bundles multiple objects into a single archive download.
+type DownloadBatchInput struct {
+	Bucket           string               `json:"bucket"`
+	Entries          []DownloadBatchEntry `json:"entries"`
+	TargetDirectory  string               `json:"targetDirectory"`
+	ArchiveName      string               `json:"archiveName"`
+	ConflictStrategy string               `json:"conflictStrategy"`
+}
+
+// DownloadBatchEntry represents a single source object when building an archive.
+type DownloadBatchEntry struct {
+	Bucket       string `json:"bucket"`
+	Key          string `json:"key"`
+	RelativePath string `json:"relativePath"`
+	Size         int64  `json:"size"`
+	VersionID    string `json:"versionId"`
+	IsDir        bool   `json:"isDir"`
+}
+
+// AccessLinkRequest controls presigned URL generation.
+type AccessLinkRequest struct {
+	Bucket            string            `json:"bucket"`
+	Key               string            `json:"key"`
+	Methods           []string          `json:"methods"`
+	ExpirationSeconds int64             `json:"expirationSeconds"`
+	ResponseHeaders   map[string]string `json:"responseHeaders"`
+	FileName          string            `json:"fileName"`
+	VersionID         string            `json:"versionId"`
+}
+
+// AccessLink describes a generated presigned URL plus helper representations.
+type AccessLink struct {
+	ID              string            `json:"id"`
+	Method          string            `json:"method"`
+	URL             string            `json:"url"`
+	ExpiresAt       time.Time         `json:"expiresAt" ts_type:"string"`
+	Markdown        string            `json:"markdown"`
+	HTML            string            `json:"html"`
+	QRCode          string            `json:"qrCode"`
+	ResponseHeaders map[string]string `json:"responseHeaders"`
+}
+
+// LinkHistoryEntry persists generated links for quick recall.
+type LinkHistoryEntry struct {
+	ID              string            `json:"id"`
+	AccountID       string            `json:"accountId"`
+	Bucket          string            `json:"bucket"`
+	Key             string            `json:"key"`
+	Method          string            `json:"method"`
+	URL             string            `json:"url"`
+	FileName        string            `json:"fileName"`
+	ExpiresAt       time.Time         `json:"expiresAt" ts_type:"string"`
+	CreatedAt       time.Time         `json:"createdAt" ts_type:"string"`
+	ResponseHeaders map[string]string `json:"responseHeaders"`
+}

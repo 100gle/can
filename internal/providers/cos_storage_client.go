@@ -286,16 +286,29 @@ func (d *cosObjectDriver) UploadObject(ctx context.Context, bucket, key string, 
 	return nil
 }
 
-func (d *cosObjectDriver) DownloadObject(ctx context.Context, bucket, key string) (ObjectDownload, error) {
+func (d *cosObjectDriver) DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error) {
 	var download ObjectDownload
-	if strings.TrimSpace(key) == "" {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
+		return download, errors.New("bucket is required")
+	}
+	if key == "" {
 		return download, errors.New("object key is required")
 	}
 	client, err := d.clientFor(bucket)
 	if err != nil {
 		return download, err
 	}
-	resp, err := client.Object.Get(ctx, key, nil)
+	options := &cos.ObjectGetOptions{}
+	if rng := buildHTTPRange(input.RangeStart, input.RangeEnd); rng != "" {
+		options.Range = rng
+	}
+	var versionArgs []string
+	if input.VersionID != "" {
+		versionArgs = append(versionArgs, input.VersionID)
+	}
+	resp, err := client.Object.Get(ctx, key, options, versionArgs...)
 	if err != nil {
 		return download, wrapCOSError("下载对象", err)
 	}
@@ -381,24 +394,38 @@ func extractCOSMeta(header http.Header) map[string]string {
 	return result
 }
 
-func (d *cosObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
+func (d *cosObjectDriver) PresignURL(ctx context.Context, input PresignRequest) (string, error) {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
 	client, err := d.clientFor(bucket)
 	if err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(key) == "" {
+	if key == "" {
 		return "", errors.New("object key is required")
 	}
+	expiration := input.Expiration
 	if expiration <= 0 {
 		expiration = time.Hour
 	}
 	if expiration > 7*24*time.Hour {
 		expiration = 7 * 24 * time.Hour
 	}
-	if strings.TrimSpace(method) == "" {
+	method := strings.ToUpper(strings.TrimSpace(input.Method))
+	if method == "" {
 		method = http.MethodGet
 	}
-	u, err := client.Object.GetPresignedURL2(ctx, strings.ToUpper(method), key, expiration, nil)
+	options := &cos.PresignedURLOptions{}
+	if q := responseHeaderQuery(input.ResponseHeaders); q != nil {
+		options.Query = q
+	}
+	if input.VersionID != "" {
+		if options.Query == nil {
+			options.Query = &url.Values{}
+		}
+		options.Query.Set("versionId", input.VersionID)
+	}
+	u, err := client.Object.GetPresignedURL2(ctx, method, key, expiration, options)
 	if err != nil {
 		return "", wrapCOSError("生成预签名链接", err)
 	}

@@ -42,11 +42,11 @@ func (d *MonitoringObjectDriver) UploadObject(ctx context.Context, bucket, key s
 	return err
 }
 
-func (d *MonitoringObjectDriver) DownloadObject(ctx context.Context, bucket, key string) (ObjectDownload, error) {
+func (d *MonitoringObjectDriver) DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error) {
 	// We can't easily measure exact bytes read here unless we wrap the ReadCloser.
 	// For now, we'll try to get size from HeadObject if we can, or just count the request.
 	// Actually, ObjectDownload has ContentLength.
-	download, err := d.ObjectDriver.DownloadObject(ctx, bucket, key)
+	download, err := d.ObjectDriver.DownloadObject(ctx, input)
 	if err == nil {
 		// Log download traffic (estimated by content length)
 		_ = d.analytics.RecordActivity(ctx, d.provider, 0, download.ContentLength)

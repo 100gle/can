@@ -238,18 +238,27 @@ func (d *s3ObjectDriver) UploadObject(ctx context.Context, bucket, key string, b
 	return nil
 }
 
-func (d *s3ObjectDriver) DownloadObject(ctx context.Context, bucket, key string) (ObjectDownload, error) {
+func (d *s3ObjectDriver) DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error) {
 	var download ObjectDownload
-	if strings.TrimSpace(bucket) == "" {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
 		return download, errors.New("bucket is required")
 	}
-	if strings.TrimSpace(key) == "" {
+	if key == "" {
 		return download, errors.New("object key is required")
 	}
-	resp, err := d.client.GetObject(ctx, &s3.GetObjectInput{
+	params := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-	})
+	}
+	if input.VersionID != "" {
+		params.VersionId = aws.String(input.VersionID)
+	}
+	if rng := buildHTTPRange(input.RangeStart, input.RangeEnd); rng != "" {
+		params.Range = aws.String(rng)
+	}
+	resp, err := d.client.GetObject(ctx, params)
 	if err != nil {
 		return download, WrapS3Error("下载对象", err)
 	}
@@ -336,30 +345,66 @@ func cloneMetadata(src map[string]string) map[string]string {
 	return dst
 }
 
-func (d *s3ObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
-	if strings.TrimSpace(bucket) == "" {
+func applyS3ResponseHeaders(input *s3.GetObjectInput, headers map[string]string) {
+	if input == nil || len(headers) == 0 {
+		return
+	}
+	for key, value := range headers {
+		lower := strings.ToLower(strings.TrimSpace(key))
+		if value == "" {
+			continue
+		}
+		switch lower {
+		case "content-type":
+			input.ResponseContentType = aws.String(value)
+		case "content-disposition":
+			input.ResponseContentDisposition = aws.String(value)
+		case "cache-control":
+			input.ResponseCacheControl = aws.String(value)
+		case "content-language":
+			input.ResponseContentLanguage = aws.String(value)
+		case "content-encoding":
+			input.ResponseContentEncoding = aws.String(value)
+		}
+	}
+}
+
+func (d *s3ObjectDriver) PresignURL(ctx context.Context, input PresignRequest) (string, error) {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
 		return "", errors.New("bucket is required")
 	}
-	if strings.TrimSpace(key) == "" {
+	if key == "" {
 		return "", errors.New("object key is required")
 	}
 	raw, ok := d.client.(*s3.Client)
 	if !ok {
 		return "", errors.New("presign not supported for this client")
 	}
+	expiration := input.Expiration
 	if expiration <= 0 {
 		expiration = time.Hour
 	}
 	if expiration > 7*24*time.Hour {
 		expiration = 7 * 24 * time.Hour
 	}
+	method := strings.ToUpper(strings.TrimSpace(input.Method))
+	if method == "" {
+		method = http.MethodGet
+	}
 	presign := s3.NewPresignClient(raw)
-	switch strings.ToUpper(strings.TrimSpace(method)) {
-	case "", http.MethodGet:
-		out, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
+	switch method {
+	case http.MethodGet:
+		params := &s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
-		}, func(opts *s3.PresignOptions) {
+		}
+		if input.VersionID != "" {
+			params.VersionId = aws.String(input.VersionID)
+		}
+		applyS3ResponseHeaders(params, input.ResponseHeaders)
+		out, err := presign.PresignGetObject(ctx, params, func(opts *s3.PresignOptions) {
 			opts.Expires = expiration
 		})
 		if err != nil {
@@ -367,14 +412,42 @@ func (d *s3ObjectDriver) PresignURL(ctx context.Context, bucket, key string, exp
 		}
 		return out.URL, nil
 	case http.MethodPut:
-		out, err := presign.PresignPutObject(ctx, &s3.PutObjectInput{
+		params := &s3.PutObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
-		}, func(opts *s3.PresignOptions) {
+		}
+		out, err := presign.PresignPutObject(ctx, params, func(opts *s3.PresignOptions) {
 			opts.Expires = expiration
 		})
 		if err != nil {
 			return "", WrapS3Error("生成上传链接", err)
+		}
+		return out.URL, nil
+	case http.MethodHead:
+		params := &s3.HeadObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		}
+		if input.VersionID != "" {
+			params.VersionId = aws.String(input.VersionID)
+		}
+		out, err := presign.PresignHeadObject(ctx, params, func(opts *s3.PresignOptions) {
+			opts.Expires = expiration
+		})
+		if err != nil {
+			return "", WrapS3Error("生成校验链接", err)
+		}
+		return out.URL, nil
+	case http.MethodDelete:
+		params := &s3.DeleteObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		}
+		out, err := presign.PresignDeleteObject(ctx, params, func(opts *s3.PresignOptions) {
+			opts.Expires = expiration
+		})
+		if err != nil {
+			return "", WrapS3Error("生成删除链接", err)
 		}
 		return out.URL, nil
 	default:

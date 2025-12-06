@@ -3,9 +3,10 @@ package objects
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"strings"
 	"testing"
-	"time"
 
 	"can/internal/accounts"
 	"can/internal/providers"
@@ -193,12 +194,16 @@ func (s *stubObjectDriver) UploadObject(context.Context, string, string, io.Read
 	return nil
 }
 
-func (s *stubObjectDriver) DownloadObject(context.Context, string, string) (providers.ObjectDownload, error) {
+func (s *stubObjectDriver) DownloadObject(context.Context, providers.DownloadObjectInput) (providers.ObjectDownload, error) {
 	return providers.ObjectDownload{}, nil
 }
 
-func (s *stubObjectDriver) PresignURL(context.Context, string, string, time.Duration, string) (string, error) {
-	return "", nil
+func (s *stubObjectDriver) PresignURL(_ context.Context, req providers.PresignRequest) (string, error) {
+	method := strings.ToLower(strings.TrimSpace(req.Method))
+	if method == "" {
+		method = "get"
+	}
+	return fmt.Sprintf("https://example.com/%s/%s", method, req.Key), nil
 }
 
 func (s *stubObjectDriver) InitiateMultipartUpload(context.Context, string, string) (string, error) {
@@ -215,6 +220,43 @@ func (s *stubObjectDriver) CompleteMultipartUpload(context.Context, string, stri
 
 func (s *stubObjectDriver) AbortMultipartUpload(context.Context, string, string, string) error {
 	return nil
+}
+
+func TestGenerateAccessLinksStoresHistory(t *testing.T) {
+	driver := newStubObjectDriver()
+	svc, accountID := newTestObjectsService(t, driver)
+	ctx := context.Background()
+	links, err := svc.GenerateAccessLinks(ctx, accountID, AccessLinkRequest{
+		Bucket:            "docs",
+		Key:               "report.pdf",
+		Methods:           []string{"GET", "HEAD"},
+		ExpirationSeconds: 120,
+		FileName:          "report.pdf",
+	})
+	if err != nil {
+		t.Fatalf("generate links: %v", err)
+	}
+	if len(links) != 2 {
+		t.Fatalf("expected 2 links, got %d", len(links))
+	}
+	for _, link := range links {
+		if !strings.HasPrefix(link.QRCode, "data:image/png;base64,") {
+			t.Fatalf("link %s missing qr data", link.Method)
+		}
+		if link.Markdown == "" || link.HTML == "" {
+			t.Fatalf("link %s missing representations", link.Method)
+		}
+	}
+	history, err := svc.ListAccessLinkHistory(ctx, accountID, 10)
+	if err != nil {
+		t.Fatalf("list history: %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("expected 2 history entries, got %d", len(history))
+	}
+	if err := svc.DeleteAccessLinkHistory(ctx, accountID, history[0].ID); err != nil {
+		t.Fatalf("delete history: %v", err)
+	}
 }
 
 func (s *stubObjectDriver) GetObjectTags(context.Context, string, string) (map[string]string, error) {
@@ -333,6 +375,6 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Servic
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
 	pool := providers.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
-	service := NewService(accountSvc, pool, nil)
+	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore())
 	return service, account.ID
 }

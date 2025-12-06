@@ -10,6 +10,7 @@ require (
 	github.com/aws/smithy-go v1.24.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/google/uuid v1.6.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.71
 	github.com/wailsapp/wails/v2 v2.11.0
 	gorm.io/gorm v1.31.1

@@ -54,6 +54,15 @@ type ObjectDownload struct {
 	ETag          string
 }
 
+// DownloadObjectInput describes a ranged/object-version download request.
+type DownloadObjectInput struct {
+	Bucket     string
+	Key        string
+	VersionID  string
+	RangeStart *int64
+	RangeEnd   *int64
+}
+
 // BucketDriver exposes bucket-level operations for a provider.
 type BucketDriver interface {
 	ListBuckets(ctx context.Context) ([]BucketDescriptor, error)
@@ -67,11 +76,11 @@ type BucketDriver interface {
 type ObjectDriver interface {
 	ListObjects(ctx context.Context, input ListObjectsInput) (ListObjectsResult, error)
 	UploadObject(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error
-	DownloadObject(ctx context.Context, bucket, key string) (ObjectDownload, error)
+	DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error)
 	DeleteObject(ctx context.Context, bucket, key string) error
 	CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error
 	HeadObject(ctx context.Context, bucket, key string) (ObjectDescriptor, error)
-	PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error)
+	PresignURL(ctx context.Context, input PresignRequest) (string, error)
 	InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error)
 	UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error)
 	CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error
@@ -103,6 +112,16 @@ type AccessGrant struct {
 	GranteeType string `json:"granteeType"`
 	Grantee     string `json:"grantee"`
 	Permission  string `json:"permission"`
+}
+
+// PresignRequest captures the knobs for building a pre-signed URL.
+type PresignRequest struct {
+	Bucket          string
+	Key             string
+	Method          string
+	Expiration      time.Duration
+	VersionID       string
+	ResponseHeaders map[string]string
 }
 
 // StorageClient bundles bucket/object drivers plus capability metadata.

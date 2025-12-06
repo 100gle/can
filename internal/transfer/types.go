@@ -35,29 +35,68 @@ const (
 	PriorityCritical Priority = 3
 )
 
+// DownloadMode distinguishes between single-object and archive tasks.
+type DownloadMode string
+
+const (
+	DownloadModeSingle  DownloadMode = "single"
+	DownloadModeArchive DownloadMode = "archive"
+)
+
+// FileConflictStrategy defines how to handle local name collisions.
+type FileConflictStrategy string
+
+const (
+	ConflictStrategyOverwrite FileConflictStrategy = "overwrite"
+	ConflictStrategyRename    FileConflictStrategy = "rename"
+)
+
+// DownloadEntry describes a single object that will be bundled into an archive download.
+type DownloadEntry struct {
+	Bucket       string `json:"bucket"`
+	Key          string `json:"key"`
+	RelativePath string `json:"relativePath"`
+	Size         int64  `json:"size"`
+	VersionID    string `json:"versionId"`
+	IsDir        bool   `json:"isDir"`
+}
+
+// DownloadConfig captures user preferences for downloads.
+type DownloadConfig struct {
+	Mode             DownloadMode         `json:"mode"`
+	TargetDirectory  string               `json:"targetDirectory"`
+	ArchiveName      string               `json:"archiveName"`
+	ConflictStrategy FileConflictStrategy `json:"conflictStrategy"`
+	Entries          []DownloadEntry      `json:"entries"`
+	ResumeEnabled    bool                 `json:"resumeEnabled"`
+}
+
 // TransferTask describes the progress of an upload or download.
 type TransferTask struct {
-	ID             string         `json:"id"`
-	Type           TaskType       `json:"type"`
-	Priority       Priority       `json:"priority"`
-	AccountID      string         `json:"accountId"`
-	Bucket         string         `json:"bucket"`
-	Key            string         `json:"key"`
-	LocalPath      string         `json:"localPath,omitempty"`
-	Status         TaskStatus     `json:"status"`
-	Progress       int64          `json:"progress"`
-	Total          int64          `json:"total"`
-	Speed          int64          `json:"speed"`
-	EstimatedTime  int64          `json:"estimatedTime"`
-	StartTime      time.Time      `json:"startTime" ts_type:"string"`
-	EndTime        *time.Time     `json:"endTime,omitempty" ts_type:"string"`
-	Error          *string        `json:"error,omitempty"`
-	Retries        int            `json:"retries"`
-	MaxRetries     int            `json:"maxRetries"`
-	UploadID       string         `json:"uploadId,omitempty"`
-	CompletedParts map[int]string `json:"completedParts,omitempty"`
-	CreatedAt      time.Time      `json:"createdAt" ts_type:"string"`
-	UpdatedAt      time.Time      `json:"updatedAt" ts_type:"string"`
+	ID             string          `json:"id"`
+	Type           TaskType        `json:"type"`
+	Priority       Priority        `json:"priority"`
+	AccountID      string          `json:"accountId"`
+	Bucket         string          `json:"bucket"`
+	Key            string          `json:"key"`
+	LocalPath      string          `json:"localPath,omitempty"`
+	Status         TaskStatus      `json:"status"`
+	Progress       int64           `json:"progress"`
+	Total          int64           `json:"total"`
+	Speed          int64           `json:"speed"`
+	EstimatedTime  int64           `json:"estimatedTime"`
+	StartTime      time.Time       `json:"startTime" ts_type:"string"`
+	EndTime        *time.Time      `json:"endTime,omitempty" ts_type:"string"`
+	Error          *string         `json:"error,omitempty"`
+	Retries        int             `json:"retries"`
+	MaxRetries     int             `json:"maxRetries"`
+	UploadID       string          `json:"uploadId,omitempty"`
+	CompletedParts map[int]string  `json:"completedParts,omitempty"`
+	VersionID      string          `json:"versionId,omitempty"`
+	ETag           string          `json:"etag,omitempty"`
+	DownloadConfig *DownloadConfig `json:"downloadConfig,omitempty"`
+	CreatedAt      time.Time       `json:"createdAt" ts_type:"string"`
+	UpdatedAt      time.Time       `json:"updatedAt" ts_type:"string"`
 	cancel         context.CancelFunc
 	lastSampleTime time.Time
 	lastSnapshot   int64
@@ -83,6 +122,14 @@ func (t *TransferTask) clone() *TransferTask {
 		for k, v := range t.CompletedParts {
 			cp.CompletedParts[k] = v
 		}
+	}
+	if t.DownloadConfig != nil {
+		cfg := *t.DownloadConfig
+		if len(t.DownloadConfig.Entries) > 0 {
+			cfg.Entries = make([]DownloadEntry, len(t.DownloadConfig.Entries))
+			copy(cfg.Entries, t.DownloadConfig.Entries)
+		}
+		cp.DownloadConfig = &cfg
 	}
 	cp.cancel = nil
 	return &cp

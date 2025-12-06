@@ -236,17 +236,29 @@ func (d *ossObjectDriver) UploadObject(ctx context.Context, bucketName, key stri
 	return nil
 }
 
-func (d *ossObjectDriver) DownloadObject(ctx context.Context, bucketName, key string) (ObjectDownload, error) {
+func (d *ossObjectDriver) DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error) {
 	var download ObjectDownload
-	if strings.TrimSpace(key) == "" {
+	bucketName := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucketName == "" {
+		return download, errors.New("bucket is required")
+	}
+	if key == "" {
 		return download, errors.New("object key is required")
 	}
 	bucket, err := d.bucket(ctx, bucketName)
 	if err != nil {
 		return download, err
 	}
-	meta, _ := bucket.GetObjectDetailedMeta(key, oss.WithContext(ctx))
-	body, err := bucket.GetObject(key, oss.WithContext(ctx))
+	opts := []oss.Option{oss.WithContext(ctx)}
+	if input.VersionID != "" {
+		opts = append(opts, oss.VersionId(input.VersionID))
+	}
+	if rng := buildHTTPRange(input.RangeStart, input.RangeEnd); rng != "" {
+		opts = append(opts, oss.NormalizedRange(rng))
+	}
+	meta, _ := bucket.GetObjectDetailedMeta(key, opts...)
+	body, err := bucket.GetObject(key, opts...)
 	if err != nil {
 		return download, wrapOSSError("下载对象", err)
 	}
@@ -334,21 +346,49 @@ func extractOSSMeta(meta http.Header) map[string]string {
 	return result
 }
 
-func (d *ossObjectDriver) PresignURL(ctx context.Context, bucket, key string, expiration time.Duration, method string) (string, error) {
-	if strings.TrimSpace(key) == "" {
+func (d *ossObjectDriver) PresignURL(ctx context.Context, input PresignRequest) (string, error) {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
+		return "", errors.New("bucket is required")
+	}
+	if key == "" {
 		return "", errors.New("object key is required")
 	}
 	b, err := d.bucket(ctx, bucket)
 	if err != nil {
 		return "", err
 	}
+	expiration := input.Expiration
 	if expiration <= 0 {
 		expiration = time.Hour
 	}
-	if strings.TrimSpace(method) == "" {
+	if expiration > 7*24*time.Hour {
+		expiration = 7 * 24 * time.Hour
+	}
+	method := strings.ToUpper(strings.TrimSpace(input.Method))
+	if method == "" {
 		method = http.MethodGet
 	}
-	url, err := b.SignURL(key, oss.HTTPMethod(strings.ToUpper(method)), int64(expiration/time.Second))
+	opts := []oss.Option{oss.WithContext(ctx)}
+	if input.VersionID != "" {
+		opts = append(opts, oss.VersionId(input.VersionID))
+	}
+	for header, value := range input.ResponseHeaders {
+		switch strings.ToLower(strings.TrimSpace(header)) {
+		case "content-type":
+			opts = append(opts, oss.ResponseContentType(value))
+		case "content-disposition":
+			opts = append(opts, oss.ResponseContentDisposition(value))
+		case "cache-control":
+			opts = append(opts, oss.ResponseCacheControl(value))
+		case "content-language":
+			opts = append(opts, oss.ResponseContentLanguage(value))
+		case "content-encoding":
+			opts = append(opts, oss.ResponseContentEncoding(value))
+		}
+	}
+	url, err := b.SignURL(key, oss.HTTPMethod(method), int64(expiration/time.Second), opts...)
 	if err != nil {
 		return "", wrapOSSError("生成预签名链接", err)
 	}

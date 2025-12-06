@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
@@ -39,11 +40,19 @@ type UploadRequest struct {
 
 // DownloadRequest describes the metadata required to enqueue a download task.
 type DownloadRequest struct {
-	AccountID string
-	Bucket    string
-	Key       string
-	SavePath  string
-	Priority  Priority
+	AccountID        string
+	Bucket           string
+	Key              string
+	SavePath         string
+	TargetDirectory  string
+	Priority         Priority
+	Mode             DownloadMode
+	Entries          []DownloadEntry
+	ArchiveName      string
+	ConflictStrategy FileConflictStrategy
+	DisableResume    bool
+	VersionID        string
+	ExpectedETag     string
 }
 
 // Option mutates the transfer service configuration.
@@ -201,30 +210,89 @@ func (s *Service) EnqueueDownload(ctx context.Context, req DownloadRequest) (*Tr
 	req.Bucket = strings.TrimSpace(req.Bucket)
 	req.Key = strings.TrimSpace(req.Key)
 	req.SavePath = strings.TrimSpace(req.SavePath)
+	req.TargetDirectory = strings.TrimSpace(req.TargetDirectory)
 	if req.AccountID == "" {
 		return nil, errors.New("account id is required")
 	}
-	if req.Bucket == "" {
-		return nil, errors.New("bucket is required")
+	mode := req.Mode
+	if mode == "" {
+		if len(req.Entries) > 0 {
+			mode = DownloadModeArchive
+		} else {
+			mode = DownloadModeSingle
+		}
 	}
-	if req.Key == "" {
-		return nil, errors.New("object key is required")
+	cfg := &DownloadConfig{
+		Mode:             mode,
+		TargetDirectory:  req.TargetDirectory,
+		ConflictStrategy: normalizeConflictStrategy(req.ConflictStrategy),
 	}
-	if req.SavePath == "" {
-		req.SavePath = filepath.Join(os.TempDir(), filepath.Base(req.Key))
+	if cfg.TargetDirectory != "" {
+		cfg.TargetDirectory = filepath.Clean(cfg.TargetDirectory)
+	}
+	var (
+		bucket  = req.Bucket
+		key     = req.Key
+		local   = req.SavePath
+		total   int64
+		entries []DownloadEntry
+	)
+	switch mode {
+	case DownloadModeArchive:
+		var err error
+		entries, err = s.prepareArchiveEntries(req)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Entries = entries
+		cfg.ResumeEnabled = false
+		cfg.ArchiveName = ensureArchiveName(req.ArchiveName, entries)
+		if bucket == "" && len(entries) > 0 {
+			bucket = entries[0].Bucket
+		}
+		key = cfg.ArchiveName
+		if local == "" {
+			baseDir := cfg.TargetDirectory
+			if baseDir == "" {
+				baseDir = defaultDownloadDir()
+			}
+			local = filepath.Join(baseDir, cfg.ArchiveName)
+		}
+		total = sumEntrySizes(entries)
+	case DownloadModeSingle:
+		if bucket == "" {
+			return nil, errors.New("bucket is required")
+		}
+		if key == "" {
+			return nil, errors.New("object key is required")
+		}
+		cfg.ResumeEnabled = !req.DisableResume
+		if local == "" {
+			baseDir := cfg.TargetDirectory
+			if baseDir == "" {
+				baseDir = defaultDownloadDir()
+			}
+			local = filepath.Join(baseDir, filepath.Base(key))
+		}
+	default:
+		return nil, fmt.Errorf("unsupported download mode %s", mode)
 	}
 	task := &TransferTask{
 		ID:             uuid.NewString(),
 		Type:           TaskTypeDownload,
 		AccountID:      req.AccountID,
-		Bucket:         req.Bucket,
-		Key:            req.Key,
-		LocalPath:      req.SavePath,
+		Bucket:         bucket,
+		Key:            key,
+		LocalPath:      local,
 		Priority:       req.Priority,
 		Status:         TaskPending,
 		EstimatedTime:  -1,
 		StartTime:      time.Now(),
 		MaxRetries:     3,
+		DownloadConfig: cfg,
+		VersionID:      strings.TrimSpace(req.VersionID),
+		ETag:           strings.TrimSpace(req.ExpectedETag),
+		Total:          total,
 		lastSampleTime: time.Now(),
 		lastSnapshot:   0,
 	}
@@ -233,6 +301,106 @@ func (s *Service) EnqueueDownload(ctx context.Context, req DownloadRequest) (*Tr
 	}
 	s.enqueue(task.ID, task.Priority)
 	return task.clone(), nil
+}
+
+func (s *Service) prepareArchiveEntries(req DownloadRequest) ([]DownloadEntry, error) {
+	if len(req.Entries) == 0 {
+		return nil, errors.New("download entries are required")
+	}
+	entries := make([]DownloadEntry, 0, len(req.Entries))
+	for _, entry := range req.Entries {
+		bucket := strings.TrimSpace(entry.Bucket)
+		if bucket == "" {
+			bucket = req.Bucket
+		}
+		if bucket == "" {
+			return nil, errors.New("entry bucket is required")
+		}
+		key := strings.TrimSpace(entry.Key)
+		if key == "" && !entry.IsDir {
+			return nil, errors.New("entry key is required")
+		}
+		rel := entry.RelativePath
+		if strings.TrimSpace(rel) == "" {
+			rel = key
+		}
+		entries = append(entries, DownloadEntry{
+			Bucket:       bucket,
+			Key:          key,
+			RelativePath: sanitizeRelativePath(rel, entry.IsDir, key),
+			Size:         entry.Size,
+			VersionID:    strings.TrimSpace(entry.VersionID),
+			IsDir:        entry.IsDir,
+		})
+	}
+	return entries, nil
+}
+
+func normalizeConflictStrategy(strategy FileConflictStrategy) FileConflictStrategy {
+	switch strings.ToLower(string(strategy)) {
+	case string(ConflictStrategyRename):
+		return ConflictStrategyRename
+	default:
+		return ConflictStrategyOverwrite
+	}
+}
+
+func ensureArchiveName(name string, entries []DownloadEntry) string {
+	trimmed := filepath.Base(strings.TrimSpace(name))
+	if trimmed == "" {
+		if len(entries) == 1 {
+			candidate := filepath.Base(entries[0].RelativePath)
+			if candidate != "" {
+				trimmed = candidate
+			}
+		}
+	}
+	if trimmed == "" {
+		trimmed = fmt.Sprintf("download-%s.zip", time.Now().Format("20060102150405"))
+	}
+	if !strings.HasSuffix(strings.ToLower(trimmed), ".zip") {
+		trimmed += ".zip"
+	}
+	return filepath.Base(trimmed)
+}
+
+func defaultDownloadDir() string {
+	if dir := strings.TrimSpace(os.TempDir()); dir != "" {
+		return dir
+	}
+	return "."
+}
+
+func sumEntrySizes(entries []DownloadEntry) int64 {
+	var total int64
+	for _, entry := range entries {
+		if entry.IsDir || entry.Size <= 0 {
+			continue
+		}
+		total += entry.Size
+	}
+	return total
+}
+
+func sanitizeRelativePath(name string, isDir bool, fallback string) string {
+	value := strings.TrimSpace(name)
+	if value == "" {
+		value = strings.TrimSpace(fallback)
+	}
+	value = filepath.Clean(value)
+	value = filepath.ToSlash(value)
+	value = strings.TrimPrefix(value, "./")
+	for strings.HasPrefix(value, "../") {
+		value = strings.TrimPrefix(value, "../")
+	}
+	value = strings.TrimLeft(value, "/")
+	if value == "" {
+		value = "object"
+	}
+	if isDir && !strings.HasSuffix(value, "/") {
+		value += "/"
+	}
+	return value
 }
 
 // ListTasks returns all transfers sorted by start time (desc).
@@ -453,6 +621,142 @@ func (s *Service) executeTask(ctx context.Context, task *TransferTask) error {
 	}
 }
 
+func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask) error {
+	client, err := s.client(ctx, task.AccountID)
+	if err != nil {
+		return err
+	}
+	target, err := s.resolveDownloadPath(task)
+	if err != nil {
+		return err
+	}
+	cfg := task.DownloadConfig
+	resume := true
+	if cfg != nil {
+		resume = cfg.ResumeEnabled
+	}
+	offset, err := s.prepareResumeOffset(task, target, resume)
+	if err != nil {
+		return err
+	}
+	input := providers.DownloadObjectInput{
+		Bucket:    task.Bucket,
+		Key:       task.Key,
+		VersionID: task.VersionID,
+	}
+	if offset > 0 {
+		start := offset
+		input.RangeStart = &start
+	}
+	download, err := client.Objects().DownloadObject(ctx, input)
+	if err != nil {
+		return err
+	}
+	defer download.Body.Close()
+	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("open target file: %w", err)
+	}
+	defer file.Close()
+	if offset > 0 {
+		if _, err := file.Seek(offset, io.SeekStart); err != nil {
+			return fmt.Errorf("seek target file: %w", err)
+		}
+	} else {
+		if err := file.Truncate(0); err != nil {
+			return fmt.Errorf("truncate target file: %w", err)
+		}
+	}
+	if task.Total == 0 && download.ContentLength > 0 {
+		task.Total = offset + download.ContentLength
+	}
+	if offset > 0 && task.Progress < offset {
+		task.Progress = offset
+	}
+	reader := newProgressReader(download.Body, func(n int64) {
+		s.updateTaskProgress(task, n)
+	})
+	var finalReader io.Reader = reader
+	if s.globalLimiter != nil && s.globalLimiter.Limit() > 0 {
+		finalReader = s.wrapWithRateLimiter(ctx, reader)
+	}
+	if _, err := io.Copy(file, finalReader); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+	if task.ETag == "" {
+		task.ETag = download.ETag
+	}
+	s.persistTask(task)
+	return nil
+}
+
+func (s *Service) executeArchiveDownload(ctx context.Context, task *TransferTask) error {
+	cfg := task.DownloadConfig
+	if cfg == nil || len(cfg.Entries) == 0 {
+		return errors.New("archive entries are missing")
+	}
+	client, err := s.client(ctx, task.AccountID)
+	if err != nil {
+		return err
+	}
+	target, err := s.resolveDownloadPath(task)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(target)
+	if err != nil {
+		return fmt.Errorf("create archive file: %w", err)
+	}
+	defer file.Close()
+	zipWriter := zip.NewWriter(file)
+	defer zipWriter.Close()
+	for _, entry := range cfg.Entries {
+		if entry.IsDir {
+			header := &zip.FileHeader{Name: entry.RelativePath}
+			header.Method = zip.Store
+			if _, err := zipWriter.CreateHeader(header); err != nil {
+				return fmt.Errorf("archive directory %s: %w", entry.RelativePath, err)
+			}
+			continue
+		}
+		input := providers.DownloadObjectInput{
+			Bucket:    entry.Bucket,
+			Key:       entry.Key,
+			VersionID: entry.VersionID,
+		}
+		download, err := client.Objects().DownloadObject(ctx, input)
+		if err != nil {
+			return fmt.Errorf("archive entry %s: %w", entry.Key, err)
+		}
+		if err := func() error {
+			defer download.Body.Close()
+			header := &zip.FileHeader{Name: entry.RelativePath, Method: zip.Deflate}
+			if entry.Size > 0 {
+				header.UncompressedSize64 = uint64(entry.Size)
+			}
+			writer, err := zipWriter.CreateHeader(header)
+			if err != nil {
+				return fmt.Errorf("create archive entry %s: %w", entry.RelativePath, err)
+			}
+			reader := newProgressReader(download.Body, func(n int64) {
+				s.updateTaskProgress(task, n)
+			})
+			written, err := io.Copy(writer, reader)
+			if err != nil {
+				return fmt.Errorf("write archive entry %s: %w", entry.RelativePath, err)
+			}
+			if entry.Size <= 0 && written > 0 {
+				task.Total += written
+			}
+			return nil
+		}(); err != nil {
+			return err
+		}
+	}
+	s.persistTask(task)
+	return nil
+}
+
 func (s *Service) executeUpload(ctx context.Context, task *TransferTask) error {
 	client, err := s.client(ctx, task.AccountID)
 	if err != nil {
@@ -488,64 +792,124 @@ func (s *Service) executeUpload(ctx context.Context, task *TransferTask) error {
 }
 
 func (s *Service) executeDownload(ctx context.Context, task *TransferTask) error {
-	client, err := s.client(ctx, task.AccountID)
-	if err != nil {
-		return err
+	cfg := task.DownloadConfig
+	if cfg != nil && cfg.Mode == DownloadModeArchive {
+		return s.executeArchiveDownload(ctx, task)
 	}
-	download, err := client.Objects().DownloadObject(ctx, task.Bucket, task.Key)
-	if err != nil {
-		return err
-	}
-	defer download.Body.Close()
-	if download.ContentLength > 0 && task.Total == 0 {
-		task.Total = download.ContentLength
-		_ = s.store.Update(context.Background(), task)
-	}
-	target, err := s.resolveDownloadPath(task)
-	if err != nil {
-		return err
-	}
-	s.persistTask(task)
-	file, err := os.Create(target)
-	if err != nil {
-		return fmt.Errorf("create file: %w", err)
-	}
-	defer file.Close()
-	reader := newProgressReader(download.Body, func(n int64) {
-		s.updateTaskProgress(task, n)
-	})
-	// Apply global rate limiting if configured
-	var finalReader io.Reader = reader
-	if s.globalLimiter != nil && s.globalLimiter.Limit() > 0 {
-		finalReader = s.wrapWithRateLimiter(ctx, reader)
-	}
-	if _, err := io.Copy(file, finalReader); err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-	s.persistTask(task)
-	return nil
+	return s.executeSingleDownload(ctx, task)
 }
 
 func (s *Service) resolveDownloadPath(task *TransferTask) (string, error) {
 	target := strings.TrimSpace(task.LocalPath)
+	cfg := task.DownloadConfig
+	if cfg != nil {
+		if cfg.TargetDirectory != "" {
+			filename := filepath.Base(target)
+			if filename == "" {
+				filename = filepath.Base(task.Key)
+			}
+			if cfg.Mode == DownloadModeArchive && cfg.ArchiveName != "" {
+				filename = cfg.ArchiveName
+			}
+			target = filepath.Join(cfg.TargetDirectory, filename)
+		}
+		if cfg.Mode == DownloadModeArchive && cfg.ArchiveName != "" {
+			target = filepath.Join(filepath.Dir(target), cfg.ArchiveName)
+		}
+	}
 	if target == "" {
-		target = filepath.Join(os.TempDir(), filepath.Base(task.Key))
+		base := task.Key
+		if base == "" {
+			base = task.ID
+		}
+		target = filepath.Join(defaultDownloadDir(), filepath.Base(base))
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return "", fmt.Errorf("create parent dir: %w", err)
 	}
 	info, err := os.Stat(target)
-	switch {
-	case err == nil && info.IsDir():
-		target = filepath.Join(target, filepath.Base(task.Key))
-	case err == nil:
-		// file exists, reuse path
-	case os.IsNotExist(err):
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return "", fmt.Errorf("create parent dir: %w", err)
+	strategy := ConflictStrategyOverwrite
+	if cfg != nil && cfg.ConflictStrategy != "" {
+		strategy = cfg.ConflictStrategy
+	}
+	resume := isResumeEnabled(cfg)
+	if err == nil && info.IsDir() {
+		filename := filepath.Base(task.Key)
+		if cfg != nil && cfg.Mode == DownloadModeArchive && cfg.ArchiveName != "" {
+			filename = cfg.ArchiveName
 		}
-	default:
+		target = filepath.Join(target, filename)
+		info, err = os.Stat(target)
+	}
+	if err == nil {
+		switch {
+		case strategy == ConflictStrategyRename:
+			target = s.generateUniquePath(target)
+		case resume:
+			// keep existing file for resume support
+		default:
+			if removeErr := os.Remove(target); removeErr != nil {
+				return "", fmt.Errorf("remove existing file: %w", removeErr)
+			}
+		}
+	} else if !os.IsNotExist(err) {
 		return "", fmt.Errorf("inspect target path: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return "", fmt.Errorf("ensure parent dir: %w", err)
 	}
 	task.LocalPath = target
 	return target, nil
+}
+
+func (s *Service) prepareResumeOffset(task *TransferTask, target string, resume bool) (int64, error) {
+	if !resume {
+		if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+			return 0, fmt.Errorf("reset target file: %w", err)
+		}
+		task.Progress = 0
+		return 0, nil
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			task.Progress = 0
+			return 0, nil
+		}
+		return 0, fmt.Errorf("inspect resume target: %w", err)
+	}
+	if info.IsDir() {
+		return 0, fmt.Errorf("download target %s is a directory", target)
+	}
+	size := info.Size()
+	if size < 0 {
+		size = 0
+	}
+	if task.Progress < size {
+		task.Progress = size
+	}
+	return size, nil
+}
+
+func (s *Service) generateUniquePath(path string) string {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+	if name == "" {
+		name = "download"
+	}
+	for i := 1; i < 1000; i++ {
+		candidate := filepath.Join(dir, fmt.Sprintf("%s (%d)%s", name, i, ext))
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", name, uuid.NewString(), ext))
+}
+
+func isResumeEnabled(cfg *DownloadConfig) bool {
+	return cfg != nil && cfg.Mode != DownloadModeArchive && cfg.ResumeEnabled
 }
 
 func (s *Service) restorePendingTasks() {

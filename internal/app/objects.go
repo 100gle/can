@@ -26,6 +26,20 @@ func (a *App) DownloadObject(accountID, bucket, key, savePath string) (*transfer
 	return a.objects.DownloadObject(ctx, accountID, bucket, key, savePath)
 }
 
+// DownloadObjectWithOptions exposes advanced download controls to the UI.
+func (a *App) DownloadObjectWithOptions(accountID string, input objects.DownloadObjectInput) (*transfer.TransferTask, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.DownloadObjectWithOptions(ctx, accountID, input)
+}
+
+// DownloadBatch bundles multiple objects into an archive download.
+func (a *App) DownloadBatch(accountID string, input objects.DownloadBatchInput) (*transfer.TransferTask, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.DownloadBatch(ctx, accountID, input)
+}
+
 // DeleteObject removes an object from the bucket.
 func (a *App) DeleteObject(accountID, bucket, key string) error {
 	ctx, cancel := a.backgroundContext()
@@ -135,4 +149,25 @@ func (a *App) AbortMultipartUpload(accountID, bucket, key, uploadID string) erro
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.AbortMultipartUpload(ctx, accountID, bucket, key, uploadID)
+}
+
+// GenerateAccessLinks returns presigned URLs plus helper metadata.
+func (a *App) GenerateAccessLinks(accountID string, input objects.AccessLinkRequest) ([]objects.AccessLink, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GenerateAccessLinks(ctx, accountID, input)
+}
+
+// ListAccessLinkHistory returns stored presigned link history for an account.
+func (a *App) ListAccessLinkHistory(accountID string, limit int) ([]objects.LinkHistoryEntry, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.ListAccessLinkHistory(ctx, accountID, limit)
+}
+
+// DeleteAccessLinkHistory removes a single history item.
+func (a *App) DeleteAccessLinkHistory(accountID, linkID string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.DeleteAccessLinkHistory(ctx, accountID, linkID)
 }

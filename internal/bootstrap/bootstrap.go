@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"can/internal/accounts"
+	"can/internal/objects"
 	"can/internal/search"
 	"can/internal/transfer"
 )
@@ -76,6 +77,24 @@ func InitTransferStore() transfer.Store {
 	if err != nil {
 		fmt.Printf("failed to init transfer sqlite store (%s): %v\n", path, err)
 		return transfer.NewMemoryStore()
+	}
+	return store
+}
+
+func InitLinkHistoryStore() objects.LinkHistoryStore {
+	path := strings.TrimSpace(os.Getenv("CAN_LINK_DB"))
+	if path == "" {
+		if dir, derr := DefaultDataDir(); derr == nil {
+			path = filepath.Join(dir, "links.db")
+		} else {
+			fmt.Printf("failed to resolve default link history path, using memory store: %v\n", derr)
+			return objects.NewMemoryLinkHistoryStore()
+		}
+	}
+	store, err := objects.NewSQLiteLinkHistoryStore(path)
+	if err != nil {
+		fmt.Printf("failed to init link history sqlite store (%s): %v\n", path, err)
+		return objects.NewMemoryLinkHistoryStore()
 	}
 	return store
 }

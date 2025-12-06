@@ -36,6 +36,9 @@ type taskRecord struct {
 	MaxRetries     int
 	UploadID       string    `gorm:"size:256"`
 	CompletedParts []byte    `gorm:"type:text"`
+	VersionID      string    `gorm:"size:256"`
+	ETag           string    `gorm:"size:256"`
+	DownloadConfig []byte    `gorm:"type:text"`
 	CreatedAt      time.Time `gorm:"autoCreateTime"`
 	UpdatedAt      time.Time `gorm:"autoUpdateTime"`
 }
@@ -62,6 +65,8 @@ func (r *taskRecord) toTask() (*TransferTask, error) {
 		Retries:        r.Retries,
 		MaxRetries:     r.MaxRetries,
 		UploadID:       r.UploadID,
+		VersionID:      r.VersionID,
+		ETag:           r.ETag,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 		lastSampleTime: time.Now(),
@@ -72,6 +77,12 @@ func (r *taskRecord) toTask() (*TransferTask, error) {
 		var parts map[int]string
 		if err := json.Unmarshal(r.CompletedParts, &parts); err == nil {
 			task.CompletedParts = parts
+		}
+	}
+	if len(r.DownloadConfig) > 0 {
+		var cfg DownloadConfig
+		if err := json.Unmarshal(r.DownloadConfig, &cfg); err == nil {
+			task.DownloadConfig = &cfg
 		}
 	}
 	return task, nil
@@ -99,12 +110,19 @@ func recordFromTask(task *TransferTask) (*taskRecord, error) {
 		Retries:       task.Retries,
 		MaxRetries:    task.MaxRetries,
 		UploadID:      task.UploadID,
+		VersionID:     task.VersionID,
+		ETag:          task.ETag,
 		CreatedAt:     task.CreatedAt,
 		UpdatedAt:     task.UpdatedAt,
 	}
 	if len(task.CompletedParts) > 0 {
 		if payload, err := json.Marshal(task.CompletedParts); err == nil {
 			record.CompletedParts = payload
+		}
+	}
+	if task.DownloadConfig != nil {
+		if payload, err := json.Marshal(task.DownloadConfig); err == nil {
+			record.DownloadConfig = payload
 		}
 	}
 	return record, nil

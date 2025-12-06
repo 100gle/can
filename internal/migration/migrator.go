@@ -163,7 +163,10 @@ func (m *GenericMigrator) copySingleObject(
 	srcBucket, srcKey, dstBucket, dstKey string,
 ) error {
 	// Download
-	download, err := source.Objects().DownloadObject(ctx, srcBucket, srcKey)
+	download, err := source.Objects().DownloadObject(ctx, providers.DownloadObjectInput{
+		Bucket: srcBucket,
+		Key:    srcKey,
+	})
 	if err != nil {
 		return err
 	}
