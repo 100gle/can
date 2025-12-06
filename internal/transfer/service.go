@@ -34,6 +34,7 @@ type UploadRequest struct {
 	Bucket    string
 	Key       string
 	FilePath  string
+	Priority  Priority
 }
 
 // DownloadRequest describes the metadata required to enqueue a download task.
@@ -42,6 +43,7 @@ type DownloadRequest struct {
 	Bucket    string
 	Key       string
 	SavePath  string
+	Priority  Priority
 }
 
 // Option mutates the transfer service configuration.
@@ -72,7 +74,7 @@ type Service struct {
 	pool     providers.ClientPool
 	store    Store
 
-	queue   chan string
+	queue   *taskQueue
 	workers int
 
 	mu            sync.RWMutex
@@ -138,7 +140,7 @@ func NewService(accounts *accounts.Service, pool providers.ClientPool, store Sto
 		accounts:      accounts,
 		pool:          pool,
 		store:         store,
-		queue:         make(chan string, cfg.queueSize),
+		queue:         newTaskQueue(cfg.queueSize),
 		workers:       cfg.workers,
 		runtimes:      make(map[string]*taskRuntime),
 		globalLimiter: NewRateLimiter(0), // 0 means no limit
@@ -177,6 +179,7 @@ func (s *Service) EnqueueUpload(ctx context.Context, req UploadRequest) (*Transf
 		Bucket:         req.Bucket,
 		Key:            req.Key,
 		LocalPath:      req.FilePath,
+		Priority:       req.Priority,
 		Status:         TaskPending,
 		Total:          info.Size(),
 		EstimatedTime:  -1,
@@ -188,7 +191,7 @@ func (s *Service) EnqueueUpload(ctx context.Context, req UploadRequest) (*Transf
 	if err := s.store.Create(ctx, task); err != nil {
 		return nil, err
 	}
-	s.enqueue(task.ID)
+	s.enqueue(task.ID, task.Priority)
 	return task.clone(), nil
 }
 
@@ -217,6 +220,7 @@ func (s *Service) EnqueueDownload(ctx context.Context, req DownloadRequest) (*Tr
 		Bucket:         req.Bucket,
 		Key:            req.Key,
 		LocalPath:      req.SavePath,
+		Priority:       req.Priority,
 		Status:         TaskPending,
 		EstimatedTime:  -1,
 		StartTime:      time.Now(),
@@ -227,7 +231,7 @@ func (s *Service) EnqueueDownload(ctx context.Context, req DownloadRequest) (*Tr
 	if err := s.store.Create(ctx, task); err != nil {
 		return nil, err
 	}
-	s.enqueue(task.ID)
+	s.enqueue(task.ID, task.Priority)
 	return task.clone(), nil
 }
 
@@ -315,7 +319,7 @@ func (s *Service) ResumeTask(ctx context.Context, taskID string) error {
 	if err := s.store.Update(ctx, task); err != nil {
 		return err
 	}
-	s.enqueue(task.ID)
+	s.enqueue(task.ID, task.Priority)
 	return nil
 }
 
@@ -342,7 +346,11 @@ func (s *Service) startWorkers() {
 }
 
 func (s *Service) worker() {
-	for taskID := range s.queue {
+	for {
+		taskID, ok := s.queue.Pop()
+		if !ok {
+			return
+		}
 		if err := s.runTask(taskID); err != nil && !errors.Is(err, ErrTaskNotFound) {
 			fmt.Printf("transfer task %s failed: %v\n", taskID, err)
 		}
@@ -405,7 +413,7 @@ func (s *Service) runTask(taskID string) error {
 			}
 			// Schedule re-queue after backoff without blocking the worker
 			time.AfterFunc(backoff, func() {
-				s.enqueue(task.ID)
+				s.enqueue(task.ID, task.Priority)
 			})
 			return nil
 		}
@@ -540,21 +548,15 @@ func (s *Service) restorePendingTasks() {
 			task.Error = nil
 			_ = s.store.Update(context.Background(), task)
 		}
-		s.enqueue(task.ID)
+		s.enqueue(task.ID, task.Priority)
 	}
 }
 
-func (s *Service) enqueue(taskID string) {
+func (s *Service) enqueue(taskID string, priority Priority) {
 	if taskID == "" {
 		return
 	}
-	select {
-	case s.queue <- taskID:
-	default:
-		go func(id string) {
-			s.queue <- id
-		}(taskID)
-	}
+	s.queue.Push(taskID, priority)
 }
 
 func (s *Service) registerRuntime(taskID string, cancel context.CancelFunc) *taskRuntime {

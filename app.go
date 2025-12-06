@@ -20,6 +20,7 @@ import (
 	"can/internal/providers"
 	"can/internal/search"
 	"can/internal/security"
+	"can/internal/sync"
 	"can/internal/transfer"
 	"can/internal/types"
 )
@@ -34,6 +35,7 @@ type App struct {
 	transfers      *transfer.Service
 	config         *configfacade.Service
 	search         *search.Service
+	sync           sync.Service
 }
 
 // NewApp creates a new App application struct
@@ -55,6 +57,7 @@ func NewApp() *App {
 	configFacade := configfacade.NewService(accountSvc, configSvc)
 	searchStore := initSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
+	syncSvc := sync.NewService(accountSvc, transferSvc, clientPool)
 	return &App{
 		requestTimeout: resolveRequestTimeout(),
 		accounts:       accountSvc,
@@ -63,6 +66,7 @@ func NewApp() *App {
 		transfers:      transferSvc,
 		config:         configFacade,
 		search:         searchSvc,
+		sync:           syncSvc,
 	}
 }
 

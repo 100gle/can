@@ -25,10 +25,21 @@ const (
 	TaskTypeDownload TaskType = "download"
 )
 
+// Priority defines the urgency of a transfer task.
+type Priority int
+
+const (
+	PriorityLow      Priority = 0
+	PriorityNormal   Priority = 1
+	PriorityHigh     Priority = 2
+	PriorityCritical Priority = 3
+)
+
 // TransferTask describes the progress of an upload or download.
 type TransferTask struct {
 	ID             string         `json:"id"`
 	Type           TaskType       `json:"type"`
+	Priority       Priority       `json:"priority"`
 	AccountID      string         `json:"accountId"`
 	Bucket         string         `json:"bucket"`
 	Key            string         `json:"key"`

@@ -3,6 +3,7 @@ import { CapabilityGate } from "@/components/buckets/capability-gate";
 import { CORSPanel } from "@/components/buckets/cors-panel";
 import { EncryptionPanel } from "@/components/buckets/encryption-panel";
 import { LifecyclePanel } from "@/components/buckets/lifecycle-panel";
+import { PolicyPanel } from "@/components/buckets/policy-panel";
 import { VersioningPanel } from "@/components/buckets/versioning-panel";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
@@ -129,6 +130,15 @@ export const BucketSettingsPage = () => {
       render: () => (
         <CapabilityGate capability={featureMatrix.cors}>
           <CORSPanel />
+        </CapabilityGate>
+      ),
+    },
+    {
+      id: "policy",
+      label: "访问策略",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.policy}>
+          <PolicyPanel />
         </CapabilityGate>
       ),
     },

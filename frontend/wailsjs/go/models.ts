@@ -598,6 +598,7 @@ export namespace transfer {
 	export class TransferTask {
 	    id: string;
 	    type: string;
+	    priority: number;
 	    accountId: string;
 	    bucket: string;
 	    key: string;
@@ -625,6 +626,7 @@ export namespace transfer {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.type = source["type"];
+	        this.priority = source["priority"];
 	        this.accountId = source["accountId"];
 	        this.bucket = source["bucket"];
 	        this.key = source["key"];
