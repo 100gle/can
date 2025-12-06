@@ -1,6 +1,7 @@
 export function isBridgeAvailable(): boolean {
   if (typeof window === "undefined") return false;
-  return Boolean((window as any)?.go?.main?.App);
+  // After refactoring, App is in the 'app' package (internal/app), not 'main'
+  return Boolean((window as any)?.go?.app?.App);
 }
 
 const getRuntime = (): Record<string, any> | undefined => {

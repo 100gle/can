@@ -1,6 +1,6 @@
 import { isBridgeAvailable } from "@/lib/bridge";
 import { transfersStore } from "@/state/transfers";
-import { DeleteObject, DownloadObject, ListObjects, UploadObject } from "@wailsjs/go/main/App";
+import { DeleteObject, DownloadObject, ListObjects, UploadObject } from "@wailsjs/go/app/App";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { create } from "zustand";
 

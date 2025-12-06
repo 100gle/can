@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useParams } from "@tanstack/react-router";
-import { GetBucketWebsite, SetBucketWebsite } from "@wailsjs/go/main/App";
+import { GetBucketWebsite, SetBucketWebsite } from "@wailsjs/go/app/App";
 import { config } from "@wailsjs/go/models";
 import { AlertCircle, Globe } from "lucide-react";
 import { useEffect, useState } from "react";

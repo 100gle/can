@@ -10,7 +10,7 @@ import {
   ResumeTransferTask,
   SetTransferSpeedLimit,
   UploadPart,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import type { transfer } from "@wailsjs/go/models";
 import { create } from "zustand";
 

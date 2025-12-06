@@ -1,0 +1,71 @@
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  animation: drop-overlay-fade-in 0.15s ease-out;
+}
+
+@keyframes drop-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.drop-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem;
+  border: 2px dashed hsl(var(--primary));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  text-align: center;
+  animation: drop-overlay-scale-in 0.2s ease-out;
+}
+
+@keyframes drop-overlay-scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.drop-overlay-icon {
+  color: hsl(var(--primary));
+  animation: drop-overlay-bounce 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes drop-overlay-bounce {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+.drop-overlay-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.drop-overlay-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}

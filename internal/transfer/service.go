@@ -344,6 +344,14 @@ func (s *Service) GetGlobalSpeedLimit() int64 {
 	return 0
 }
 
+// Close gracefully shuts down the transfer service.
+// It closes the task queue which causes workers to exit after finishing their current task.
+func (s *Service) Close() {
+	if s.queue != nil {
+		s.queue.Close()
+	}
+}
+
 func (s *Service) startWorkers() {
 	for i := 0; i < s.workers; i++ {
 		go s.worker()

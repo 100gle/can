@@ -29,7 +29,7 @@ import {
   GetMigrationJob,
   ListAccounts,
   StartMigrationJob,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import { accounts, migration } from "@wailsjs/go/models";
 import { AlertCircle, Ban, CheckCircle, Loader2, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

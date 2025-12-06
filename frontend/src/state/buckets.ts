@@ -1,5 +1,5 @@
 import { isBridgeAvailable } from "@/lib/bridge";
-import { CreateBucket, DeleteBucket, ListBuckets } from "@wailsjs/go/main/App";
+import { CreateBucket, DeleteBucket, ListBuckets } from "@wailsjs/go/app/App";
 import type { buckets as BucketModels } from "@wailsjs/go/models";
 import { create } from "zustand";
 

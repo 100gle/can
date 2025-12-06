@@ -24,7 +24,7 @@ import {
   CreateBucketSnapshot,
   DeleteBucketSnapshot,
   ListBucketSnapshots,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import { backup } from "@wailsjs/go/models";
 import { AlertCircle, Camera, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";

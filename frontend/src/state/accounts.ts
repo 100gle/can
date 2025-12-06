@@ -12,7 +12,7 @@ import {
   TestAccountConnection,
   TestAccountConnectionPreview,
   UpdateAccount,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import type { accounts as AccountModels, types as ProviderModels } from "@wailsjs/go/models";
 import { create } from "zustand";
 

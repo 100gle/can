@@ -7,13 +7,10 @@ import {
   BarChart,
   FolderSync,
   HelpCircle,
-  Moon,
   Plus,
   Settings,
   Share2,
-  Sun,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -21,19 +18,7 @@ type SidebarProps = {
 };
 
 export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
-  const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    setIsDark(document.documentElement.classList.contains("dark"));
-  }, []);
-
-  const toggleTheme = () => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark");
-    setIsDark((prev) => !prev);
-  };
 
   const goTo = (path: string) => {
     if (accountId) {
@@ -115,10 +100,6 @@ export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
           系统设置
         </Button>
 
-        <Button variant="ghost" size="sm" className="w-full gap-2" onClick={toggleTheme}>
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {isDark ? "切换为浅色" : "切换为深色"}
-        </Button>
         <Button variant="ghost" size="sm" className="w-full gap-2">
           <HelpCircle className="h-4 w-4" />
           帮助与支持

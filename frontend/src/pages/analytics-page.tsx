@@ -6,10 +6,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GetAnalyticsSummary } from "@wailsjs/go/app/App";
+import { analytics } from "@wailsjs/go/models";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { GetAnalyticsSummary } from "../../wailsjs/go/main/App";
-import { analytics } from "../../wailsjs/go/models";
 
 export function AnalyticsPage() {
   const [loading, setLoading] = useState(false);

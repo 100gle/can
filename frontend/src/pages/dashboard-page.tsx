@@ -3,9 +3,10 @@ import { UploadProgress } from "@/components/transfer/upload-progress";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
+import { bucketsStore } from "@/state/buckets";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Loader2, RefreshCcw, ShieldCheck } from "lucide-react";
-import { useMemo } from "react";
+import { RefreshCcw, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { useAccountLayout } from "@/routes/accounts/$accountId";
 
@@ -13,7 +14,8 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   // params are strictly typed, but we know we are under /accounts/$accountId
   const { accountId } = useParams({ from: "/accounts/$accountId/dashboard" });
-  const { accounts, loading, error } = useAccountsStore((state) => state);
+  const { accounts, error } = useAccountsStore((state) => state);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Get openDrawer from layout context
   const { openDrawer } = useAccountLayout();
@@ -23,8 +25,16 @@ export default function DashboardPage() {
     return accounts.find((account) => account.id === accountId) ?? accounts[0];
   }, [accounts, accountId]);
 
-  const handleRefresh = () => {
-    void accountsStore.refresh();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        accountsStore.refresh(),
+        accountId ? bucketsStore.loadBuckets(accountId) : Promise.resolve(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleOpenBucketSettings = (bucketName: string) => {
@@ -94,14 +104,10 @@ export default function DashboardPage() {
               size="sm"
               className="gap-1 text-muted-foreground hover:text-foreground"
               onClick={handleRefresh}
-              disabled={loading}
+              disabled={refreshing}
             >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCcw className="h-4 w-4" />
-              )}
-              刷新
+              <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "刷新中..." : "刷新"}
             </Button>
           </div>
 

@@ -5,7 +5,7 @@ import {
   ListSavedSearchQueries,
   SaveSearchQuery,
   SearchObjects,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import { create } from "zustand";
 
 export type SearchQueryModel = {

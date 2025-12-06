@@ -16,7 +16,7 @@ import {
   SetBucketLifecycle,
   SetBucketPolicy,
   SuspendBucketVersioning,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import type { config as ConfigModels } from "@wailsjs/go/models";
 import { create } from "zustand";
 

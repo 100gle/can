@@ -18,11 +18,9 @@ import {
   type LogLevel,
   type ThemePreference,
 } from "@/state/preferences";
-import { CreateAppBackup, RestoreAppBackup } from "@wailsjs/go/main/App";
-
+import { CreateAppBackup, GetSystemMetrics, RestoreAppBackup } from "@wailsjs/go/app/App";
+import { system } from "@wailsjs/go/models";
 import { useEffect, useState } from "react";
-import { GetSystemMetrics } from "../../wailsjs/go/main/App";
-import { system } from "../../wailsjs/go/models";
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 const ISSUES_URL = "https://github.com/100gle/can/issues/new/choose";
@@ -184,15 +182,17 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <button
                 type="button"
-                className={`cursor-pointer rounded-md border-2 p-1 ${
-                  themePreference === "light" ? "border-primary" : "border-transparent"
+                className={`group cursor-pointer rounded-xl border-2 p-1 transition-all ${
+                  themePreference === "light"
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-transparent"
                 }`}
                 onClick={() => handleThemeSelection("light")}
               >
-                <div className="space-y-2 rounded-sm bg-[#ecedef] p-2">
+                <div className="flex h-[100px] w-full flex-col justify-between rounded-lg bg-[#ecedef] p-2 transition-transform group-hover:scale-[1.02]">
                   <div className="space-y-2 rounded-md bg-white p-2 shadow-sm">
                     <div className="h-2 w-[80px] rounded-lg bg-[#ecedef]" />
                     <div className="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
@@ -207,19 +207,21 @@ export default function SettingsPage() {
 
               <button
                 type="button"
-                className={`cursor-pointer rounded-md border-2 p-1 ${
-                  themePreference === "dark" ? "border-primary" : "border-transparent"
+                className={`group cursor-pointer rounded-xl border-2 p-1 transition-all ${
+                  themePreference === "dark"
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-transparent"
                 }`}
                 onClick={() => handleThemeSelection("dark")}
               >
-                <div className="space-y-2 rounded-sm bg-slate-950 p-2">
+                <div className="flex h-[100px] w-full flex-col justify-between rounded-lg bg-slate-950 p-2 transition-transform group-hover:scale-[1.02]">
                   <div className="space-y-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                    <div className="h-2 w-[80px] rounded-lg bg-slate-400" />
-                    <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+                    <div className="h-2 w-[80px] rounded-lg bg-slate-500" />
+                    <div className="h-2 w-[100px] rounded-lg bg-slate-500" />
                   </div>
                   <div className="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-sm">
-                    <div className="h-4 w-4 rounded-full bg-slate-400" />
-                    <div className="h-2 w-[100px] rounded-lg bg-slate-400" />
+                    <div className="h-4 w-4 rounded-full bg-slate-500" />
+                    <div className="h-2 w-[100px] rounded-lg bg-slate-500" />
                   </div>
                 </div>
                 <div className="mt-2 text-center text-sm font-medium">深色</div>
@@ -227,14 +229,25 @@ export default function SettingsPage() {
 
               <button
                 type="button"
-                className={`cursor-pointer rounded-md border-2 p-1 ${
-                  themePreference === "system" ? "border-primary" : "border-transparent"
+                className={`group cursor-pointer rounded-xl border-2 p-1 transition-all ${
+                  themePreference === "system"
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-transparent"
                 }`}
                 onClick={() => handleThemeSelection("system")}
               >
-                <div className="flex h-full items-center justify-center rounded-sm bg-slate-200 px-8 py-4 dark:bg-slate-900">
-                  <div className="text-center">
-                    <span className="text-2xl font-bold">Auto</span>
+                <div className="relative flex h-[100px] w-full items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[#ecedef] via-slate-200 to-slate-900 transition-transform group-hover:scale-[1.02]">
+                  {/* Split Background effect */}
+                  <div className="absolute inset-0 flex">
+                    <div className="w-1/2 bg-[#ecedef] p-2">
+                      <div className="mt-4 h-2 w-12 rounded-full bg-white opacity-60" />
+                    </div>
+                    <div className="w-1/2 bg-slate-950 p-2">
+                      <div className="ml-auto mt-4 h-2 w-12 rounded-full bg-slate-800 opacity-60" />
+                    </div>
+                  </div>
+                  <div className="relative z-10 rounded-md bg-background/80 px-2 py-1 text-xs font-bold shadow-sm backdrop-blur-sm">
+                    Auto
                   </div>
                 </div>
                 <div className="mt-2 text-center text-sm font-medium">系统</div>

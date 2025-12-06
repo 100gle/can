@@ -11,6 +11,7 @@ import {config} from '../models';
 import {system} from '../models';
 import {objects} from '../models';
 import {buckets} from '../models';
+import {options} from '../models';
 import {types} from '../models';
 
 export function AbortMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
@@ -69,6 +70,8 @@ export function ExportAccounts():Promise<accounts.ExportSummary>;
 
 export function ExportSearchResults(arg1:string,arg2:search.SearchQuery,arg3:string):Promise<Array<number>>;
 
+export function ForceQuit():Promise<void>;
+
 export function GetAnalyticsSummary(arg1:string):Promise<analytics.AnalyticsSummary>;
 
 export function GetBucketCORS(arg1:string,arg2:string):Promise<config.BucketCORS>;
@@ -95,8 +98,6 @@ export function GetSystemMetrics():Promise<system.SystemMetrics>;
 
 export function GetTransferSpeedLimit():Promise<number>;
 
-export function Greet(arg1:string):Promise<string>;
-
 export function HeadBucket(arg1:string,arg2:string):Promise<void>;
 
 export function HeadObject(arg1:string,arg2:string,arg3:string):Promise<objects.ObjectInfo>;
@@ -122,6 +123,8 @@ export function ListSyncRules():Promise<Array<sync.SyncRule>>;
 export function ListSyncTasks(arg1:string):Promise<Array<sync.SyncTask>>;
 
 export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
+
+export function OnSecondInstance(arg1:options.SecondInstanceData):Promise<void>;
 
 export function PauseMigrationJob(arg1:string):Promise<void>;
 

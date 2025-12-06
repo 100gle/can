@@ -46,7 +46,7 @@ import {
   SelectLocalFolder,
   StartSyncRule,
   StopSyncRule,
-} from "@wailsjs/go/main/App";
+} from "@wailsjs/go/app/App";
 import { accounts, sync } from "@wailsjs/go/models";
 import {
   AlertCircle,

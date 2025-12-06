@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
-import { GetPresignedDownloadURL } from "@wailsjs/go/main/App";
+import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
 import {
   Download,
   File,
@@ -560,6 +560,24 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                       <LayoutGrid className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {/* Refresh Button */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={handleRefresh}
+                          disabled={loading}
+                        >
+                          <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>刷新</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
 
                 {/* Actions - 1/4 */}
