@@ -50,21 +50,28 @@ func (s *Service) ListBuckets(ctx context.Context, accountID string) ([]BucketIn
 	return items, nil
 }
 
-// CreateBucket provisions a new bucket in the desired region.
-func (s *Service) CreateBucket(ctx context.Context, accountID, name, region string) error {
+// CreateBucket provisions a new bucket in the desired region with optional features.
+func (s *Service) CreateBucket(ctx context.Context, accountID string, input CreateBucketInput) error {
 	client, creds, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
 	}
-	bucketName := strings.TrimSpace(name)
+	bucketName := strings.TrimSpace(input.Name)
 	if bucketName == "" {
 		return errors.New("bucket name is required")
 	}
-	region = strings.TrimSpace(region)
+	region := strings.TrimSpace(input.Region)
 	if region == "" {
 		region = creds.Region
 	}
-	return client.Buckets().CreateBucket(ctx, bucketName, region)
+	options := providers.BucketCreateInput{
+		Name:         bucketName,
+		Region:       region,
+		ACL:          strings.TrimSpace(input.ACL),
+		StorageClass: strings.TrimSpace(input.StorageClass),
+		COSMultiAZ:   input.COSMultiAZ,
+	}
+	return client.Buckets().CreateBucket(ctx, options)
 }
 
 // DeleteBucket removes the specified bucket. Caller must ensure it's empty.

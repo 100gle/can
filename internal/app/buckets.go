@@ -10,10 +10,10 @@ func (a *App) ListBuckets(accountID string) ([]buckets.BucketInfo, error) {
 }
 
 // CreateBucket provisions a new bucket under the provided account.
-func (a *App) CreateBucket(accountID, name, region string) error {
+func (a *App) CreateBucket(accountID string, input buckets.CreateBucketInput) error {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.buckets.CreateBucket(ctx, accountID, name, region)
+	return a.buckets.CreateBucket(ctx, accountID, input)
 }
 
 // DeleteBucket removes the selected bucket.

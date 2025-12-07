@@ -231,6 +231,26 @@ export namespace buckets {
 	        this.size = source["size"];
 	    }
 	}
+	export class CreateBucketInput {
+	    name: string;
+	    region: string;
+	    acl: string;
+	    storageClass: string;
+	    cosMultiAz: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateBucketInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.region = source["region"];
+	        this.acl = source["acl"];
+	        this.storageClass = source["storageClass"];
+	        this.cosMultiAz = source["cosMultiAz"];
+	    }
+	}
 
 }
 
@@ -813,6 +833,9 @@ export namespace objects {
 	    storageClass: string;
 	    versionId: string;
 	    isDir: boolean;
+	    metadata: Record<string, string>;
+	    isSymlink: boolean;
+	    symlinkTarget: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ObjectInfo(source);
@@ -828,6 +851,9 @@ export namespace objects {
 	        this.storageClass = source["storageClass"];
 	        this.versionId = source["versionId"];
 	        this.isDir = source["isDir"];
+	        this.metadata = source["metadata"];
+	        this.isSymlink = source["isSymlink"];
+	        this.symlinkTarget = source["symlinkTarget"];
 	    }
 	}
 	export class ListObjectsResult {
@@ -980,6 +1006,91 @@ export namespace objects {
 	        this.contentType = source["contentType"];
 	        this.storageClass = source["storageClass"];
 	        this.acl = source["acl"];
+	    }
+	}
+	
+	export class ObjectLegalHoldState {
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ObjectLegalHoldState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	    }
+	}
+	export class ObjectLockConfiguration {
+	    enabled: boolean;
+	    mode: string;
+	    retentionDays: number;
+	    retentionYears: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ObjectLockConfiguration(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.mode = source["mode"];
+	        this.retentionDays = source["retentionDays"];
+	        this.retentionYears = source["retentionYears"];
+	    }
+	}
+	export class ObjectRetentionState {
+	    mode: string;
+	    retainUntil: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ObjectRetentionState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.retainUntil = source["retainUntil"];
+	    }
+	}
+	export class UpdateObjectLegalHoldInput {
+	    bucket: string;
+	    key: string;
+	    versionId: string;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateObjectLegalHoldInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.versionId = source["versionId"];
+	        this.status = source["status"];
+	    }
+	}
+	export class UpdateObjectRetentionInput {
+	    bucket: string;
+	    key: string;
+	    versionId: string;
+	    mode: string;
+	    retainUntil: string;
+	    bypassGovernance: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateObjectRetentionInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bucket = source["bucket"];
+	        this.key = source["key"];
+	        this.versionId = source["versionId"];
+	        this.mode = source["mode"];
+	        this.retainUntil = source["retainUntil"];
+	        this.bypassGovernance = source["bypassGovernance"];
 	    }
 	}
 
@@ -1174,6 +1285,30 @@ export namespace system {
 	        this.numGoroutines = source["numGoroutines"];
 	        this.numCgoCalls = source["numCgoCalls"];
 	        this.activeTransfers = source["activeTransfers"];
+	    }
+	}
+	export class UpdateInfo {
+	    currentVersion: string;
+	    latestVersion: string;
+	    updateAvailable: boolean;
+	    releaseURL: string;
+	    releaseNotes: string;
+	    publishedAt: string;
+	    isPrerelease: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.updateAvailable = source["updateAvailable"];
+	        this.releaseURL = source["releaseURL"];
+	        this.releaseNotes = source["releaseNotes"];
+	        this.publishedAt = source["publishedAt"];
+	        this.isPrerelease = source["isPrerelease"];
 	    }
 	}
 

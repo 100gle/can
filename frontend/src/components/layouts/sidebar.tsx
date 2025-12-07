@@ -80,7 +80,12 @@ export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
           系统设置
         </Button>
 
-        <Button variant="ghost" size="sm" className="w-full gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => navigate({ to: "/help" })}
+        >
           <HelpCircle className="h-4 w-4" />
           帮助与支持
         </Button>

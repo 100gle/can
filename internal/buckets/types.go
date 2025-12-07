@@ -10,3 +10,12 @@ type BucketInfo struct {
 	ObjectCount int64     `json:"objectCount"`
 	Size        int64     `json:"size"`
 }
+
+// CreateBucketInput captures user-provided options when provisioning a bucket.
+type CreateBucketInput struct {
+	Name         string `json:"name"`
+	Region       string `json:"region"`
+	ACL          string `json:"acl"`
+	StorageClass string `json:"storageClass"`
+	COSMultiAZ   bool   `json:"cosMultiAz"`
+}

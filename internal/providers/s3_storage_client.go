@@ -84,21 +84,25 @@ func (d *s3BucketDriver) ListBuckets(ctx context.Context) ([]BucketDescriptor, e
 	return items, nil
 }
 
-func (d *s3BucketDriver) CreateBucket(ctx context.Context, name, region string) error {
-	bucketName := strings.TrimSpace(name)
+func (d *s3BucketDriver) CreateBucket(ctx context.Context, input BucketCreateInput) error {
+	bucketName := strings.TrimSpace(input.Name)
 	if bucketName == "" {
 		return errors.New("bucket name is required")
 	}
+	region := strings.TrimSpace(input.Region)
 	if region == "" {
 		region = d.creds.Region
 	}
-	input := &s3.CreateBucketInput{Bucket: aws.String(bucketName)}
+	req := &s3.CreateBucketInput{Bucket: aws.String(bucketName)}
+	if acl := strings.TrimSpace(input.ACL); acl != "" {
+		req.ACL = s3types.BucketCannedACL(acl)
+	}
 	if shouldIncludeLocationConstraint(d.creds.Provider, region) {
-		input.CreateBucketConfiguration = &s3types.CreateBucketConfiguration{
+		req.CreateBucketConfiguration = &s3types.CreateBucketConfiguration{
 			LocationConstraint: s3types.BucketLocationConstraint(region),
 		}
 	}
-	if _, err := d.client.CreateBucket(ctx, input); err != nil {
+	if _, err := d.client.CreateBucket(ctx, req); err != nil {
 		return WrapS3Error("创建存储桶", err)
 	}
 	return nil
@@ -534,6 +538,10 @@ func (d *s3ObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey
 	return nil
 }
 
+func (d *s3ObjectDriver) CreateSymlink(context.Context, string, string, string) error {
+	return ErrUnsupportedCapability
+}
+
 func (d *s3ObjectDriver) HeadObject(ctx context.Context, bucket, key string) (ObjectDescriptor, error) {
 	var info ObjectDescriptor
 	if strings.TrimSpace(bucket) == "" {
@@ -932,6 +940,200 @@ func (d *s3ObjectDriver) PutObjectACL(ctx context.Context, bucket, key, cannedAC
 		return WrapS3Error("更新对象 ACL", err)
 	}
 	return nil
+}
+
+func (d *s3ObjectDriver) GetObjectLockConfiguration(ctx context.Context, bucket string) (ObjectLockConfiguration, error) {
+	var result ObjectLockConfiguration
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return result, errors.New("bucket is required")
+	}
+	out, err := d.client.GetObjectLockConfiguration(ctx, &s3.GetObjectLockConfigurationInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		if isObjectLockConfigMissing(err) {
+			return result, nil
+		}
+		return result, WrapS3Error("获取对象锁配置", err)
+	}
+	if out.ObjectLockConfiguration == nil {
+		return result, nil
+	}
+	cfg := out.ObjectLockConfiguration
+	result.Enabled = cfg.ObjectLockEnabled == s3types.ObjectLockEnabledEnabled
+	if cfg.Rule != nil && cfg.Rule.DefaultRetention != nil {
+		retention := cfg.Rule.DefaultRetention
+		result.Mode = string(retention.Mode)
+		if retention.Days != nil {
+			result.RetentionDays = aws.ToInt32(retention.Days)
+		}
+		if retention.Years != nil {
+			result.RetentionYears = aws.ToInt32(retention.Years)
+		}
+	}
+	return result, nil
+}
+
+func (d *s3ObjectDriver) GetObjectRetention(ctx context.Context, bucket, key, versionID string) (ObjectRetentionState, error) {
+	var result ObjectRetentionState
+	bucket = strings.TrimSpace(bucket)
+	key = strings.TrimSpace(key)
+	if bucket == "" {
+		return result, errors.New("bucket is required")
+	}
+	if key == "" {
+		return result, errors.New("object key is required")
+	}
+	input := &s3.GetObjectRetentionInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+	if strings.TrimSpace(versionID) != "" {
+		input.VersionId = aws.String(versionID)
+	}
+	out, err := d.client.GetObjectRetention(ctx, input)
+	if err != nil {
+		if isObjectLockConfigMissing(err) {
+			return result, nil
+		}
+		return result, WrapS3Error("获取对象保留策略", err)
+	}
+	if out.Retention != nil {
+		result.Mode = string(out.Retention.Mode)
+		if out.Retention.RetainUntilDate != nil {
+			result.RetainUntil = *out.Retention.RetainUntilDate
+		}
+	}
+	return result, nil
+}
+
+func (d *s3ObjectDriver) PutObjectRetention(ctx context.Context, input PutObjectRetentionInput) error {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
+		return errors.New("bucket is required")
+	}
+	if key == "" {
+		return errors.New("object key is required")
+	}
+	if input.RetainUntil.IsZero() {
+		return errors.New("retain until date is required")
+	}
+	mode, err := parseObjectLockMode(input.Mode)
+	if err != nil {
+		return err
+	}
+	params := &s3.PutObjectRetentionInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Retention: &s3types.ObjectLockRetention{
+			Mode:            mode,
+			RetainUntilDate: aws.Time(input.RetainUntil),
+		},
+	}
+	if strings.TrimSpace(input.VersionID) != "" {
+		params.VersionId = aws.String(input.VersionID)
+	}
+	if input.BypassGovernance {
+		params.BypassGovernanceRetention = aws.Bool(true)
+	}
+	if _, err := d.client.PutObjectRetention(ctx, params); err != nil {
+		return WrapS3Error("更新对象保留策略", err)
+	}
+	return nil
+}
+
+func (d *s3ObjectDriver) GetObjectLegalHold(ctx context.Context, bucket, key, versionID string) (ObjectLegalHoldState, error) {
+	var result ObjectLegalHoldState
+	bucket = strings.TrimSpace(bucket)
+	key = strings.TrimSpace(key)
+	if bucket == "" {
+		return result, errors.New("bucket is required")
+	}
+	if key == "" {
+		return result, errors.New("object key is required")
+	}
+	input := &s3.GetObjectLegalHoldInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+	if strings.TrimSpace(versionID) != "" {
+		input.VersionId = aws.String(versionID)
+	}
+	out, err := d.client.GetObjectLegalHold(ctx, input)
+	if err != nil {
+		if isObjectLockConfigMissing(err) {
+			return result, nil
+		}
+		return result, WrapS3Error("获取对象法律保留", err)
+	}
+	if out.LegalHold != nil {
+		result.Status = string(out.LegalHold.Status)
+	}
+	return result, nil
+}
+
+func (d *s3ObjectDriver) PutObjectLegalHold(ctx context.Context, input PutObjectLegalHoldInput) error {
+	bucket := strings.TrimSpace(input.Bucket)
+	key := strings.TrimSpace(input.Key)
+	if bucket == "" {
+		return errors.New("bucket is required")
+	}
+	if key == "" {
+		return errors.New("object key is required")
+	}
+	status, err := parseLegalHoldStatus(input.Status)
+	if err != nil {
+		return err
+	}
+	params := &s3.PutObjectLegalHoldInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		LegalHold: &s3types.ObjectLockLegalHold{
+			Status: status,
+		},
+	}
+	if strings.TrimSpace(input.VersionID) != "" {
+		params.VersionId = aws.String(input.VersionID)
+	}
+	if _, err := d.client.PutObjectLegalHold(ctx, params); err != nil {
+		return WrapS3Error("更新对象法律保留", err)
+	}
+	return nil
+}
+
+func isObjectLockConfigMissing(err error) bool {
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	code := strings.TrimSpace(apiErr.ErrorCode())
+	return strings.EqualFold(code, "ObjectLockConfigurationNotFoundError") ||
+		strings.EqualFold(code, "NoSuchObjectLockConfiguration") ||
+		strings.EqualFold(code, "ObjectLockConfigurationNotFound")
+}
+
+func parseObjectLockMode(mode string) (s3types.ObjectLockRetentionMode, error) {
+	switch strings.ToUpper(strings.TrimSpace(mode)) {
+	case "COMPLIANCE":
+		return s3types.ObjectLockRetentionModeCompliance, nil
+	case "GOVERNANCE":
+		return s3types.ObjectLockRetentionModeGovernance, nil
+	default:
+		return "", fmt.Errorf("不支持的保留模式: %s", mode)
+	}
+}
+
+func parseLegalHoldStatus(status string) (s3types.ObjectLockLegalHoldStatus, error) {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "ON":
+		return s3types.ObjectLockLegalHoldStatusOn, nil
+	case "OFF":
+		return s3types.ObjectLockLegalHoldStatusOff, nil
+	default:
+		return "", fmt.Errorf("不支持的法律保留状态: %s", status)
+	}
 }
 
 func shouldIncludeLocationConstraint(provider types.Provider, region string) bool {

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransfersRouteImport } from './routes/transfers'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
 import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
@@ -26,6 +27,11 @@ const TransfersRoute = TransfersRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +71,7 @@ const AccountsAccountIdBucketsBucketIdSettingsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/help': typeof HelpRoute
   '/settings': typeof SettingsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
@@ -75,6 +82,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/help': typeof HelpRoute
   '/settings': typeof SettingsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
@@ -86,6 +94,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/help': typeof HelpRoute
   '/settings': typeof SettingsRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/help'
     | '/settings'
     | '/transfers'
     | '/accounts/$accountId'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/help'
     | '/settings'
     | '/transfers'
     | '/accounts/$accountId'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/help'
     | '/settings'
     | '/transfers'
     | '/accounts/$accountId'
@@ -129,6 +141,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HelpRoute: typeof HelpRoute
   SettingsRoute: typeof SettingsRoute
   TransfersRoute: typeof TransfersRoute
   AccountsAccountIdRoute: typeof AccountsAccountIdRouteWithChildren
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -215,6 +235,7 @@ const AccountsAccountIdRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HelpRoute: HelpRoute,
   SettingsRoute: SettingsRoute,
   TransfersRoute: TransfersRoute,
   AccountsAccountIdRoute: AccountsAccountIdRouteWithChildren,

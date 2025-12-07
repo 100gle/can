@@ -33,6 +33,7 @@ type App struct {
 	system         *system.Service
 	backup         backup.Service
 	audit          *security.Service
+	quitRequested  bool
 }
 
 // New creates a new App application struct

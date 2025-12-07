@@ -1,6 +1,7 @@
 package system
 
 import (
+	"net/http"
 	"runtime"
 	"time"
 )
@@ -8,11 +9,13 @@ import (
 type Service struct {
 	// dependencies for higher level metrics
 	transferCountFunc func() int
+	httpClient        *http.Client
 }
 
 func NewService(transferCountFunc func() int) *Service {
 	return &Service{
 		transferCountFunc: transferCountFunc,
+		httpClient:        &http.Client{Timeout: 10 * time.Second},
 	}
 }
 

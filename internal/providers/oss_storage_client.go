@@ -92,15 +92,62 @@ func (d *ossBucketDriver) ListBuckets(ctx context.Context) ([]BucketDescriptor, 
 	return items, nil
 }
 
-func (d *ossBucketDriver) CreateBucket(ctx context.Context, name, _ string) error {
-	bucket := strings.TrimSpace(name)
+func (d *ossBucketDriver) CreateBucket(ctx context.Context, input BucketCreateInput) error {
+	bucket := strings.TrimSpace(input.Name)
 	if bucket == "" {
 		return errors.New("bucket name is required")
 	}
-	if err := d.client.CreateBucket(bucket, oss.WithContext(ctx)); err != nil {
+	options := []oss.Option{oss.WithContext(ctx)}
+	if aclOpt, err := resolveOSSCreateACLOption(input.ACL); err == nil && aclOpt != nil {
+		options = append(options, aclOpt)
+	} else if err != nil {
+		return err
+	}
+	if storageOpt, err := resolveOSSStorageClassOption(input.StorageClass); err == nil && storageOpt != nil {
+		options = append(options, storageOpt)
+	} else if err != nil {
+		return err
+	}
+	if err := d.client.CreateBucket(bucket, options...); err != nil {
 		return wrapOSSError("创建存储桶", err)
 	}
 	return nil
+}
+
+func resolveOSSCreateACLOption(raw string) (oss.Option, error) {
+	value := strings.TrimSpace(strings.ToLower(raw))
+	if value == "" {
+		return nil, nil
+	}
+	switch value {
+	case "private":
+		return oss.ACL(oss.ACLPrivate), nil
+	case "public-read", "publicread":
+		return oss.ACL(oss.ACLPublicRead), nil
+	case "public-read-write", "publicreadwrite":
+		return oss.ACL(oss.ACLPublicReadWrite), nil
+	default:
+		return nil, fmt.Errorf("不支持的 OSS ACL：%s", raw)
+	}
+}
+
+func resolveOSSStorageClassOption(raw string) (oss.Option, error) {
+	value := strings.TrimSpace(strings.ToLower(raw))
+	if value == "" {
+		return nil, nil
+	}
+	switch value {
+	case "standard":
+		return oss.StorageClass(oss.StorageStandard), nil
+	case "ia", "infrequent", "infrequent-access", "low-frequency":
+		return oss.StorageClass(oss.StorageIA), nil
+	case "archive":
+		return oss.StorageClass(oss.StorageArchive), nil
+	case "cold", "cold_archive", "cold-archive":
+		return oss.StorageClass(oss.StorageColdArchive), nil
+	default:
+		return nil, fmt.Errorf("不支持的 OSS 存储类型：%s", raw)
+	}
 }
 
 func (d *ossBucketDriver) DeleteBucket(ctx context.Context, name string) error {
@@ -285,14 +332,17 @@ func (d *ossObjectDriver) ListObjects(ctx context.Context, input ListObjectsInpu
 		})
 	}
 	for _, obj := range out.Objects {
+		isSymlink := strings.EqualFold(obj.Type, "Symlink")
 		entries = append(entries, ObjectDescriptor{
-			Key:          obj.Key,
-			Size:         obj.Size,
-			LastModified: obj.LastModified,
-			ETag:         strings.Trim(obj.ETag, `"`),
-			ContentType:  "",
-			StorageClass: "",
-			IsDir:        false,
+			Key:           obj.Key,
+			Size:          obj.Size,
+			LastModified:  obj.LastModified,
+			ETag:          strings.Trim(obj.ETag, `"`),
+			ContentType:   "",
+			StorageClass:  "",
+			IsDir:         false,
+			IsSymlink:     isSymlink,
+			SymlinkTarget: "",
 		})
 	}
 	sort.Slice(entries, func(i, j int) bool {
@@ -397,6 +447,23 @@ func (d *ossObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKe
 	return nil
 }
 
+func (d *ossObjectDriver) CreateSymlink(ctx context.Context, bucketName, key, target string) error {
+	if strings.TrimSpace(key) == "" {
+		return errors.New("symlink key is required")
+	}
+	if strings.TrimSpace(target) == "" {
+		return errors.New("target key is required")
+	}
+	bucket, err := d.bucket(ctx, bucketName)
+	if err != nil {
+		return err
+	}
+	if err := bucket.PutSymlink(key, target, oss.WithContext(ctx)); err != nil {
+		return wrapOSSError("创建软链接", err)
+	}
+	return nil
+}
+
 func (d *ossObjectDriver) HeadObject(ctx context.Context, bucketName, key string) (ObjectDescriptor, error) {
 	var info ObjectDescriptor
 	if strings.TrimSpace(key) == "" {
@@ -410,16 +477,19 @@ func (d *ossObjectDriver) HeadObject(ctx context.Context, bucketName, key string
 	if err != nil {
 		return info, wrapOSSError("获取对象信息", err)
 	}
+	objectType := headerValue(meta, "x-oss-object-type")
 	info = ObjectDescriptor{
-		Key:          key,
-		Size:         parseInt64(headerValue(meta, "Content-Length")),
-		LastModified: parseTime(headerValue(meta, "Last-Modified")),
-		ETag:         strings.Trim(headerValue(meta, "ETag"), `"`),
-		ContentType:  headerValue(meta, "Content-Type"),
-		StorageClass: headerValue(meta, "x-oss-storage-class"),
-		IsDir:        false,
-		Metadata:     extractOSSMeta(meta),
-		VersionID:    headerValue(meta, "x-oss-version-id"),
+		Key:           key,
+		Size:          parseInt64(headerValue(meta, "Content-Length")),
+		LastModified:  parseTime(headerValue(meta, "Last-Modified")),
+		ETag:          strings.Trim(headerValue(meta, "ETag"), `"`),
+		ContentType:   headerValue(meta, "Content-Type"),
+		StorageClass:  headerValue(meta, "x-oss-storage-class"),
+		IsDir:         false,
+		Metadata:      extractOSSMeta(meta),
+		VersionID:     headerValue(meta, "x-oss-version-id"),
+		IsSymlink:     strings.EqualFold(objectType, "symlink"),
+		SymlinkTarget: headerValue(meta, "x-oss-symlink-target"),
 	}
 	return info, nil
 }
@@ -593,6 +663,26 @@ func (d *ossObjectDriver) GetObjectACL(ctx context.Context, bucketName, key stri
 }
 
 func (d *ossObjectDriver) PutObjectACL(ctx context.Context, bucketName, key, cannedACL string) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) GetObjectLockConfiguration(context.Context, string) (ObjectLockConfiguration, error) {
+	return ObjectLockConfiguration{}, ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) GetObjectRetention(context.Context, string, string, string) (ObjectRetentionState, error) {
+	return ObjectRetentionState{}, ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) PutObjectRetention(context.Context, PutObjectRetentionInput) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (ObjectLegalHoldState, error) {
+	return ObjectLegalHoldState{}, ErrUnsupportedCapability
+}
+
+func (d *ossObjectDriver) PutObjectLegalHold(context.Context, PutObjectLegalHoldInput) error {
 	return ErrUnsupportedCapability
 }
 

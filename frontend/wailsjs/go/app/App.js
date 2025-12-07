@@ -26,6 +26,10 @@ export function CancelTransferTask(arg1) {
   return window['go']['app']['App']['CancelTransferTask'](arg1);
 }
 
+export function CheckForUpdates(arg1) {
+  return window['go']['app']['App']['CheckForUpdates'](arg1);
+}
+
 export function CompleteMultipartUpload(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['CompleteMultipartUpload'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -42,8 +46,8 @@ export function CreateAppBackup(arg1, arg2) {
   return window['go']['app']['App']['CreateAppBackup'](arg1, arg2);
 }
 
-export function CreateBucket(arg1, arg2, arg3) {
-  return window['go']['app']['App']['CreateBucket'](arg1, arg2, arg3);
+export function CreateBucket(arg1, arg2) {
+  return window['go']['app']['App']['CreateBucket'](arg1, arg2);
 }
 
 export function CreateBucketSnapshot(arg1, arg2) {
@@ -52,6 +56,10 @@ export function CreateBucketSnapshot(arg1, arg2) {
 
 export function CreateFolder(arg1, arg2, arg3) {
   return window['go']['app']['App']['CreateFolder'](arg1, arg2, arg3);
+}
+
+export function CreateSymlink(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['CreateSymlink'](arg1, arg2, arg3, arg4);
 }
 
 export function DeleteAccessLinkHistory(arg1, arg2) {
@@ -166,8 +174,24 @@ export function GetObjectAttributes(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetObjectAttributes'](arg1, arg2, arg3);
 }
 
+export function GetObjectLegalHold(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['GetObjectLegalHold'](arg1, arg2, arg3, arg4);
+}
+
+export function GetObjectLockConfiguration(arg1, arg2) {
+  return window['go']['app']['App']['GetObjectLockConfiguration'](arg1, arg2);
+}
+
+export function GetObjectRetention(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['GetObjectRetention'](arg1, arg2, arg3, arg4);
+}
+
 export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetPresignedDownloadURL'](arg1, arg2, arg3, arg4);
+}
+
+export function GetPresignedDownloadURLWithHeaders(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['GetPresignedDownloadURLWithHeaders'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
@@ -340,6 +364,14 @@ export function UpdateAccount(arg1, arg2) {
 
 export function UpdateObjectAttributes(arg1, arg2) {
   return window['go']['app']['App']['UpdateObjectAttributes'](arg1, arg2);
+}
+
+export function UpdateObjectLegalHold(arg1, arg2) {
+  return window['go']['app']['App']['UpdateObjectLegalHold'](arg1, arg2);
+}
+
+export function UpdateObjectRetention(arg1, arg2) {
+  return window['go']['app']['App']['UpdateObjectRetention'](arg1, arg2);
 }
 
 export function UpdateSavedSearchQuery(arg1, arg2, arg3) {

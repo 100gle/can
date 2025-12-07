@@ -63,7 +63,10 @@ func TestCreateBucketRequiresName(t *testing.T) {
 	driver := &fakeBucketDriver{}
 	svc, accountID := newTestBucketService(t, driver)
 
-	err := svc.CreateBucket(ctx, accountID, "", "us-east-1")
+	err := svc.CreateBucket(ctx, accountID, CreateBucketInput{
+		Name:   "",
+		Region: "us-east-1",
+	})
 	if err == nil {
 		t.Fatal("expected error for empty bucket name")
 	}
@@ -77,13 +80,36 @@ func TestCreateBucketUsesDefaultRegion(t *testing.T) {
 	driver := &fakeBucketDriver{}
 	svc, accountID := newTestBucketService(t, driver)
 
-	err := svc.CreateBucket(ctx, accountID, "my-bucket", "")
+	err := svc.CreateBucket(ctx, accountID, CreateBucketInput{Name: "my-bucket"})
 	if err != nil {
 		t.Fatalf("CreateBucket: %v", err)
 	}
 	// Verify the driver received the default region from credentials
 	if driver.createdRegion != "us-east-1" {
 		t.Errorf("expected region 'us-east-1', got %q", driver.createdRegion)
+	}
+}
+
+func TestCreateBucketPassesAdvancedOptions(t *testing.T) {
+	ctx := context.Background()
+	driver := &fakeBucketDriver{}
+	svc, accountID := newTestBucketService(t, driver)
+
+	input := CreateBucketInput{
+		Name:         "oss-demo",
+		Region:       "cn-hangzhou",
+		ACL:          "public-read",
+		StorageClass: "ia",
+		COSMultiAZ:   true,
+	}
+	if err := svc.CreateBucket(ctx, accountID, input); err != nil {
+		t.Fatalf("CreateBucket: %v", err)
+	}
+	if driver.createdStorageClass != "ia" {
+		t.Errorf("expected storage class 'ia', got %q", driver.createdStorageClass)
+	}
+	if !driver.createdMultiAZ {
+		t.Errorf("expected multi AZ flag to be forwarded")
 	}
 }
 
@@ -178,21 +204,25 @@ func (f *fakeStorageClient) Security() providers.SecurityDriver {
 }
 
 type fakeBucketDriver struct {
-	buckets       []providers.BucketDescriptor
-	createdName   string
-	createdRegion string
-	deletedName   string
-	headedName    string
-	locationName  string
+	buckets             []providers.BucketDescriptor
+	createdName         string
+	createdRegion       string
+	createdStorageClass string
+	createdMultiAZ      bool
+	deletedName         string
+	headedName          string
+	locationName        string
 }
 
 func (d *fakeBucketDriver) ListBuckets(ctx context.Context) ([]providers.BucketDescriptor, error) {
 	return d.buckets, nil
 }
 
-func (d *fakeBucketDriver) CreateBucket(ctx context.Context, name, region string) error {
-	d.createdName = name
-	d.createdRegion = region
+func (d *fakeBucketDriver) CreateBucket(ctx context.Context, input providers.BucketCreateInput) error {
+	d.createdName = input.Name
+	d.createdRegion = input.Region
+	d.createdStorageClass = input.StorageClass
+	d.createdMultiAZ = input.COSMultiAZ
 	return nil
 }
 

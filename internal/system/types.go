@@ -11,3 +11,14 @@ type SystemMetrics struct {
 	NumCgoCalls     int64     `json:"numCgoCalls"`
 	ActiveTransfers int       `json:"activeTransfers"` // Supplied by TransferService
 }
+
+// UpdateInfo captures the latest release metadata compared with the running build.
+type UpdateInfo struct {
+	CurrentVersion  string    `json:"currentVersion"`
+	LatestVersion   string    `json:"latestVersion"`
+	UpdateAvailable bool      `json:"updateAvailable"`
+	ReleaseURL      string    `json:"releaseURL"`
+	ReleaseNotes    string    `json:"releaseNotes"`
+	PublishedAt     time.Time `json:"publishedAt" ts_type:"string"`
+	IsPrerelease    bool      `json:"isPrerelease"`
+}

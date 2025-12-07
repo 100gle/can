@@ -17,17 +17,28 @@ type BucketDescriptor struct {
 	Size        int64     `json:"size"`
 }
 
+// BucketCreateInput captures options supported during bucket creation.
+type BucketCreateInput struct {
+	Name         string
+	Region       string
+	ACL          string
+	StorageClass string
+	COSMultiAZ   bool
+}
+
 // ObjectDescriptor represents either a file or pseudo-folder.
 type ObjectDescriptor struct {
-	Key          string            `json:"key"`
-	Size         int64             `json:"size"`
-	LastModified time.Time         `json:"lastModified" ts_type:"string"`
-	ETag         string            `json:"etag"`
-	ContentType  string            `json:"contentType"`
-	StorageClass string            `json:"storageClass"`
-	IsDir        bool              `json:"isDir"`
-	Metadata     map[string]string `json:"metadata"`
-	VersionID    string            `json:"versionId"`
+	Key           string            `json:"key"`
+	Size          int64             `json:"size"`
+	LastModified  time.Time         `json:"lastModified" ts_type:"string"`
+	ETag          string            `json:"etag"`
+	ContentType   string            `json:"contentType"`
+	StorageClass  string            `json:"storageClass"`
+	IsDir         bool              `json:"isDir"`
+	Metadata      map[string]string `json:"metadata"`
+	VersionID     string            `json:"versionId"`
+	IsSymlink     bool              `json:"isSymlink"`
+	SymlinkTarget string            `json:"symlinkTarget"`
 }
 
 // ListObjectsInput mirrors the UI filtering options.
@@ -66,7 +77,7 @@ type DownloadObjectInput struct {
 // BucketDriver exposes bucket-level operations for a provider.
 type BucketDriver interface {
 	ListBuckets(ctx context.Context) ([]BucketDescriptor, error)
-	CreateBucket(ctx context.Context, name, region string) error
+	CreateBucket(ctx context.Context, input BucketCreateInput) error
 	DeleteBucket(ctx context.Context, name string) error
 	HeadBucket(ctx context.Context, name string) error
 	BucketLocation(ctx context.Context, name string) (string, error)
@@ -96,6 +107,12 @@ type ObjectDriver interface {
 	UpdateObjectMetadata(ctx context.Context, bucket, key string, input ObjectMetadataUpdate) error
 	GetObjectACL(ctx context.Context, bucket, key string) (ObjectACL, error)
 	PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error
+	CreateSymlink(ctx context.Context, bucket, key, target string) error
+	GetObjectLockConfiguration(ctx context.Context, bucket string) (ObjectLockConfiguration, error)
+	GetObjectRetention(ctx context.Context, bucket, key, versionID string) (ObjectRetentionState, error)
+	PutObjectRetention(ctx context.Context, input PutObjectRetentionInput) error
+	GetObjectLegalHold(ctx context.Context, bucket, key, versionID string) (ObjectLegalHoldState, error)
+	PutObjectLegalHold(ctx context.Context, input PutObjectLegalHoldInput) error
 }
 
 // ObjectMetadataUpdate describes metadata/content type/storage class changes.
@@ -151,6 +168,43 @@ type BucketReferer struct {
 	AllowEmpty bool     `json:"allowEmpty"`
 	Whitelist  []string `json:"whitelist"`
 	Mode       string   `json:"mode"`
+}
+
+// ObjectLockConfiguration represents bucket-level object lock defaults.
+type ObjectLockConfiguration struct {
+	Enabled        bool   `json:"enabled"`
+	Mode           string `json:"mode"`
+	RetentionDays  int32  `json:"retentionDays"`
+	RetentionYears int32  `json:"retentionYears"`
+}
+
+// ObjectRetentionState reflects per-object retention metadata.
+type ObjectRetentionState struct {
+	Mode        string    `json:"mode"`
+	RetainUntil time.Time `json:"retainUntil" ts_type:"string"`
+}
+
+// PutObjectRetentionInput configures retention for an object or version.
+type PutObjectRetentionInput struct {
+	Bucket           string
+	Key              string
+	VersionID        string
+	Mode             string
+	RetainUntil      time.Time
+	BypassGovernance bool
+}
+
+// ObjectLegalHoldState represents current legal hold status.
+type ObjectLegalHoldState struct {
+	Status string `json:"status"`
+}
+
+// PutObjectLegalHoldInput toggles legal hold for an object or version.
+type PutObjectLegalHoldInput struct {
+	Bucket    string
+	Key       string
+	VersionID string
+	Status    string
 }
 
 // PresignRequest captures the knobs for building a pre-signed URL.

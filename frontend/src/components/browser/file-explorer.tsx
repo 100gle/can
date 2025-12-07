@@ -36,13 +36,28 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBridgeAvailable, saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
+import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
-import { objectsStore, useObjectsStore } from "@/state/objects";
+import { useAccountsStore } from "@/state/accounts";
+import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
-import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
+import { CreateSymlink, GetPresignedDownloadURL } from "@wailsjs/go/app/App";
 import {
   Download,
   File,
@@ -53,8 +68,10 @@ import {
   Folder,
   FolderPlus,
   HardDrive,
+  ChevronDown,
   LayoutGrid,
   Link2,
+  Eye,
   List,
   Loader2,
   Plus,
@@ -99,6 +116,25 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     truncated,
   } = useObjectsStore((state) => state);
 
+  const { accounts, capabilities } = useAccountsStore((state) => ({
+    accounts: state.accounts,
+    capabilities: state.capabilities,
+  }));
+  const activeAccount = useMemo(
+    () => accounts.find((account) => account.id === accountId),
+    [accounts, accountId],
+  );
+  const providerId = activeAccount?.provider?.toLowerCase();
+  const isOSSProvider = providerId === "oss";
+  const isCOSProvider = providerId === "cos";
+  const canCreateSymlink = useMemo(() => {
+    if (!activeAccount) return false;
+    const capability = capabilities.find(
+      (cap) => cap.provider === activeAccount.provider && cap.featureId === "object.symlink",
+    );
+    return Boolean(capability?.supported);
+  }, [activeAccount, capabilities]);
+
   // Browser state
   const [level, setLevel] = useState<BrowseLevel>("buckets");
   const [currentBucket, setCurrentBucket] = useState<string | null>(null);
@@ -110,10 +146,20 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
   const [createBucketOpen, setCreateBucketOpen] = useState(false);
   const [newBucketName, setNewBucketName] = useState("");
   const [newBucketRegion, setNewBucketRegion] = useState("us-east-1");
+  const [bucketACL, setBucketACL] = useState("private");
+  const [bucketStorageClass, setBucketStorageClass] = useState("standard");
+  const [bucketCosMultiAz, setBucketCosMultiAz] = useState(false);
+  const [advancedBucketOpen, setAdvancedBucketOpen] = useState(false);
   const [pendingDeleteBucket, setPendingDeleteBucket] = useState<string | null>(null);
   const [pendingDeleteObject, setPendingDeleteObject] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewObject, setPreviewObject] = useState<ObjectModel | null>(null);
+  const [symlinkDialogOpen, setSymlinkDialogOpen] = useState(false);
+  const [symlinkName, setSymlinkName] = useState("");
+  const [symlinkTargetKey, setSymlinkTargetKey] = useState("");
+  const [symlinkSaving, setSymlinkSaving] = useState(false);
 
   // Upload refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +189,21 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       folderInputRef.current.setAttribute("webkitdirectory", "true");
     }
   }, []);
+
+  useEffect(() => {
+    if (!createBucketOpen) {
+      setAdvancedBucketOpen(false);
+      setBucketACL("private");
+      setBucketStorageClass(isOSSProvider ? "standard" : "");
+      setBucketCosMultiAz(false);
+      setNewBucketName("");
+      setNewBucketRegion(activeAccount?.region || "us-east-1");
+      return;
+    }
+    if (activeAccount?.region) {
+      setNewBucketRegion(activeAccount.region);
+    }
+  }, [createBucketOpen, activeAccount?.region, isOSSProvider]);
 
   // Loading state
   const loading = level === "buckets" ? bucketsLoading : objectsLoading;
@@ -238,9 +299,15 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       return;
     }
     try {
-      await bucketsStore.createBucket(accountId, newBucketName.trim(), newBucketRegion.trim());
+      const payload = {
+        name: newBucketName.trim(),
+        region: newBucketRegion.trim(),
+        acl: bucketACL,
+        storageClass: isOSSProvider ? bucketStorageClass : "",
+        cosMultiAz: isCOSProvider ? bucketCosMultiAz : false,
+      };
+      await bucketsStore.createBucket(accountId, payload);
       setCreateBucketOpen(false);
-      setNewBucketName("");
       // Success - buckets list will auto-refresh via store
     } catch (e) {
       const message = e instanceof Error ? e.message : "创建存储桶失败";
@@ -345,6 +412,47 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     }
   };
 
+  const handlePreview = (key: string) => {
+    const target = objects.find((obj) => obj.key === key && !obj.isDir);
+    if (!target) {
+      toast.error("请选择可预览的文件");
+      return;
+    }
+    setPreviewObject(target);
+    setPreviewOpen(true);
+  };
+
+  const handleCreateSymlink = async () => {
+    if (!accountId || !currentBucket) {
+      setErrorMessage("请先选择账户和 Bucket 再创建软链接");
+      setErrorDialogOpen(true);
+      return;
+    }
+    const trimmedName = symlinkName.trim();
+    const trimmedTarget = symlinkTargetKey.trim();
+    if (!trimmedName || !trimmedTarget) {
+      setErrorMessage("请输入软链接名称和目标 Key");
+      setErrorDialogOpen(true);
+      return;
+    }
+    const linkKey = `${prefix}${trimmedName}`.replace(/\/{2,}/g, "/");
+    setSymlinkSaving(true);
+    try {
+      await CreateSymlink(accountId, currentBucket, linkKey, trimmedTarget);
+      toast.success("软链接创建成功");
+      setSymlinkDialogOpen(false);
+      setSymlinkName("");
+      setSymlinkTargetKey("");
+      await objectsStore.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "创建软链接失败";
+      setErrorMessage(message);
+      setErrorDialogOpen(true);
+    } finally {
+      setSymlinkSaving(false);
+    }
+  };
+
   // Upload
   const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
@@ -435,11 +543,11 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
 
       return (
         <ContextMenu key={item.key}>
-          <ContextMenuTrigger>
-            <button
-              type="button"
-              onClick={() => (isDir ? handleEnterFolder(item.key) : undefined)}
-              className={cn(
+            <ContextMenuTrigger>
+              <button
+                type="button"
+                onClick={() => (isDir ? handleEnterFolder(item.key) : undefined)}
+                className={cn(
                 "group flex items-center gap-3 rounded-xl border border-border/40 bg-card/50 p-4 transition-all w-full text-left",
                 "hover:border-primary/50 hover:bg-accent/50 hover:shadow-md",
                 viewMode === "grid" ? "flex-col text-center" : "",
@@ -448,7 +556,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             >
               <div
                 className={cn(
-                  "flex items-center justify-center rounded-lg transition-transform group-hover:scale-110",
+                  "relative flex items-center justify-center rounded-lg transition-transform group-hover:scale-110",
                   isDir ? "bg-primary/10" : "bg-muted/50",
                   viewMode === "grid" ? "h-16 w-16" : "h-10 w-10",
                 )}
@@ -460,12 +568,20 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                 ) : (
                   getFileIcon(item.key, viewMode === "grid" ? "h-8 w-8" : "h-5 w-5")
                 )}
+                {!isDir && item.isSymlink && (
+                  <Link2 className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-background/90 p-0.5 text-primary shadow" />
+                )}
               </div>
               <div className={cn("min-w-0", viewMode === "grid" ? "w-full" : "flex-1")}>
                 <p className="truncate font-medium">{label}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {isDir ? "文件夹" : formatSize(item.size)}
                 </p>
+                {!isDir && item.isSymlink && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    → {item.symlinkTarget || "未指定目标"}
+                  </p>
+                )}
               </div>
             </button>
           </ContextMenuTrigger>
@@ -477,6 +593,10 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
               </ContextMenuItem>
             ) : (
               <>
+                <ContextMenuItem onClick={() => handlePreview(item.key)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  预览
+                </ContextMenuItem>
                 <ContextMenuItem onClick={() => handleDownload(item.key)}>
                   <Download className="mr-2 h-4 w-4" />
                   下载
@@ -659,12 +779,23 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                 </div>
 
                 {/* Actions - 1/4 */}
-                <div className="col-span-1 flex justify-end">
+                <div className="col-span-1 flex justify-end gap-2">
+                  {level === "objects" && canCreateSymlink && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={() => setSymlinkDialogOpen(true)}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      <span className="truncate">软链接</span>
+                    </Button>
+                  )}
                   {level === "objects" && (
                     <Button
                       variant="default"
                       size="sm"
-                      className="gap-1 h-8 w-full"
+                      className="h-8 gap-1"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                     >
@@ -806,38 +937,140 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         )}
       </Card>
 
+      <FilePreviewModal
+        open={previewOpen}
+        onOpenChange={(openState) => {
+          setPreviewOpen(openState);
+          if (!openState) {
+            setPreviewObject(null);
+          }
+        }}
+        accountId={accountId}
+        bucket={currentBucket ?? undefined}
+        object={previewObject ?? undefined}
+      />
+
       {/* Create Bucket Dialog */}
       <Dialog open={createBucketOpen} onOpenChange={setCreateBucketOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新建存储桶</DialogTitle>
-            <DialogDescription>创建一个新的存储桶来存放您的文件。</DialogDescription>
+            <DialogTitle>新建存储桶 · Create Bucket</DialogTitle>
+            <DialogDescription>
+              命名遵循 S3 规则，Region/ACL 与提供商保持一致。Pick a region & policy that matches your
+              provider.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label>名称</Label>
+              <Label>名称 / Name</Label>
               <Input
-                placeholder="my-bucket"
+                placeholder="my-team-bucket"
                 value={newBucketName}
                 onChange={(e) => setNewBucketName(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                仅限小写字母、数字、`-`，长度 3-63。Lowercase letters, numbers, and hyphen only.
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label>区域</Label>
-              <Input
-                placeholder="us-east-1"
-                value={newBucketRegion}
-                onChange={(e) => setNewBucketRegion(e.target.value)}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>区域 / Region</Label>
+                <Input
+                  placeholder="cn-hangzhou / us-east-1"
+                  value={newBucketRegion}
+                  onChange={(e) => setNewBucketRegion(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  留空将使用账户默认区域：{activeAccount?.region || "us-east-1"}。
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>访问策略 / Access Control</Label>
+                <Select value={bucketACL} onValueChange={setBucketACL}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择 ACL" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="private">私有 · Private</SelectItem>
+                    <SelectItem value="public-read">公共读 · Public Read</SelectItem>
+                    <SelectItem value="public-read-write">公共读写 · Public RW</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  默认私有。OSS/COS 会映射到各自的预设 ACL。
+                </p>
+              </div>
             </div>
+
+            <Collapsible open={advancedBucketOpen} onOpenChange={setAdvancedBucketOpen}>
+              <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium">高级配置 · Advanced Options</p>
+                  <p className="text-xs text-muted-foreground">
+                    供应商特有的参数（存储类型 / 多可用区等）。
+                  </p>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    {advancedBucketOpen ? "收起" : "展开"}
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 transition-transform",
+                        advancedBucketOpen ? "rotate-180" : "rotate-0",
+                      )}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="space-y-4 pt-4">
+                {isOSSProvider && (
+                  <div className="space-y-2 rounded-lg border border-border/40 bg-muted/10 p-3">
+                    <Label>OSS 存储类型 / Storage Class</Label>
+                    <Select value={bucketStorageClass} onValueChange={setBucketStorageClass}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">标准 · Standard</SelectItem>
+                        <SelectItem value="ia">低频 · Infrequent Access</SelectItem>
+                        <SelectItem value="archive">归档 · Archive</SelectItem>
+                        <SelectItem value="cold">冷归档 · Cold Archive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      影响新对象的默认存储层级，可在对象上传时再覆盖。
+                    </p>
+                  </div>
+                )}
+
+                {isCOSProvider && (
+                  <div className="flex items-start justify-between rounded-lg border border-border/40 bg-muted/10 p-3">
+                    <div>
+                      <p className="text-sm font-medium">多可用区冗余 · MAZ</p>
+                      <p className="text-xs text-muted-foreground">
+                        在同一区域内复制到多个 AZ，提高容灾能力（可能带来费用变化）。Multi-AZ redundancy for
+                        COS buckets.
+                      </p>
+                    </div>
+                    <Switch checked={bucketCosMultiAz} onCheckedChange={setBucketCosMultiAz} />
+                  </div>
+                )}
+
+                {!isOSSProvider && !isCOSProvider && (
+                  <p className="text-xs text-muted-foreground">
+                    当前供应商暂无额外创建参数。默认启用标准存储与私有访问。
+                  </p>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCreateBucketOpen(false)}>
-              取消
+              取消 / Cancel
             </Button>
             <Button onClick={handleCreateBucket} disabled={creating || !newBucketName.trim()}>
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              创建
+              创建 / Create
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -880,6 +1113,51 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={symlinkDialogOpen} onOpenChange={setSymlinkDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>创建软链接</DialogTitle>
+            <DialogDescription>软链接会映射到目标对象，可快速暴露常用路径。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>软链接名称</Label>
+              <Input
+                placeholder="latest/report.csv"
+                value={symlinkName}
+                onChange={(e) => setSymlinkName(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                最终 Key: {(prefix || "/") + symlinkName}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>目标对象 Key</Label>
+              <Input
+                placeholder="archives/2025-02/report.csv"
+                value={symlinkTargetKey}
+                onChange={(e) => setSymlinkTargetKey(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">填写完整的对象 Key，区分大小写。</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSymlinkDialogOpen(false)}>
+              取消
+            </Button>
+            <Button
+              onClick={handleCreateSymlink}
+              disabled={
+                symlinkSaving || !symlinkName.trim() || !symlinkTargetKey.trim() || !currentBucket
+              }
+            >
+              {symlinkSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              创建
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Error Dialog */}
       <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>

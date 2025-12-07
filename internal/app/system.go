@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"can/internal/system"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -12,6 +14,16 @@ func (a *App) GetSystemMetrics() system.SystemMetrics {
 		return system.SystemMetrics{}
 	}
 	return a.system.GetMetrics()
+}
+
+// CheckForUpdates queries remote releases and reports availability.
+func (a *App) CheckForUpdates(currentVersion string) (system.UpdateInfo, error) {
+	if a.system == nil {
+		return system.UpdateInfo{}, fmt.Errorf("system service unavailable")
+	}
+	ctx, cancel := a.requestContext(nil)
+	defer cancel()
+	return a.system.CheckForUpdates(ctx, currentVersion)
 }
 
 // SelectLocalFolder prompts the user to choose a folder via a directory dialog.

@@ -130,12 +130,29 @@ func (d *cosBucketDriver) ListBuckets(ctx context.Context) ([]BucketDescriptor, 
 	return items, nil
 }
 
-func (d *cosBucketDriver) CreateBucket(ctx context.Context, name, _ string) error {
+func (d *cosBucketDriver) CreateBucket(ctx context.Context, input BucketCreateInput) error {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return errors.New("bucket name is required")
+	}
 	client, err := d.forBucket(name)
 	if err != nil {
 		return err
 	}
-	if _, err := client.Bucket.Put(ctx, nil); err != nil {
+	var opt *cos.BucketPutOptions
+	acl := strings.TrimSpace(input.ACL)
+	if input.COSMultiAZ || acl != "" {
+		opt = &cos.BucketPutOptions{}
+	}
+	if acl != "" {
+		opt.XCosACL = acl
+	}
+	if input.COSMultiAZ {
+		opt.CreateBucketConfiguration = &cos.CreateBucketConfiguration{
+			BucketAZConfig: "MAZ",
+		}
+	}
+	if _, err := client.Bucket.Put(ctx, opt); err != nil {
 		return wrapCOSError("创建存储桶", err)
 	}
 	return nil
@@ -555,6 +572,10 @@ func (d *cosObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKe
 	return nil
 }
 
+func (d *cosObjectDriver) CreateSymlink(context.Context, string, string, string) error {
+	return ErrUnsupportedCapability
+}
+
 func (d *cosObjectDriver) HeadObject(ctx context.Context, bucket, key string) (ObjectDescriptor, error) {
 	var info ObjectDescriptor
 	if strings.TrimSpace(key) == "" {
@@ -729,6 +750,26 @@ func (d *cosObjectDriver) GetObjectACL(ctx context.Context, bucket, key string) 
 }
 
 func (d *cosObjectDriver) PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) GetObjectLockConfiguration(context.Context, string) (ObjectLockConfiguration, error) {
+	return ObjectLockConfiguration{}, ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) GetObjectRetention(context.Context, string, string, string) (ObjectRetentionState, error) {
+	return ObjectRetentionState{}, ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) PutObjectRetention(context.Context, PutObjectRetentionInput) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (ObjectLegalHoldState, error) {
+	return ObjectLegalHoldState{}, ErrUnsupportedCapability
+}
+
+func (d *cosObjectDriver) PutObjectLegalHold(context.Context, PutObjectLegalHoldInput) error {
 	return ErrUnsupportedCapability
 }
 

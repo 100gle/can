@@ -4,6 +4,7 @@ import type { buckets as BucketModels } from "@wailsjs/go/models";
 import { create } from "zustand";
 
 export type BucketModel = BucketModels.BucketInfo;
+export type BucketCreateInput = BucketModels.CreateBucketInput;
 
 export type BucketsState = {
   accountId?: string;
@@ -18,7 +19,7 @@ export type BucketsState = {
 export type BucketsActions = {
   loadBuckets: (accountId: string) => Promise<void>;
   refresh: () => Promise<void>;
-  createBucket: (accountId: string, name: string, region: string) => Promise<void>;
+  createBucket: (accountId: string, input: BucketCreateInput) => Promise<void>;
   deleteBucket: (accountId: string, name: string) => Promise<void>;
   selectBucket: (name: string) => void;
   reset: () => void;
@@ -99,25 +100,33 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
       await get().loadBuckets(accountId);
     }
   },
-  createBucket: async (accountId: string, name: string, region: string) => {
+  createBucket: async (accountId: string, payload: BucketCreateInput) => {
     const targetAccount = accountId || get().accountId;
     if (!targetAccount) {
       throw new Error("必须先选择账户");
     }
-    const bucketName = name.trim();
+    const bucketName = payload.name?.trim() ?? "";
     if (!bucketName) {
       throw new Error("Bucket 名称不能为空");
     }
+    const normalizedRegion = (payload.region || "").trim();
+    const sanitized: BucketCreateInput = {
+      name: bucketName,
+      region: normalizedRegion,
+      acl: payload.acl?.trim() ?? "",
+      storageClass: payload.storageClass?.trim() ?? "",
+      cosMultiAz: Boolean(payload.cosMultiAz),
+    };
     set({ creating: true, error: undefined });
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
-        await CreateBucket(targetAccount, bucketName, region);
+        await CreateBucket(targetAccount, sanitized);
         await get().loadBuckets(targetAccount);
       } else {
         const mock: BucketModel = {
           name: bucketName,
-          region: region || "us-east-1",
+          region: sanitized.region || "us-east-1",
           objectCount: 0,
           size: 0,
           createdAt: new Date().toISOString() as any,
