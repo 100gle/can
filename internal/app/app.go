@@ -38,6 +38,7 @@ type App struct {
 	system         *system.Service
 	migration      migration.Service
 	backup         backup.Service
+	audit          *security.Service
 }
 
 // New creates a new App application struct
@@ -56,6 +57,20 @@ func New() *App {
 			fmt.Printf("failed to init analytics schema: %v\n", err)
 		}
 		analyticsSvc = analytics.NewService(analyticsSQLStore)
+		analyticsSvc = analytics.NewService(analyticsSQLStore)
+	}
+
+	// Audit
+	auditDBPath, _ := bootstrap.DefaultAuditPath()
+	var auditSvc *security.Service
+	auditStore, err := security.NewSQLiteAuditStore(auditDBPath)
+	if err != nil {
+		fmt.Printf("failed to open audit db: %v\n", err)
+	} else {
+		if err := auditStore.Init(); err != nil {
+			fmt.Printf("failed to init audit schema: %v\n", err)
+		}
+		auditSvc = security.NewService(auditStore)
 	}
 
 	s3Factory := providers.NewS3ClientFactory()
@@ -69,7 +84,7 @@ func New() *App {
 	transferStore := bootstrap.InitTransferStore()
 	transferSvc := transfer.NewService(accountSvc, clientPool, transferStore)
 	linkHistoryStore := bootstrap.InitLinkHistoryStore()
-	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore)
+	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore, auditSvc)
 	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
 	configFacade := configfacade.NewService(accountSvc, configSvc)
 	searchStore := bootstrap.InitSearchStore()
@@ -103,6 +118,7 @@ func New() *App {
 		system:         systemSvc,
 		migration:      migrationSvc,
 		backup:         backupSvc,
+		audit:          auditSvc,
 	}
 }
 

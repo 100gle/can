@@ -241,12 +241,56 @@ func TestBatchUpdateObjectAttributesPartialFailure(t *testing.T) {
 	}
 }
 
+func TestBatchDeleteObjects(t *testing.T) {
+	driver := newStubObjectDriver()
+	svc, accountID := newTestObjectsService(t, driver)
+	keys := []string{"a.txt", "b.txt"}
+	result, err := svc.BatchDeleteObjects(context.Background(), accountID, "docs", keys)
+	if err != nil {
+		t.Fatalf("batch delete: %v", err)
+	}
+	if result.Total != 2 {
+		t.Fatalf("expected total 2, got %d", result.Total)
+	}
+	if result.Succeeded != 2 {
+		t.Fatalf("expected 2 successes, got %d", result.Succeeded)
+	}
+	if len(driver.deleteCalls) != 2 {
+		t.Fatalf("expected 2 delete calls, got %d", len(driver.deleteCalls))
+	}
+}
+
+func TestBatchDeleteObjectsPartialFailure(t *testing.T) {
+	driver := newStubObjectDriver()
+	// Fail delete for b.txt specifically if we could control per-key,
+	// but stub driver errors globally. Let's make it check Key.
+	// We'll modify stub delete to fail for "fail.txt"
+	svc, accountID := newTestObjectsService(t, driver)
+	driver.deleteErrMap = map[string]error{"fail.txt": errors.New("delete failed")}
+
+	keys := []string{"ok.txt", "fail.txt"}
+	result, err := svc.BatchDeleteObjects(context.Background(), accountID, "docs", keys)
+	if err != nil {
+		t.Fatalf("batch delete should not return error on partial failure: %v", err)
+	}
+	if result.Succeeded != 1 {
+		t.Fatalf("expected 1 success, got %d", result.Succeeded)
+	}
+	if len(result.Failed) != 1 {
+		t.Fatalf("expected 1 failure, got %d", len(result.Failed))
+	}
+	if result.Failed[0].Key != "fail.txt" {
+		t.Fatalf("expected failure for fail.txt, got %s", result.Failed[0].Key)
+	}
+}
+
 type stubObjectDriver struct {
 	headResponses map[string]headResponse
 	copyCalls     []copyCall
 	deleteCalls   []deleteCall
 	copyErr       error
 	deleteErr     error
+	deleteErrMap  map[string]error
 	metadataErr   error
 	tagsErr       error
 	aclErr        error
@@ -270,7 +314,10 @@ type deleteCall struct {
 }
 
 func newStubObjectDriver() *stubObjectDriver {
-	return &stubObjectDriver{headResponses: make(map[string]headResponse)}
+	return &stubObjectDriver{
+		headResponses: make(map[string]headResponse),
+		deleteErrMap:  make(map[string]error),
+	}
 }
 
 func (s *stubObjectDriver) key(bucket, key string) string {
@@ -384,6 +431,9 @@ func (s *stubObjectDriver) PutObjectACL(context.Context, string, string, string)
 
 func (s *stubObjectDriver) DeleteObject(_ context.Context, bucket, key string) error {
 	s.deleteCalls = append(s.deleteCalls, deleteCall{bucket: bucket, key: key})
+	if err, ok := s.deleteErrMap[key]; ok {
+		return err
+	}
 	if s.deleteErr != nil {
 		return s.deleteErr
 	}
@@ -442,6 +492,10 @@ func (s *stubStorageClient) Objects() providers.ObjectDriver {
 	return s.objects
 }
 
+func (s *stubStorageClient) Security() providers.SecurityDriver {
+	return nil
+}
+
 func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
@@ -466,6 +520,6 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Servic
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
 	pool := providers.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
-	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore())
+	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore(), nil)
 	return service, account.ID
 }

@@ -173,6 +173,10 @@ func (f *fakeStorageClient) Objects() providers.ObjectDriver {
 	return nil
 }
 
+func (f *fakeStorageClient) Security() providers.SecurityDriver {
+	return nil
+}
+
 type fakeBucketDriver struct {
 	buckets       []providers.BucketDescriptor
 	createdName   string

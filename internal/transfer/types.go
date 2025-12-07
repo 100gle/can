@@ -63,12 +63,14 @@ type DownloadEntry struct {
 
 // DownloadConfig captures user preferences for downloads.
 type DownloadConfig struct {
-	Mode             DownloadMode         `json:"mode"`
-	TargetDirectory  string               `json:"targetDirectory"`
-	ArchiveName      string               `json:"archiveName"`
-	ConflictStrategy FileConflictStrategy `json:"conflictStrategy"`
-	Entries          []DownloadEntry      `json:"entries"`
-	ResumeEnabled    bool                 `json:"resumeEnabled"`
+	Mode              DownloadMode         `json:"mode"`
+	TargetDirectory   string               `json:"targetDirectory"`
+	ArchiveName       string               `json:"archiveName"`
+	ConflictStrategy  FileConflictStrategy `json:"conflictStrategy"`
+	Entries           []DownloadEntry      `json:"entries"`
+	ResumeEnabled     bool                 `json:"resumeEnabled"`
+	ChecksumAlgorithm ChecksumAlgorithm    `json:"checksumAlgorithm,omitempty"`
+	ExpectedChecksum  string               `json:"expectedChecksum,omitempty"`
 }
 
 // TransferTask describes the progress of an upload or download.
@@ -97,6 +99,13 @@ type TransferTask struct {
 	DownloadConfig *DownloadConfig `json:"downloadConfig,omitempty"`
 	CreatedAt      time.Time       `json:"createdAt" ts_type:"string"`
 	UpdatedAt      time.Time       `json:"updatedAt" ts_type:"string"`
+	// Checksum verification fields
+	ComputedChecksum string `json:"computedChecksum,omitempty"`
+	ChecksumVerified *bool  `json:"checksumVerified,omitempty"`
+	// Enhanced metadata fields
+	FinalSavePath  string `json:"finalSavePath,omitempty"`
+	AverageSpeed   int64  `json:"averageSpeed,omitempty"`
+	Duration       int64  `json:"duration,omitempty"` // milliseconds
 	cancel         context.CancelFunc
 	lastSampleTime time.Time
 	lastSnapshot   int64

@@ -120,8 +120,7 @@
 - ✅ **持久化**：所有任务状态变更实时写入存储层（`store.Update`），确保意外退出不丢失任务状态。
 - ✅ **传输队列 UI**：`transfers-page.tsx` 采用 Card 组件包装任务列表，与其他页面风格统一，包含 CardHeader（标题+任务数）和 CardContent（表格/空状态）。
 - ✅ **PageHeader 集成**：传输管理页面使用统一的 `PageHeader` 组件，支持返回导航、速度限制设置和清理已完成按钮。
+- ✅ **速度限制**：后端 `RateLimiter` 与 Frontend `setGlobalSpeedLimit` 已集成。
 - 🚧 **待完善功能**：
-    - 速度限制（限流器）尚未集成。
-    - 失败自动重试策略需增强。
     - 优先级队列目前为 FIFO。
 

@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useObjectsStore } from "@/state/objects";
 import { DeleteAccessLinkHistory, ListAccessLinkHistory } from "@wailsjs/go/app/App";
 import { objects } from "@wailsjs/go/models";
-import { Clipboard, Loader2 } from "lucide-react";
+import { Clipboard, History, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type LinkHistoryPanelProps = {
@@ -66,8 +66,10 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : links.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              暂无历史记录
+            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+              <History className="h-12 w-12 text-muted-foreground/40 mb-4" />
+              <p className="text-sm font-medium">暂无历史记录</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">生成的分享链接将在此处显示</p>
             </div>
           ) : (
             <div className="h-full overflow-y-auto pr-2 space-y-4">

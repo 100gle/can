@@ -699,6 +699,40 @@ export namespace objects {
 		    return a;
 		}
 	}
+	export class BatchDeleteResult {
+	    total: number;
+	    succeeded: number;
+	    failed: BatchOperationFailure[];
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchDeleteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.succeeded = source["succeeded"];
+	        this.failed = this.convertValues(source["failed"], BatchOperationFailure);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	export class DownloadBatchEntry {
 	    bucket: string;
@@ -1309,6 +1343,8 @@ export namespace transfer {
 	    conflictStrategy: string;
 	    entries: DownloadEntry[];
 	    resumeEnabled: boolean;
+	    checksumAlgorithm?: string;
+	    expectedChecksum?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DownloadConfig(source);
@@ -1322,6 +1358,8 @@ export namespace transfer {
 	        this.conflictStrategy = source["conflictStrategy"];
 	        this.entries = this.convertValues(source["entries"], DownloadEntry);
 	        this.resumeEnabled = source["resumeEnabled"];
+	        this.checksumAlgorithm = source["checksumAlgorithm"];
+	        this.expectedChecksum = source["expectedChecksum"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1368,6 +1406,11 @@ export namespace transfer {
 	    downloadConfig?: DownloadConfig;
 	    createdAt: string;
 	    updatedAt: string;
+	    computedChecksum?: string;
+	    checksumVerified?: boolean;
+	    finalSavePath?: string;
+	    averageSpeed?: number;
+	    duration?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new TransferTask(source);
@@ -1399,6 +1442,11 @@ export namespace transfer {
 	        this.downloadConfig = this.convertValues(source["downloadConfig"], DownloadConfig);
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
+	        this.computedChecksum = source["computedChecksum"];
+	        this.checksumVerified = source["checksumVerified"];
+	        this.finalSavePath = source["finalSavePath"];
+	        this.averageSpeed = source["averageSpeed"];
+	        this.duration = source["duration"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

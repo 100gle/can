@@ -27,6 +27,7 @@ import { transfersStore, useTransfersStore } from "@/state/transfers";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  CloudOff,
   Pause,
   Play,
   RotateCcw,
@@ -141,7 +142,11 @@ export const TransfersPage = () => {
         <CardContent className="p-0">
           {taskList.length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
-              <p className="text-sm">暂无传输任务</p>
+              <CloudOff className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="text-sm font-medium">暂无传输任务</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                上传或下载文件时任务将在此处显示
+              </p>
             </div>
           ) : (
             <Table>

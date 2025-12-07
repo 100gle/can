@@ -376,6 +376,10 @@ func (f *fakeStorageClient) Objects() providers.ObjectDriver {
 	return f.objects
 }
 
+func (f *fakeStorageClient) Security() providers.SecurityDriver {
+	return nil
+}
+
 type fakeObjectDriver struct {
 	mu      sync.Mutex
 	objects map[string][]byte

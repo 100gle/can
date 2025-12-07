@@ -73,6 +73,10 @@ func (c *cosStorageClient) Objects() ObjectDriver {
 	}
 }
 
+func (c *cosStorageClient) Security() SecurityDriver {
+	return &UnimplementedSecurityDriver{}
+}
+
 func resolveCOSServiceURL(creds ConnectionCredentials) (*url.URL, error) {
 	endpoint := strings.TrimSpace(creds.Endpoint)
 	if endpoint == "" {

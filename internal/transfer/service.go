@@ -622,6 +622,7 @@ func (s *Service) executeTask(ctx context.Context, task *TransferTask) error {
 }
 
 func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask) error {
+	startTime := time.Now()
 	client, err := s.client(ctx, task.AccountID)
 	if err != nil {
 		return err
@@ -639,6 +640,17 @@ func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask)
 	if err != nil {
 		return err
 	}
+
+	// Checksum verification only works with full downloads (not resumed)
+	enableChecksum := offset == 0
+	var checksumAlgorithm ChecksumAlgorithm = ChecksumNone
+	var expectedChecksum string
+
+	if enableChecksum && cfg != nil {
+		checksumAlgorithm = cfg.ChecksumAlgorithm
+		expectedChecksum = cfg.ExpectedChecksum
+	}
+
 	input := providers.DownloadObjectInput{
 		Bucket:    task.Bucket,
 		Key:       task.Key,
@@ -653,6 +665,15 @@ func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask)
 		return err
 	}
 	defer download.Body.Close()
+
+	// Auto-detect checksum from ETag if enabled and no explicit algorithm set
+	if enableChecksum && checksumAlgorithm == ChecksumNone && cfg != nil && cfg.ExpectedChecksum == "" {
+		if etagChecksum, etagAlg := extractETagChecksum(download.ETag); etagAlg != ChecksumNone {
+			checksumAlgorithm = etagAlg
+			expectedChecksum = etagChecksum
+		}
+	}
+
 	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("open target file: %w", err)
@@ -673,19 +694,59 @@ func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask)
 	if offset > 0 && task.Progress < offset {
 		task.Progress = offset
 	}
+
+	// Wrap with progress tracking
 	reader := newProgressReader(download.Body, func(n int64) {
 		s.updateTaskProgress(task, n)
 	})
 	var finalReader io.Reader = reader
+
+	// Apply rate limiting if configured
 	if s.globalLimiter != nil && s.globalLimiter.Limit() > 0 {
 		finalReader = s.wrapWithRateLimiter(ctx, reader)
 	}
+
+	// Wrap with checksum calculation if enabled
+	var checksumReader *checksumReader
+	if enableChecksum && checksumAlgorithm != ChecksumNone {
+		checksumReader, err = newChecksumReader(finalReader, checksumAlgorithm)
+		if err != nil {
+			return fmt.Errorf("create checksum reader: %w", err)
+		}
+		finalReader = checksumReader
+	}
+
+	// Perform the download
 	if _, err := io.Copy(file, finalReader); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
+
+	// Store ETag
 	if task.ETag == "" {
 		task.ETag = download.ETag
 	}
+
+	// Store final save path and enhanced metadata
+	task.FinalSavePath = target
+	task.Duration = time.Since(startTime).Milliseconds()
+	if task.Duration > 0 && task.Total > 0 {
+		task.AverageSpeed = task.Total * 1000 / task.Duration // bytes per second
+	}
+
+	// Verify checksum if enabled
+	if checksumReader != nil {
+		computed := checksumReader.Sum()
+		task.ComputedChecksum = computed
+
+		if err := verifyChecksum(computed, expectedChecksum, checksumAlgorithm); err != nil {
+			verified := false
+			task.ChecksumVerified = &verified
+			return fmt.Errorf("checksum verification failed: %w", err)
+		}
+		verified := true
+		task.ChecksumVerified = &verified
+	}
+
 	s.persistTask(task)
 	return nil
 }

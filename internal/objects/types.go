@@ -88,6 +88,13 @@ type BatchAttributesResult struct {
 	Failed    []BatchOperationFailure `json:"failed"`
 }
 
+// BatchDeleteResult summarises batch delete operations.
+type BatchDeleteResult struct {
+	Total     int                     `json:"total"`
+	Succeeded int                     `json:"succeeded"`
+	Failed    []BatchOperationFailure `json:"failed"`
+}
+
 // DownloadObjectInput describes advanced download preferences for a single object.
 type DownloadObjectInput struct {
 	Bucket           string `json:"bucket"`

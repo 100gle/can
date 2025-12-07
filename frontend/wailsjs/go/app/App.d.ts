@@ -18,6 +18,8 @@ export function AbortMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:st
 
 export function ActiveAccount():Promise<accounts.Account>;
 
+export function BatchDeleteObjects(arg1:string,arg2:string,arg3:Array<string>):Promise<objects.BatchDeleteResult>;
+
 export function BatchUpdateObjectAttributes(arg1:string,arg2:Array<objects.ObjectAttributesPatch>):Promise<objects.BatchAttributesResult>;
 
 export function BucketLocation(arg1:string,arg2:string):Promise<string>;

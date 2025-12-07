@@ -3,6 +3,7 @@ import {
   DownloadCloud,
   Edit3,
   Filter,
+  FolderOpen,
   FolderPlus,
   LayoutGrid,
   Link2,
@@ -19,6 +20,7 @@ import { BatchAttributesDialog } from "@/components/objects/batch-attributes-dia
 import { BatchToolbar } from "@/components/objects/batch-toolbar";
 import { CreateFolderDialog } from "@/components/objects/create-folder-dialog";
 import { DownloadOptionsDialog } from "@/components/objects/download-options-dialog";
+import { ExportFileListDialog } from "@/components/objects/export-file-list-dialog";
 import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
 import { ObjectContextMenu } from "@/components/objects/object-context-menu";
 import { ObjectDetailsDrawer } from "@/components/objects/object-details-drawer";
@@ -61,12 +63,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
-import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
 import type { CheckedState } from "@radix-ui/react-checkbox";
+import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
 import { ObjectGridView } from "./object-grid-view";
 
 export type ObjectBrowserProps = {
@@ -118,6 +121,8 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
   });
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [batchAttributesOpen, setBatchAttributesOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void objectsStore.setContext(accountId, bucket);
@@ -191,6 +196,28 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
     setSearchTerm("");
     setTypeFilter("all");
   };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    enabled: Boolean(bucket),
+    handlers: {
+      selectAll: () => objectsStore.selectAll(filteredFileKeys),
+      delete: () => {
+        if (selectedKeys.size > 0) {
+          objectsStore.deleteSelected();
+        }
+      },
+      search: () => searchInputRef.current?.focus(),
+      refresh: () => objectsStore.refresh(),
+      escape: () => objectsStore.clearSelection(),
+      copy: () => {
+        if (selectedKeys.size > 0) {
+          const keys = Array.from(selectedKeys).join("\n");
+          navigator.clipboard.writeText(keys);
+        }
+      },
+    },
+  });
 
   const handleEnterDir = (key: string) => {
     void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
@@ -427,6 +454,7 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
               onBatchMoveCopy={() => setMoveCopyDialogOpen(true)}
               onBatchDownload={() => setDownloadDialogOpen(true)}
               onBatchEdit={() => setBatchAttributesOpen(true)}
+              onBatchExport={() => setExportDialogOpen(true)}
             />
           )}
 
@@ -435,6 +463,7 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
             <div className="relative flex-1 min-w-[200px] max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 type="text"
                 placeholder="搜索当前目录下的文件..."
                 value={searchTerm}
@@ -564,12 +593,16 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
               <Loader2 className="h-4 w-4 animate-spin" /> 正在加载对象
             </div>
           ) : filteredObjects.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">
-                {hasActiveFilters ? "没有匹配过滤条件的对象" : "当前路径下暂无对象。"}
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
+              <p className="text-sm font-medium text-muted-foreground">
+                {hasActiveFilters ? "没有匹配过滤条件的对象" : "当前路径下暂无对象"}
+              </p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                {hasActiveFilters ? "尝试调整搜索条件或类型过滤" : "拖放文件到此处开始上传"}
               </p>
               {hasActiveFilters ? (
-                <Button variant="link" size="sm" onClick={clearFilters} className="mt-2">
+                <Button variant="link" size="sm" onClick={clearFilters} className="mt-3">
                   清除所有过滤条件
                 </Button>
               ) : null}
@@ -790,6 +823,14 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
         open={detailsDrawerState.open}
         objectKey={detailsDrawerState.key}
         onClose={() => setDetailsDrawerState({ open: false })}
+      />
+
+      <ExportFileListDialog
+        open={exportDialogOpen && selectedObjects.length > 0}
+        onOpenChange={setExportDialogOpen}
+        objects={selectedObjects}
+        bucket={bucket}
+        prefix={prefix}
       />
     </>
   );

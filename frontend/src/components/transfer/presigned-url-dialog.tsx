@@ -17,6 +17,7 @@ import { objects } from "@wailsjs/go/models";
 import { Clipboard, History, Loader2, QrCode, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { LinkHistoryPanel } from "./link-history-panel";
+import { SecurityTips } from "./security-tips";
 
 type HeaderEntry = { id: string; key: string; value: string };
 
@@ -355,6 +356,9 @@ export const PresignedURLDialog = ({
                   </div>
                 </Tabs>
               )}
+
+              {/* Security Tips - always shown */}
+              <SecurityTips className="mt-4 pt-4 border-t border-border/40" />
             </div>
           </div>
         </DialogContent>

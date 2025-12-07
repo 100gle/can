@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore } from "@/state/objects";
-import { Copy, Download, Loader2, Settings2, Trash2, X } from "lucide-react";
+import { Copy, Download, FileDown, Loader2, Settings2, Trash2, X } from "lucide-react";
 
 type BatchToolbarProps = {
   className?: string;
@@ -10,6 +10,7 @@ type BatchToolbarProps = {
   onBatchDelete?: () => void;
   onBatchEdit?: () => void;
   onBatchMoveCopy?: () => void;
+  onBatchExport?: () => void;
 };
 
 export function BatchToolbar({
@@ -18,6 +19,7 @@ export function BatchToolbar({
   onBatchDelete,
   onBatchEdit,
   onBatchMoveCopy,
+  onBatchExport,
 }: BatchToolbarProps) {
   const selectedKeys = useObjectsStore((s) => s.selectedKeys);
   const selecting = useObjectsStore((s) => s.selecting);
@@ -90,6 +92,22 @@ export function BatchToolbar({
               </Button>
             </TooltipTrigger>
             <TooltipContent>移动或复制选中的文件</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5"
+                onClick={onBatchExport}
+                disabled={selecting}
+              >
+                <FileDown className="h-4 w-4" />
+                导出
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>导出选中文件的列表</TooltipContent>
           </Tooltip>
 
           <Tooltip>

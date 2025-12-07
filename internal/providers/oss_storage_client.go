@@ -63,6 +63,10 @@ func (c *ossStorageClient) Objects() ObjectDriver {
 	return &ossObjectDriver{client: c.client}
 }
 
+func (c *ossStorageClient) Security() SecurityDriver {
+	return &UnimplementedSecurityDriver{}
+}
+
 type ossBucketDriver struct {
 	client *oss.Client
 }

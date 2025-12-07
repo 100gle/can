@@ -11,6 +11,7 @@ import {
   CheckSquare,
   DownloadCloud,
   Edit3,
+  Focus,
   Info,
   Link2,
   MoveRight,
@@ -72,6 +73,7 @@ export function ObjectContextMenu({
           {isSelected ? "取消选择" : "选择"}
         </ContextMenuItem>
         <ContextMenuItem inset onSelect={handle(onSelectOnly)}>
+          <Focus className="mr-2 h-4 w-4" />
           仅选择此项
         </ContextMenuItem>
         <ContextMenuSeparator />

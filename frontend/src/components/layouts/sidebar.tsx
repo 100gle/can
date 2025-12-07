@@ -1,6 +1,7 @@
 import logo from "@/assets/images/logo-universal.png";
 import { AccountSwitcher } from "@/components/accounts/account-switcher";
 import { Button } from "@/components/ui/button";
+import { useAccountsStore } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -10,6 +11,7 @@ import {
   Plus,
   Settings,
   Share2,
+  ShieldCheck,
 } from "lucide-react";
 
 type SidebarProps = {
@@ -17,8 +19,10 @@ type SidebarProps = {
   accountId?: string;
 };
 
-export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
+export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
   const navigate = useNavigate();
+  const { activeAccountId } = useAccountsStore((state) => state);
+  const currentAccountId = accountId || activeAccountId;
 
   return (
     <div className="flex h-full flex-col gap-6 px-4 py-6">
@@ -49,6 +53,22 @@ export const Sidebar = ({ onCreateAccount }: SidebarProps) => {
           <Plus className="h-4 w-4" />
           新建账户
         </Button>
+        {currentAccountId && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={() =>
+              navigate({
+                to: "/accounts/$accountId/security",
+                params: { accountId: currentAccountId },
+              })
+            }
+          >
+            <ShieldCheck className="h-4 w-4" />
+            安全中心
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"

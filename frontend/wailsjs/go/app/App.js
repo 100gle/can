@@ -10,6 +10,10 @@ export function ActiveAccount() {
   return window['go']['app']['App']['ActiveAccount']();
 }
 
+export function BatchDeleteObjects(arg1, arg2, arg3) {
+  return window['go']['app']['App']['BatchDeleteObjects'](arg1, arg2, arg3);
+}
+
 export function BatchUpdateObjectAttributes(arg1, arg2) {
   return window['go']['app']['App']['BatchUpdateObjectAttributes'](arg1, arg2);
 }

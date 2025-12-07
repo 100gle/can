@@ -149,6 +149,14 @@ func DefaultAnalyticsPath() (string, error) {
 	return filepath.Join(dir, "analytics.db"), nil
 }
 
+func DefaultAuditPath() (string, error) {
+	dir, err := DefaultDataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "audit.db"), nil
+}
+
 func DefaultDataDir() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil || dir == "" {

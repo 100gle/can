@@ -47,6 +47,13 @@ func (a *App) DeleteObject(accountID, bucket, key string) error {
 	return a.objects.DeleteObject(ctx, accountID, bucket, key)
 }
 
+// BatchDeleteObjects removes multiple objects from the bucket.
+func (a *App) BatchDeleteObjects(accountID, bucket string, keys []string) (objects.BatchDeleteResult, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.BatchDeleteObjects(ctx, accountID, bucket, keys)
+}
+
 // CopyObject duplicates an object to a new location.
 func (a *App) CopyObject(accountID, sourceBucket, sourceKey, targetBucket, targetKey string) error {
 	ctx, cancel := a.backgroundContext()

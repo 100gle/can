@@ -130,6 +130,7 @@ type StorageClient interface {
 	Capabilities() []types.ProviderCapability
 	Buckets() BucketDriver
 	Objects() ObjectDriver
+	Security() SecurityDriver
 }
 
 // StorageFactory resolves a storage client for the given credentials.

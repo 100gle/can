@@ -7,8 +7,6 @@ import { PolicyPanel } from "@/components/buckets/policy-panel";
 import { SnapshotPanel } from "@/components/buckets/snapshot-panel";
 import { VersioningPanel } from "@/components/buckets/versioning-panel";
 import { WebsitePanel } from "@/components/buckets/website-panel";
-import { DashboardLayout } from "@/components/layouts/dashboard-layout";
-import { Sidebar } from "@/components/layouts/sidebar";
 import { Button } from "@/components/ui/button";
 import { accountsStore, useAccountsStore, type ProviderCapability } from "@/state/accounts";
 import { bucketConfigStore, type BucketFeature } from "@/state/bucketConfig";
@@ -70,31 +68,27 @@ export const BucketSettingsPage = () => {
 
   if (!account && (loading || !accounts.length)) {
     return (
-      <DashboardLayout sidebar={<Sidebar />}>
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          正在加载账户...
-        </div>
-      </DashboardLayout>
+      <main className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+        正在加载账户...
+      </main>
     );
   }
 
   if (!account) {
     return (
-      <DashboardLayout sidebar={<Sidebar />}>
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-          <p>未找到目标账户，请返回仪表盘。</p>
-          <Button
-            onClick={() =>
-              navigate({
-                to: "/accounts/$accountId/dashboard",
-                params: { accountId: activeAccountId ?? accounts[0].id },
-              })
-            }
-          >
-            返回
-          </Button>
-        </div>
-      </DashboardLayout>
+      <main className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <p>未找到目标账户，请返回仪表盘。</p>
+        <Button
+          onClick={() =>
+            navigate({
+              to: "/accounts/$accountId/dashboard",
+              params: { accountId: activeAccountId ?? accounts[0].id },
+            })
+          }
+        >
+          返回
+        </Button>
+      </main>
     );
   }
 
@@ -161,30 +155,18 @@ export const BucketSettingsPage = () => {
   ];
 
   return (
-    <DashboardLayout
-      sidebar={
-        <Sidebar
-          onCreateAccount={() =>
-            navigate({
-              to: "/accounts/$accountId/dashboard",
-              params: { accountId: params.accountId },
-            })
-          }
-        />
-      }
-    >
-      <main className="p-6 space-y-6">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            {account.name} · Bucket 设置
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold">{params.bucketId}</h2>
-          <p className="text-sm text-muted-foreground">
-            这里可以管理版本控制、默认加密以及跨域策略。
-          </p>
-        </div>
-        <BucketSettings sections={sections} activeSection={section} onSectionChange={setSection} />
-      </main>
-    </DashboardLayout>
+    <main className="flex-1 overflow-auto p-6 space-y-6">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">
+          {account.name} · Bucket 设置
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold">{params.bucketId}</h2>
+        <p className="text-sm text-muted-foreground">
+          这里可以管理版本控制、默认加密以及跨域策略。
+        </p>
+      </div>
+      <BucketSettings sections={sections} activeSection={section} onSectionChange={setSection} />
+    </main>
   );
 };
+

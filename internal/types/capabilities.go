@@ -14,6 +14,7 @@ const (
 	FeatureBucketCORS         FeatureID = "bucket.cors"
 	FeatureBucketWebsite      FeatureID = "bucket.website"
 	FeatureBucketPolicy       FeatureID = "bucket.policy"
+	FeatureSTS                FeatureID = "security.sts"
 )
 
 // featureCatalog defines the descriptive metadata for known features.
@@ -78,6 +79,12 @@ var featureCatalog = map[FeatureID]FeatureMetadata{
 		Description: "编辑存储桶的 JSON 策略文档。",
 		Category:    "bucket",
 	},
+	FeatureSTS: {
+		ID:          FeatureSTS,
+		Name:        "临时凭证 (STS)",
+		Description: "生成具有有时限限制的临时访问凭证。",
+		Category:    "security",
+	},
 }
 
 // FeatureMetadata describes a capability in UI-friendly terms.
@@ -111,6 +118,7 @@ var providerCapabilityMatrix = map[Provider]map[FeatureID]ProviderCapability{
 		FeatureBucketCORS:         true,
 		FeatureBucketWebsite:      true,
 		FeatureBucketPolicy:       true,
+		FeatureSTS:                true,
 	}, map[FeatureID]string{
 		FeatureObjectSymlink: "AWS S3 暂不支持对象级软链接。",
 	}),
@@ -120,13 +128,13 @@ var providerCapabilityMatrix = map[Provider]map[FeatureID]ProviderCapability{
 		FeatureBucketCustomDomain: true,
 		FeatureObjectSymlink:      true,
 	}, map[FeatureID]string{
-		FeatureBucketMultiAZ: "阿里云 OSS 当前仅提供同城多活，暂未开放跨可用区冗余开关。",
+		FeatureBucketMultiAZ:    "阿里云 OSS 当前仅提供同城多活，暂未开放跨可用区冗余开关。",
 		FeatureBucketVersioning: "阿里云 OSS 尚未开放在 CAN 中管理版本控制。",
 		FeatureBucketEncryption: "阿里云 OSS 暂不支持通过 CAN 配置默认加密。",
-		FeatureBucketLifecycle: "阿里云 OSS 暂不支持在 CAN 中管理生命周期规则。",
-		FeatureBucketCORS: "阿里云 OSS 暂不支持通过 CAN 管理 CORS。",
-		FeatureBucketWebsite: "阿里云 OSS 暂未开放静态网站托管设置。",
-		FeatureBucketPolicy: "阿里云 OSS 暂不支持在 CAN 中编辑 Bucket Policy。",
+		FeatureBucketLifecycle:  "阿里云 OSS 暂不支持在 CAN 中管理生命周期规则。",
+		FeatureBucketCORS:       "阿里云 OSS 暂不支持通过 CAN 管理 CORS。",
+		FeatureBucketWebsite:    "阿里云 OSS 暂未开放静态网站托管设置。",
+		FeatureBucketPolicy:     "阿里云 OSS 暂不支持在 CAN 中编辑 Bucket Policy。",
 	}),
 	ProviderCOS: buildCapabilityEntry(ProviderCOS, map[FeatureID]bool{
 		FeatureBucketStorageClass: true,
@@ -134,13 +142,13 @@ var providerCapabilityMatrix = map[Provider]map[FeatureID]ProviderCapability{
 		FeatureBucketCustomDomain: true,
 		FeatureObjectSymlink:      false,
 	}, map[FeatureID]string{
-		FeatureObjectSymlink: "腾讯云 COS 暂不支持软链接能力。",
+		FeatureObjectSymlink:    "腾讯云 COS 暂不支持软链接能力。",
 		FeatureBucketVersioning: "腾讯云 COS 暂不支持通过 CAN 管理版本控制。",
 		FeatureBucketEncryption: "腾讯云 COS 暂不支持通过 CAN 配置默认加密。",
-		FeatureBucketLifecycle: "腾讯云 COS 暂不支持在 CAN 中管理生命周期规则。",
-		FeatureBucketCORS: "腾讯云 COS 暂不支持通过 CAN 管理 CORS。",
-		FeatureBucketWebsite: "腾讯云 COS 暂未开放静态网站托管设置。",
-		FeatureBucketPolicy: "腾讯云 COS 暂不支持在 CAN 中编辑 Bucket Policy。",
+		FeatureBucketLifecycle:  "腾讯云 COS 暂不支持在 CAN 中管理生命周期规则。",
+		FeatureBucketCORS:       "腾讯云 COS 暂不支持通过 CAN 管理 CORS。",
+		FeatureBucketWebsite:    "腾讯云 COS 暂未开放静态网站托管设置。",
+		FeatureBucketPolicy:     "腾讯云 COS 暂不支持在 CAN 中编辑 Bucket Policy。",
 	}),
 	ProviderR2: buildCapabilityEntry(ProviderR2, map[FeatureID]bool{
 		FeatureBucketStorageClass: false,

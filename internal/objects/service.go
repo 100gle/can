@@ -13,6 +13,7 @@ import (
 
 	"can/internal/accounts"
 	"can/internal/providers"
+	"can/internal/security"
 	"can/internal/transfer"
 
 	"github.com/google/uuid"
@@ -25,14 +26,15 @@ type Service struct {
 	pool      providers.ClientPool
 	transfers *transfer.Service
 	history   LinkHistoryStore
+	audit     *security.Service
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service, history LinkHistoryStore) *Service {
+func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service, history LinkHistoryStore, audit *security.Service) *Service {
 	if history == nil {
 		history = NewMemoryLinkHistoryStore()
 	}
-	return &Service{accounts: accounts, pool: pool, transfers: transfers, history: history}
+	return &Service{accounts: accounts, pool: pool, transfers: transfers, history: history, audit: audit}
 }
 
 // ListObjects returns a single page of objects for the requested prefix.
@@ -146,7 +148,54 @@ func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key strin
 	if key == "" {
 		return errors.New("object key is required")
 	}
-	return client.Objects().DeleteObject(ctx, bucket, key)
+	if err := client.Objects().DeleteObject(ctx, bucket, key); err != nil {
+		if s.audit != nil {
+			_ = s.audit.Log(ctx, "DeleteObject", fmt.Sprintf("%s/%s", bucket, key), accountID, "Failure", err.Error())
+		}
+		return err
+	}
+	if s.audit != nil {
+		_ = s.audit.Log(ctx, "DeleteObject", fmt.Sprintf("%s/%s", bucket, key), accountID, "Success", "")
+	}
+	return nil
+}
+
+// BatchDeleteObjects removes multiple objects from the bucket.
+func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket string, keys []string) (BatchDeleteResult, error) {
+	var result BatchDeleteResult
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return result, err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return result, errors.New("bucket is required")
+	}
+	result.Total = len(keys)
+	driver := client.Objects()
+	// TODO: Check if driver supports DeleteObjects (batch)
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if err := driver.DeleteObject(ctx, bucket, key); err != nil {
+			result.Failed = append(result.Failed, BatchOperationFailure{
+				Bucket: bucket,
+				Key:    key,
+				Error:  err.Error(),
+			})
+			if s.audit != nil {
+				_ = s.audit.Log(ctx, "BatchDeleteObjects", fmt.Sprintf("%s/%s", bucket, key), accountID, "Failure", err.Error())
+			}
+		} else {
+			result.Succeeded++
+			if s.audit != nil {
+				_ = s.audit.Log(ctx, "BatchDeleteObjects", fmt.Sprintf("%s/%s", bucket, key), accountID, "Success", "")
+			}
+		}
+	}
+	return result, nil
 }
 
 // CopyObject duplicates an object between buckets/keys.
