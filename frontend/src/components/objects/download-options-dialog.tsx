@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +12,10 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { ObjectModel } from "@/state/objects";
 import { objectsStore, useObjectsStore } from "@/state/objects";
-import { objects as ObjectModels } from "@wailsjs/go/models";
 import { SelectLocalFolder } from "@wailsjs/go/app/App";
-import { Loader2, FolderSearch2 } from "lucide-react";
+import { objects as ObjectModels } from "@wailsjs/go/models";
+import { FolderSearch2, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type DownloadOptionsDialogProps = {
   open: boolean;
@@ -72,7 +72,7 @@ export function DownloadOptionsDialog({
 
   const handlePickDirectory = async () => {
     try {
-      const dir = await SelectLocalFolder();
+      const dir = await SelectLocalFolder("选择保存目录");
       if (dir) {
         setTargetDir(dir);
       }

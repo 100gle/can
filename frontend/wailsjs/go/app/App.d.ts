@@ -9,6 +9,7 @@ import {config} from '../models';
 import {system} from '../models';
 import {buckets} from '../models';
 import {options} from '../models';
+import {app} from '../models';
 import {types} from '../models';
 
 export function AbortMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
@@ -123,6 +124,8 @@ export function MoveObjects(arg1:string,arg2:Array<objects.MoveObjectRequest>):P
 
 export function OnSecondInstance(arg1:options.SecondInstanceData):Promise<void>;
 
+export function OpenFileDialog(arg1:string,arg2:Array<app.FileFilter>):Promise<string>;
+
 export function PauseTransferTask(arg1:string):Promise<void>;
 
 export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
@@ -133,11 +136,13 @@ export function RestoreAppBackup():Promise<void>;
 
 export function ResumeTransferTask(arg1:string):Promise<void>;
 
+export function SaveFileDialog(arg1:string,arg2:string,arg3:Array<app.FileFilter>):Promise<string>;
+
 export function SaveSearchQuery(arg1:string,arg2:search.SearchQuery):Promise<search.SavedQuery>;
 
 export function SearchObjects(arg1:string,arg2:search.SearchQuery):Promise<search.SearchResponse>;
 
-export function SelectLocalFolder():Promise<string>;
+export function SelectLocalFolder(arg1:string):Promise<string>;
 
 export function SetActiveAccount(arg1:string):Promise<accounts.Account>;
 

@@ -226,6 +226,10 @@ export function OnSecondInstance(arg1) {
   return window['go']['app']['App']['OnSecondInstance'](arg1);
 }
 
+export function OpenFileDialog(arg1, arg2) {
+  return window['go']['app']['App']['OpenFileDialog'](arg1, arg2);
+}
+
 export function PauseTransferTask(arg1) {
   return window['go']['app']['App']['PauseTransferTask'](arg1);
 }
@@ -246,6 +250,10 @@ export function ResumeTransferTask(arg1) {
   return window['go']['app']['App']['ResumeTransferTask'](arg1);
 }
 
+export function SaveFileDialog(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SaveFileDialog'](arg1, arg2, arg3);
+}
+
 export function SaveSearchQuery(arg1, arg2) {
   return window['go']['app']['App']['SaveSearchQuery'](arg1, arg2);
 }
@@ -254,8 +262,8 @@ export function SearchObjects(arg1, arg2) {
   return window['go']['app']['App']['SearchObjects'](arg1, arg2);
 }
 
-export function SelectLocalFolder() {
-  return window['go']['app']['App']['SelectLocalFolder']();
+export function SelectLocalFolder(arg1) {
+  return window['go']['app']['App']['SelectLocalFolder'](arg1);
 }
 
 export function SetActiveAccount(arg1) {

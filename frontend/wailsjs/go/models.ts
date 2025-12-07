@@ -159,6 +159,25 @@ export namespace accounts {
 
 }
 
+export namespace app {
+	
+	export class FileFilter {
+	    displayName: string;
+	    pattern: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.displayName = source["displayName"];
+	        this.pattern = source["pattern"];
+	    }
+	}
+
+}
+
 export namespace backup {
 	
 	export class BackupHeader {

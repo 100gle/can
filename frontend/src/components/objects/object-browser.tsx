@@ -14,7 +14,8 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { BatchAttributesDialog } from "@/components/objects/batch-attributes-dialog";
 import { BatchToolbar } from "@/components/objects/batch-toolbar";
@@ -64,12 +65,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { saveFileDialog } from "@/lib/bridge";
+import { isBridgeAvailable, saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
+import { useCopyToClipboard } from "usehooks-ts";
 import { ObjectGridView } from "./object-grid-view";
 
 export type ObjectBrowserProps = {
@@ -122,6 +124,8 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [batchAttributesOpen, setBatchAttributesOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -281,15 +285,31 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
     setDragActive(false);
   };
 
+  const [_copiedText, copyToClipboard] = useCopyToClipboard();
+
   const handleCopyLink = async (objectKey: string) => {
     if (!accountId || !bucket) return;
     setCopyingKey(objectKey);
     try {
       const url = await GetPresignedDownloadURL(accountId, bucket, objectKey, 60);
-      await navigator.clipboard.writeText(url);
+
+      copyToClipboard(url)
+        .then(() => {
+          // Show success toast
+          toast.success("链接已复制", {
+            description: "下载链接已复制到剪贴板",
+            duration: 2000,
+          });
+        })
+        .catch(() => {
+          setErrorMessage("复制失败，请手动复制链接");
+          setErrorDialogOpen(true);
+        });
     } catch (error) {
       console.error(error);
-      window.alert?.("复制失败，请稍后重试");
+      const message = error instanceof Error ? error.message : "获取下载链接失败";
+      setErrorMessage(message);
+      setErrorDialogOpen(true);
     } finally {
       setCopyingKey(undefined);
     }
@@ -302,12 +322,39 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
   const closeDialog = () => setDialogState((current) => ({ ...current, open: false }));
 
   const handleDownload = async (objectKey: string) => {
-    const defaultName = objectKey.split("/").filter(Boolean).pop() || "object";
-    const savePath = await saveFileDialog({ Title: "保存对象", DefaultFilename: defaultName });
-    if (!savePath) return;
+    if (!accountId || !bucket) {
+      setErrorMessage("请先选择账户和存储桶");
+      setErrorDialogOpen(true);
+      return;
+    }
+
     try {
-      await objectsStore.downloadToPath(objectKey, savePath);
+      const defaultName = objectKey.split("/").filter(Boolean).pop() || "object";
+
+      // Check if we're in desktop mode
+      if (isBridgeAvailable()) {
+        // Desktop mode: use file dialog
+        const savePath = await saveFileDialog({ Title: "保存对象", DefaultFilename: defaultName });
+        if (!savePath) return; // User cancelled
+
+        await objectsStore.downloadToPath(objectKey, savePath);
+      } else {
+        // Web mode: use browser native download
+        const url = await GetPresignedDownloadURL(accountId, bucket, objectKey, 300); // 5 min expiry
+
+        // Create temporary link and trigger download
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = defaultName;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (error) {
+      const message = error instanceof Error ? error.message : "下载失败";
+      setErrorMessage(message);
+      setErrorDialogOpen(true);
       console.error(error);
     }
   };
@@ -541,24 +588,26 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
                 {breadcrumbs.map((crumb, index) => {
                   const isLast = index === breadcrumbs.length - 1;
                   return (
-                    <BreadcrumbItem key={crumb.path} className="flex items-center">
-                      {isLast ? (
-                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink asChild>
-                          <button
-                            type="button"
-                            className="text-left"
-                            onClick={() => {
-                              objectsStore.enterPrefix(crumb.path);
-                            }}
-                          >
-                            {crumb.label}
-                          </button>
-                        </BreadcrumbLink>
-                      )}
-                      {!isLast ? <BreadcrumbSeparator /> : null}
-                    </BreadcrumbItem>
+                    <React.Fragment key={crumb.path}>
+                      <BreadcrumbItem className="flex items-center">
+                        {isLast ? (
+                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink asChild>
+                            <button
+                              type="button"
+                              className="text-left"
+                              onClick={() => {
+                                objectsStore.enterPrefix(crumb.path);
+                              }}
+                            >
+                              {crumb.label}
+                            </button>
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                      {!isLast && <BreadcrumbSeparator />}
+                    </React.Fragment>
                   );
                 })}
               </BreadcrumbList>
@@ -826,12 +875,25 @@ export function ObjectBrowser({ accountId, bucket, onOpenSearch, className }: Ob
       />
 
       <ExportFileListDialog
-        open={exportDialogOpen && selectedObjects.length > 0}
+        open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
         objects={selectedObjects}
         bucket={bucket}
         prefix={prefix}
       />
+
+      {/* Error Dialog */}
+      <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>操作失败</AlertDialogTitle>
+            <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorDialogOpen(false)}>确定</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

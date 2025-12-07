@@ -37,7 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { saveFileDialog } from "@/lib/bridge";
+import { isBridgeAvailable, saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
 import { objectsStore, useObjectsStore } from "@/state/objects";
@@ -67,7 +67,9 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useCopyToClipboard } from "usehooks-ts";
 
 type FileExplorerProps = {
   accountId?: string;
@@ -110,6 +112,8 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
   const [newBucketRegion, setNewBucketRegion] = useState("us-east-1");
   const [pendingDeleteBucket, setPendingDeleteBucket] = useState<string | null>(null);
   const [pendingDeleteObject, setPendingDeleteObject] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
   // Upload refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -223,12 +227,25 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
 
   // Bucket actions
   const handleCreateBucket = async () => {
-    if (!accountId || !newBucketName.trim()) return;
+    if (!accountId) {
+      setErrorMessage("请先选择账户");
+      setErrorDialogOpen(true);
+      return;
+    }
+    if (!newBucketName.trim()) {
+      setErrorMessage("存储桶名称不能为空");
+      setErrorDialogOpen(true);
+      return;
+    }
     try {
       await bucketsStore.createBucket(accountId, newBucketName.trim(), newBucketRegion.trim());
       setCreateBucketOpen(false);
       setNewBucketName("");
+      // Success - buckets list will auto-refresh via store
     } catch (e) {
+      const message = e instanceof Error ? e.message : "创建存储桶失败";
+      setErrorMessage(message);
+      setErrorDialogOpen(true);
       console.error(e);
     }
   };
@@ -242,20 +259,79 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     }
   };
 
-  // Object actions
   const handleDownload = async (key: string) => {
-    const defaultName = key.split("/").pop() || "file";
-    const savePath = await saveFileDialog({ Title: "保存文件", DefaultFilename: defaultName });
-    if (!savePath) return;
-    await objectsStore.downloadToPath(key, savePath);
+    console.log("[Download] Starting download for key:", key);
+
+    if (!accountId || !currentBucket) {
+      setErrorMessage("请先选择账户和存储桶");
+      setErrorDialogOpen(true);
+      return;
+    }
+
+    try {
+      const defaultName = key.split("/").pop() || "file";
+
+      // Check if we're in desktop mode
+      if (isBridgeAvailable()) {
+        // Desktop mode: use file dialog
+        console.log("[Download] Desktop mode - opening save dialog");
+        const savePath = await saveFileDialog({ Title: "保存文件", DefaultFilename: defaultName });
+
+        if (!savePath) {
+          console.log("[Download] User cancelled save dialog");
+          return;
+        }
+
+        console.log("[Download] Calling objectsStore.downloadToPath");
+        await objectsStore.downloadToPath(key, savePath);
+        console.log("[Download] Download task created successfully");
+      } else {
+        // Web mode: use browser native download
+        console.log("[Download] Web mode - using presigned URL download");
+        const url = await GetPresignedDownloadURL(accountId, currentBucket, key, 300); // 5 min expiry
+
+        // Create temporary link and trigger download
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = defaultName;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        console.log("[Download] Browser download initiated");
+      }
+    } catch (e) {
+      console.error("[Download] Error occurred:", e);
+      const message = e instanceof Error ? e.message : "下载失败";
+      setErrorMessage(message);
+      setErrorDialogOpen(true);
+    }
   };
+
+  const [_copiedText, copyToClipboard] = useCopyToClipboard();
 
   const handleCopyLink = async (key: string) => {
     if (!accountId || !currentBucket) return;
     try {
       const url = await GetPresignedDownloadURL(accountId, currentBucket, key, 60);
-      await navigator.clipboard.writeText(url);
+
+      copyToClipboard(url)
+        .then(() => {
+          // Show success toast
+          toast.success("链接已复制", {
+            description: "下载链接已复制到剪贴板",
+            duration: 2000,
+          });
+        })
+        .catch(() => {
+          setErrorMessage("复制失败，请手动复制链接");
+          setErrorDialogOpen(true);
+        });
     } catch (e) {
+      const message = e instanceof Error ? e.message : "获取下载链接失败";
+      setErrorMessage(message);
+      setErrorDialogOpen(true);
       console.error(e);
     }
   };
@@ -463,22 +539,24 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                     {breadcrumbs.map((crumb, i) => {
                       const isLast = i === breadcrumbs.length - 1;
                       return (
-                        <BreadcrumbItem key={i} className="whitespace-nowrap">
-                          {isLast ? (
-                            <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                          ) : (
-                            <BreadcrumbLink asChild>
-                              <button
-                                type="button"
-                                onClick={crumb.onClick}
-                                className="hover:text-foreground transition-colors"
-                              >
-                                {crumb.label}
-                              </button>
-                            </BreadcrumbLink>
-                          )}
+                        <React.Fragment key={i}>
+                          <BreadcrumbItem className="whitespace-nowrap">
+                            {isLast ? (
+                              <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                            ) : (
+                              <BreadcrumbLink asChild>
+                                <button
+                                  type="button"
+                                  onClick={crumb.onClick}
+                                  className="hover:text-foreground transition-colors"
+                                >
+                                  {crumb.label}
+                                </button>
+                              </BreadcrumbLink>
+                            )}
+                          </BreadcrumbItem>
                           {!isLast && <BreadcrumbSeparator />}
-                        </BreadcrumbItem>
+                        </React.Fragment>
                       );
                     })}
                   </BreadcrumbList>
@@ -799,6 +877,19 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteObject}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Error Dialog */}
+      <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>操作失败</AlertDialogTitle>
+            <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorDialogOpen(false)}>确定</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
