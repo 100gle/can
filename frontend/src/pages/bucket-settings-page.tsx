@@ -1,9 +1,12 @@
+import { AccessControlPanel } from "@/components/buckets/access-control-panel";
+import { BlockPublicAccessPanel } from "@/components/buckets/block-public-access-panel";
 import { BucketSettings, type BucketSettingsSection } from "@/components/buckets/bucket-settings";
 import { CapabilityGate } from "@/components/buckets/capability-gate";
 import { CORSPanel } from "@/components/buckets/cors-panel";
 import { EncryptionPanel } from "@/components/buckets/encryption-panel";
 import { LifecyclePanel } from "@/components/buckets/lifecycle-panel";
 import { PolicyPanel } from "@/components/buckets/policy-panel";
+import { RefererProtectionPanel } from "@/components/buckets/referer-protection-panel";
 import { SnapshotPanel } from "@/components/buckets/snapshot-panel";
 import { VersioningPanel } from "@/components/buckets/versioning-panel";
 import { WebsitePanel } from "@/components/buckets/website-panel";
@@ -20,6 +23,9 @@ const FEATURE_CAPABILITY_IDS: Record<BucketFeature, string> = {
   cors: "bucket.cors",
   website: "bucket.website",
   policy: "bucket.policy",
+  acl: "bucket.acl",
+  publicAccess: "bucket.public_access_block",
+  referer: "bucket.referer",
 };
 
 export const BucketSettingsPage = () => {
@@ -94,6 +100,24 @@ export const BucketSettingsPage = () => {
 
   const sections: BucketSettingsSection[] = [
     {
+      id: "acl",
+      label: "访问控制 (ACL)",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.acl}>
+          <AccessControlPanel provider={account.provider} />
+        </CapabilityGate>
+      ),
+    },
+    {
+      id: "public-access",
+      label: "阻止公共访问",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.publicAccess}>
+          <BlockPublicAccessPanel provider={account.provider} />
+        </CapabilityGate>
+      ),
+    },
+    {
       id: "versioning",
       label: "版本控制",
       render: () => (
@@ -135,6 +159,15 @@ export const BucketSettingsPage = () => {
       render: () => (
         <CapabilityGate capability={featureMatrix.policy}>
           <PolicyPanel />
+        </CapabilityGate>
+      ),
+    },
+    {
+      id: "referer",
+      label: "防盗链",
+      render: () => (
+        <CapabilityGate capability={featureMatrix.referer}>
+          <RefererProtectionPanel provider={account.provider} />
         </CapabilityGate>
       ),
     },

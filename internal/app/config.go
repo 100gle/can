@@ -127,3 +127,45 @@ func (a *App) DeleteBucketPolicy(accountID, bucket string) error {
 	defer cancel()
 	return a.config.DeletePolicy(ctx, accountID, bucket)
 }
+
+// GetBucketACL returns bucket-level ACL entries.
+func (a *App) GetBucketACL(accountID, bucket string) (*config.BucketACL, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetBucketACL(ctx, accountID, bucket)
+}
+
+// SetBucketACL updates the bucket ACL definition.
+func (a *App) SetBucketACL(accountID, bucket string, acl *config.BucketACL) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetBucketACL(ctx, accountID, bucket, acl)
+}
+
+// GetPublicAccessBlock fetches block public access switches.
+func (a *App) GetPublicAccessBlock(accountID, bucket string) (*config.PublicAccessBlock, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetPublicAccessBlock(ctx, accountID, bucket)
+}
+
+// SetPublicAccessBlock updates the block public access configuration.
+func (a *App) SetPublicAccessBlock(accountID, bucket string, block *config.PublicAccessBlock) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetPublicAccessBlock(ctx, accountID, bucket, block)
+}
+
+// GetBucketReferer fetches the Referer whitelist configuration.
+func (a *App) GetBucketReferer(accountID, bucket string) (*config.BucketReferer, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetBucketReferer(ctx, accountID, bucket)
+}
+
+// SetBucketReferer updates the Referer whitelist configuration.
+func (a *App) SetBucketReferer(accountID, bucket string, referer *config.BucketReferer) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.SetBucketReferer(ctx, accountID, bucket, referer)
+}

@@ -19,18 +19,23 @@ var ErrUnsupportedProvider = errors.New("bucket configuration unsupported for pr
 
 // BucketConfigService orchestrates advanced bucket configuration operations.
 type BucketConfigService struct {
-	accounts *accounts.Service
-	factory  providers.S3ClientFactory
+	accounts       *accounts.Service
+	factory        providers.S3ClientFactory
+	storageFactory providers.StorageFactory
 }
 
 // NewBucketConfigService wires account and provider dependencies.
-func NewBucketConfigService(accounts *accounts.Service, factory providers.S3ClientFactory) *BucketConfigService {
+func NewBucketConfigService(accounts *accounts.Service, factory providers.S3ClientFactory, storageFactory providers.StorageFactory) *BucketConfigService {
 	if factory == nil {
 		factory = providers.NewS3ClientFactory()
 	}
+	if storageFactory == nil {
+		storageFactory = providers.NewStorageFactory(factory)
+	}
 	return &BucketConfigService{
-		accounts: accounts,
-		factory:  factory,
+		accounts:       accounts,
+		factory:        factory,
+		storageFactory: storageFactory,
 	}
 }
 
@@ -59,4 +64,27 @@ func (s *BucketConfigService) client(ctx context.Context, accountID, bucket stri
 
 func (s *BucketConfigService) supportsConfig(provider types.Provider) bool {
 	return provider == types.ProviderAWS
+}
+
+func (s *BucketConfigService) storageClient(ctx context.Context, accountID, bucket string) (providers.StorageClient, providers.ConnectionCredentials, error) {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
+		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return nil, providers.ConnectionCredentials{}, ErrBucketRequired
+	}
+	if s.storageFactory == nil {
+		return nil, providers.ConnectionCredentials{}, errors.New("storage factory not configured")
+	}
+	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
+	if err != nil {
+		return nil, providers.ConnectionCredentials{}, err
+	}
+	client, err := s.storageFactory.NewClient(ctx, creds)
+	if err != nil {
+		return nil, providers.ConnectionCredentials{}, err
+	}
+	return client, creds, nil
 }

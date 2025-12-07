@@ -168,3 +168,45 @@ func (s *Service) DeletePolicy(ctx context.Context, accountID, bucket string) er
 	}
 	return s.config.DeletePolicy(ctx, accountID, bucket)
 }
+
+func (s *Service) GetBucketACL(ctx context.Context, accountID, bucket string) (*config.BucketACL, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketACL); err != nil {
+		return nil, err
+	}
+	return s.config.GetBucketACL(ctx, accountID, bucket)
+}
+
+func (s *Service) SetBucketACL(ctx context.Context, accountID, bucket string, acl *config.BucketACL) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketACL); err != nil {
+		return err
+	}
+	return s.config.SetBucketACL(ctx, accountID, bucket, acl)
+}
+
+func (s *Service) GetPublicAccessBlock(ctx context.Context, accountID, bucket string) (*config.PublicAccessBlock, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPublicAccess); err != nil {
+		return nil, err
+	}
+	return s.config.GetPublicAccessBlock(ctx, accountID, bucket)
+}
+
+func (s *Service) SetPublicAccessBlock(ctx context.Context, accountID, bucket string, block *config.PublicAccessBlock) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPublicAccess); err != nil {
+		return err
+	}
+	return s.config.SetPublicAccessBlock(ctx, accountID, bucket, block)
+}
+
+func (s *Service) GetBucketReferer(ctx context.Context, accountID, bucket string) (*config.BucketReferer, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketReferer); err != nil {
+		return nil, err
+	}
+	return s.config.GetBucketReferer(ctx, accountID, bucket)
+}
+
+func (s *Service) SetBucketReferer(ctx context.Context, accountID, bucket string, referer *config.BucketReferer) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketReferer); err != nil {
+		return err
+	}
+	return s.config.SetBucketReferer(ctx, accountID, bucket, referer)
+}

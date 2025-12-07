@@ -28,6 +28,8 @@
   - 授予用户/组特定权限
   - 权限类型（READ/WRITE/READ_ACP/WRITE_ACP/FULL_CONTROL）
 
+> 实现情况：`BucketSettings` → “访问控制 (ACL)” 面板支持 AWS/COS 自定义授权，OSS 仅允许选择预设 ACL，跨平台都可查看 Owner 与授权历史。
+
 ### 3. 阻止公共访问设置
 **AWS/OSS特有功能**：
 - 配置项：
@@ -38,6 +40,8 @@
 - 查看当前设置
 - 启用/禁用阻止规则
 
+> 实现情况：`BlockPublicAccessPanel` 提供四个开关，AWS 通过原生 API 执行，OSS 会提示当前行为为兼容方案。
+
 ### 4. 防盗链设置
 **OSS特有功能**：
 - 启用/禁用防盗链
@@ -46,6 +50,8 @@
   - 支持通配符（如*.example.com）
 - 配置空Referer处理（是否允许空Referer）
 - 保存配置
+
+> 实现情况：`RefererProtectionPanel` 支持 OSS/COS 编辑白名单与 AllowEmpty 选项；AWS 会提示此功能不适用于该供应商。
 
 ### 5. 权限生效验证
 - 测试权限是否生效（可选）

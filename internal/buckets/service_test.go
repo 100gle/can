@@ -211,6 +211,30 @@ func (d *fakeBucketDriver) BucketLocation(ctx context.Context, name string) (str
 	return "us-east-1", nil
 }
 
+func (d *fakeBucketDriver) GetBucketACL(ctx context.Context, name string) (providers.BucketACL, error) {
+	return providers.BucketACL{}, nil
+}
+
+func (d *fakeBucketDriver) PutBucketACL(ctx context.Context, name string, acl providers.BucketACLInput) error {
+	return nil
+}
+
+func (d *fakeBucketDriver) GetPublicAccessBlock(ctx context.Context, name string) (providers.PublicAccessBlock, error) {
+	return providers.PublicAccessBlock{}, nil
+}
+
+func (d *fakeBucketDriver) PutPublicAccessBlock(ctx context.Context, name string, block providers.PublicAccessBlock) error {
+	return nil
+}
+
+func (d *fakeBucketDriver) GetBucketReferer(ctx context.Context, name string) (providers.BucketReferer, error) {
+	return providers.BucketReferer{}, nil
+}
+
+func (d *fakeBucketDriver) PutBucketReferer(ctx context.Context, name string, referer providers.BucketReferer) error {
+	return nil
+}
+
 var _ providers.BucketDriver = (*fakeBucketDriver)(nil)
 var _ providers.StorageClient = (*fakeStorageClient)(nil)
 var _ providers.StorageFactory = (*fakeStorageFactory)(nil)

@@ -6,15 +6,21 @@ import {
   DeleteBucketLifecycle,
   DeleteBucketPolicy,
   EnableBucketVersioning,
+  GetBucketACL,
   GetBucketCORS,
   GetBucketEncryption,
   GetBucketLifecycle,
   GetBucketPolicy,
+  GetBucketReferer,
   GetBucketVersioning,
+  GetPublicAccessBlock,
+  SetBucketACL,
   SetBucketCORS,
   SetBucketEncryption,
   SetBucketLifecycle,
   SetBucketPolicy,
+  SetBucketReferer,
+  SetPublicAccessBlock,
   SuspendBucketVersioning,
 } from "@wailsjs/go/app/App";
 import type { config as ConfigModels } from "@wailsjs/go/models";
@@ -51,7 +57,47 @@ export type BucketCORSModel = {
   }>;
 };
 
-type SavingKey = "versioning" | "encryption" | "lifecycle" | "cors" | "policy";
+export type ACLGrantModel = {
+  granteeType: string;
+  grantee: string;
+  permission: string;
+  displayName?: string;
+  uri?: string;
+};
+
+export type BucketACLModel = {
+  ownerId: string;
+  ownerDisplayName?: string;
+  canned?: string;
+  grants: ACLGrantModel[];
+  updated?: any;
+};
+
+export type PublicAccessBlockModel = {
+  blockPublicAcls: boolean;
+  ignorePublicAcls: boolean;
+  blockPublicPolicy: boolean;
+  restrictPublicBuckets: boolean;
+  updated?: any;
+};
+
+export type BucketRefererModel = {
+  enabled: boolean;
+  allowEmpty: boolean;
+  whitelist: string[];
+  mode?: string;
+  updated?: any;
+};
+
+type SavingKey =
+  | "versioning"
+  | "encryption"
+  | "lifecycle"
+  | "cors"
+  | "policy"
+  | "acl"
+  | "publicAccess"
+  | "referer";
 
 export type BucketFeature =
   | "versioning"
@@ -59,7 +105,10 @@ export type BucketFeature =
   | "lifecycle"
   | "cors"
   | "website"
-  | "policy";
+  | "policy"
+  | "acl"
+  | "publicAccess"
+  | "referer";
 
 export type BucketConfigState = {
   accountId?: string;
@@ -69,6 +118,9 @@ export type BucketConfigState = {
   lifecycle: LifecycleRuleModel[];
   cors?: BucketCORSModel;
   policy?: { raw: string; version: string; statement: any[] };
+  acl?: BucketACLModel;
+  publicAccessBlock?: PublicAccessBlockModel;
+  referer?: BucketRefererModel;
   loading: boolean;
   saving: Partial<Record<SavingKey, boolean>>;
   error?: string;
@@ -88,6 +140,9 @@ export type BucketConfigActions = {
   saveCORS: (cors: BucketCORSModel) => Promise<void>;
   setPolicy: (json: string) => Promise<void>;
   deletePolicy: () => Promise<void>;
+  saveBucketACL: (acl: BucketACLModel) => Promise<void>;
+  savePublicAccessBlock: (payload: PublicAccessBlockModel) => Promise<void>;
+  saveReferer: (payload: BucketRefererModel) => Promise<void>;
 };
 
 type BucketConfigStore = BucketConfigState & BucketConfigActions;
@@ -121,6 +176,30 @@ const FALLBACK_CORS: BucketCORSModel = {
       maxAgeSeconds: 300,
     },
   ],
+};
+
+const EMPTY_ACL: BucketACLModel = {
+  ownerId: "",
+  ownerDisplayName: "",
+  canned: "private",
+  grants: [],
+  updated: new Date().toISOString() as any,
+};
+
+const FALLBACK_PUBLIC_ACCESS: PublicAccessBlockModel = {
+  blockPublicAcls: true,
+  ignorePublicAcls: true,
+  blockPublicPolicy: true,
+  restrictPublicBuckets: true,
+  updated: new Date().toISOString() as any,
+};
+
+const FALLBACK_REFERER: BucketRefererModel = {
+  enabled: false,
+  allowEmpty: true,
+  whitelist: [],
+  mode: "white-list",
+  updated: new Date().toISOString() as any,
 };
 
 const supportsFeature = (capability?: ProviderCapability): boolean => {
@@ -186,6 +265,43 @@ const normalizeCORS = (cors: ConfigModels.BucketCORS | undefined): BucketCORSMod
   };
 };
 
+const normalizeACL = (acl: ConfigModels.BucketACL | undefined | null): BucketACLModel | undefined => {
+  if (!acl) return undefined;
+  return clone({
+    ownerId: acl.ownerId || "",
+    ownerDisplayName: acl.ownerDisplayName || "",
+    canned: acl.canned || "",
+    grants: acl.grants?.map((grant) => ({ ...grant })) ?? [],
+    updated: acl.updated,
+  });
+};
+
+const normalizePublicAccessBlock = (
+  block: ConfigModels.PublicAccessBlock | undefined | null,
+): PublicAccessBlockModel | undefined => {
+  if (!block) return undefined;
+  return clone({
+    blockPublicAcls: Boolean(block.blockPublicAcls),
+    ignorePublicAcls: Boolean(block.ignorePublicAcls),
+    blockPublicPolicy: Boolean(block.blockPublicPolicy),
+    restrictPublicBuckets: Boolean(block.restrictPublicBuckets),
+    updated: block.updated,
+  });
+};
+
+const normalizeReferer = (
+  referer: ConfigModels.BucketReferer | undefined | null,
+): BucketRefererModel | undefined => {
+  if (!referer) return undefined;
+  return clone({
+    enabled: Boolean(referer.enabled),
+    allowEmpty: Boolean(referer.allowEmpty),
+    whitelist: [...(referer.whitelist ?? [])],
+    mode: referer.mode || "white-list",
+    updated: referer.updated,
+  });
+};
+
 const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
   ...createInitialState(),
   loadConfig: async (
@@ -203,6 +319,9 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     const canLifecycle = supportsFeature(featureSupport.lifecycle);
     const canCORS = supportsFeature(featureSupport.cors);
     const canPolicy = supportsFeature(featureSupport.policy);
+    const canACL = supportsFeature(featureSupport.acl);
+    const canPublicAccess = supportsFeature(featureSupport.publicAccess);
+    const canReferer = supportsFeature(featureSupport.referer);
 
     set({
       loading: true,
@@ -215,7 +334,16 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
-        const [versioning, encryption, lifecycle, cors, policy] = await Promise.all([
+        const [
+          versioning,
+          encryption,
+          lifecycle,
+          cors,
+          policy,
+          acl,
+          publicAccess,
+          referer,
+        ] = await Promise.all([
           canVersioning
             ? GetBucketVersioning(accountId, bucket)
             : Promise.resolve(undefined as ConfigModels.BucketVersioning | undefined),
@@ -231,6 +359,15 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
           canPolicy
             ? GetBucketPolicy(accountId, bucket)
             : Promise.resolve(undefined as ConfigModels.BucketPolicy | undefined),
+          canACL
+            ? GetBucketACL(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.BucketACL | undefined),
+          canPublicAccess
+            ? GetPublicAccessBlock(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.PublicAccessBlock | undefined),
+          canReferer
+            ? GetBucketReferer(accountId, bucket)
+            : Promise.resolve(undefined as ConfigModels.BucketReferer | undefined),
         ]);
         set({
           versioning: canVersioning
@@ -247,6 +384,11 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
             canPolicy && policy
               ? { raw: policy.raw, version: policy.version, statement: policy.statement }
               : undefined,
+          acl: canACL ? normalizeACL(acl as ConfigModels.BucketACL) : undefined,
+          publicAccessBlock: canPublicAccess
+            ? normalizePublicAccessBlock(publicAccess as ConfigModels.PublicAccessBlock)
+            : undefined,
+          referer: canReferer ? normalizeReferer(referer as ConfigModels.BucketReferer) : undefined,
           loading: false,
         });
       } else {
@@ -256,6 +398,9 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
           lifecycle: canLifecycle ? [] : [],
           cors: canCORS ? { ...FALLBACK_CORS } : undefined,
           policy: canPolicy ? { raw: "", version: "", statement: [] } : undefined,
+          acl: canACL ? { ...EMPTY_ACL } : undefined,
+          publicAccessBlock: canPublicAccess ? { ...FALLBACK_PUBLIC_ACCESS } : undefined,
+          referer: canReferer ? { ...FALLBACK_REFERER } : undefined,
           loading: false,
         });
       }
@@ -404,6 +549,57 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
       });
     }
   },
+  saveBucketACL: async (payload: BucketACLModel) => {
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, acl: true }, error: undefined }));
+    try {
+      if (isBridgeAvailable()) {
+        await SetBucketACL(accountId, bucket, payload as any);
+      }
+      set({ acl: { ...payload, updated: new Date().toISOString() as any } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "保存 ACL 失败";
+      set({ error: message });
+      throw error;
+    } finally {
+      set((state) => ({ saving: { ...state.saving, acl: false } }));
+    }
+  },
+  savePublicAccessBlock: async (payload: PublicAccessBlockModel) => {
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, publicAccess: true }, error: undefined }));
+    try {
+      if (isBridgeAvailable()) {
+        await SetPublicAccessBlock(accountId, bucket, payload as any);
+      }
+      set({ publicAccessBlock: { ...payload, updated: new Date().toISOString() as any } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "保存阻止公共访问失败";
+      set({ error: message });
+      throw error;
+    } finally {
+      set((state) => ({ saving: { ...state.saving, publicAccess: false } }));
+    }
+  },
+  saveReferer: async (payload: BucketRefererModel) => {
+    const { accountId, bucket } = get();
+    if (!accountId || !bucket) return;
+    set((state) => ({ saving: { ...state.saving, referer: true }, error: undefined }));
+    try {
+      if (isBridgeAvailable()) {
+        await SetBucketReferer(accountId, bucket, payload as any);
+      }
+      set({ referer: { ...payload, updated: new Date().toISOString() as any } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "保存防盗链配置失败";
+      set({ error: message });
+      throw error;
+    } finally {
+      set((state) => ({ saving: { ...state.saving, referer: false } }));
+    }
+  },
 }));
 
 export const useBucketConfigStore = <T>(selector: (state: BucketConfigState) => T): T =>
@@ -424,4 +620,7 @@ export const bucketConfigStore = {
   saveCORS: relay((store) => store.saveCORS),
   setPolicy: relay((store) => store.setPolicy),
   deletePolicy: relay((store) => store.deletePolicy),
+  saveBucketACL: relay((store) => store.saveBucketACL),
+  savePublicAccessBlock: relay((store) => store.savePublicAccessBlock),
+  saveReferer: relay((store) => store.saveReferer),
 };

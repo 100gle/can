@@ -130,6 +130,10 @@ export function GenerateAccessLinks(arg1, arg2) {
   return window['go']['app']['App']['GenerateAccessLinks'](arg1, arg2);
 }
 
+export function GetBucketACL(arg1, arg2) {
+  return window['go']['app']['App']['GetBucketACL'](arg1, arg2);
+}
+
 export function GetBucketCORS(arg1, arg2) {
   return window['go']['app']['App']['GetBucketCORS'](arg1, arg2);
 }
@@ -144,6 +148,10 @@ export function GetBucketLifecycle(arg1, arg2) {
 
 export function GetBucketPolicy(arg1, arg2) {
   return window['go']['app']['App']['GetBucketPolicy'](arg1, arg2);
+}
+
+export function GetBucketReferer(arg1, arg2) {
+  return window['go']['app']['App']['GetBucketReferer'](arg1, arg2);
 }
 
 export function GetBucketVersioning(arg1, arg2) {
@@ -164,6 +172,10 @@ export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
 
 export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetPresignedUploadURL'](arg1, arg2, arg3, arg4);
+}
+
+export function GetPublicAccessBlock(arg1, arg2) {
+  return window['go']['app']['App']['GetPublicAccessBlock'](arg1, arg2);
 }
 
 export function GetSystemMetrics() {
@@ -270,6 +282,10 @@ export function SetActiveAccount(arg1) {
   return window['go']['app']['App']['SetActiveAccount'](arg1);
 }
 
+export function SetBucketACL(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetBucketACL'](arg1, arg2, arg3);
+}
+
 export function SetBucketCORS(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetBucketCORS'](arg1, arg2, arg3);
 }
@@ -286,8 +302,16 @@ export function SetBucketPolicy(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetBucketPolicy'](arg1, arg2, arg3);
 }
 
+export function SetBucketReferer(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetBucketReferer'](arg1, arg2, arg3);
+}
+
 export function SetBucketWebsite(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetBucketWebsite'](arg1, arg2, arg3);
+}
+
+export function SetPublicAccessBlock(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetPublicAccessBlock'](arg1, arg2, arg3);
 }
 
 export function SetTransferSpeedLimit(arg1) {

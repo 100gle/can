@@ -64,7 +64,7 @@ func New() *App {
 	transferSvc := transfer.NewService(accountSvc, clientPool, transferStore)
 	linkHistoryStore := bootstrap.InitLinkHistoryStore()
 	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore, auditSvc)
-	configSvc := config.NewBucketConfigService(accountSvc, s3Factory)
+	configSvc := config.NewBucketConfigService(accountSvc, s3Factory, storageFactory)
 	configFacade := configfacade.NewService(accountSvc, configSvc)
 	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)

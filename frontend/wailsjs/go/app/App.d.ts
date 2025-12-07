@@ -76,6 +76,8 @@ export function ForceQuit():Promise<void>;
 
 export function GenerateAccessLinks(arg1:string,arg2:objects.AccessLinkRequest):Promise<Array<objects.AccessLink>>;
 
+export function GetBucketACL(arg1:string,arg2:string):Promise<config.BucketACL>;
+
 export function GetBucketCORS(arg1:string,arg2:string):Promise<config.BucketCORS>;
 
 export function GetBucketEncryption(arg1:string,arg2:string):Promise<config.BucketEncryption>;
@@ -83,6 +85,8 @@ export function GetBucketEncryption(arg1:string,arg2:string):Promise<config.Buck
 export function GetBucketLifecycle(arg1:string,arg2:string):Promise<Array<config.LifecycleRule>>;
 
 export function GetBucketPolicy(arg1:string,arg2:string):Promise<config.BucketPolicy>;
+
+export function GetBucketReferer(arg1:string,arg2:string):Promise<config.BucketReferer>;
 
 export function GetBucketVersioning(arg1:string,arg2:string):Promise<config.BucketVersioning>;
 
@@ -93,6 +97,8 @@ export function GetObjectAttributes(arg1:string,arg2:string,arg3:string):Promise
 export function GetPresignedDownloadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
 export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
+
+export function GetPublicAccessBlock(arg1:string,arg2:string):Promise<config.PublicAccessBlock>;
 
 export function GetSystemMetrics():Promise<system.SystemMetrics>;
 
@@ -146,6 +152,8 @@ export function SelectLocalFolder(arg1:string):Promise<string>;
 
 export function SetActiveAccount(arg1:string):Promise<accounts.Account>;
 
+export function SetBucketACL(arg1:string,arg2:string,arg3:config.BucketACL):Promise<void>;
+
 export function SetBucketCORS(arg1:string,arg2:string,arg3:config.BucketCORS):Promise<void>;
 
 export function SetBucketEncryption(arg1:string,arg2:string,arg3:config.BucketEncryption):Promise<void>;
@@ -154,7 +162,11 @@ export function SetBucketLifecycle(arg1:string,arg2:string,arg3:Array<config.Lif
 
 export function SetBucketPolicy(arg1:string,arg2:string,arg3:config.BucketPolicy):Promise<void>;
 
+export function SetBucketReferer(arg1:string,arg2:string,arg3:config.BucketReferer):Promise<void>;
+
 export function SetBucketWebsite(arg1:string,arg2:string,arg3:config.BucketWebsite):Promise<void>;
+
+export function SetPublicAccessBlock(arg1:string,arg2:string,arg3:config.PublicAccessBlock):Promise<void>;
 
 export function SetTransferSpeedLimit(arg1:number):Promise<void>;
 

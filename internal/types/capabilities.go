@@ -14,6 +14,9 @@ const (
 	FeatureBucketCORS         FeatureID = "bucket.cors"
 	FeatureBucketWebsite      FeatureID = "bucket.website"
 	FeatureBucketPolicy       FeatureID = "bucket.policy"
+	FeatureBucketACL          FeatureID = "bucket.acl"
+	FeatureBucketPublicAccess FeatureID = "bucket.public_access_block"
+	FeatureBucketReferer      FeatureID = "bucket.referer"
 	FeatureSTS                FeatureID = "security.sts"
 )
 
@@ -79,6 +82,24 @@ var featureCatalog = map[FeatureID]FeatureMetadata{
 		Description: "编辑存储桶的 JSON 策略文档。",
 		Category:    "bucket",
 	},
+	FeatureBucketACL: {
+		ID:          FeatureBucketACL,
+		Name:        "Bucket ACL",
+		Description: "通过可视化界面管理 Owner/Grantee 权限。",
+		Category:    "bucket",
+	},
+	FeatureBucketPublicAccess: {
+		ID:          FeatureBucketPublicAccess,
+		Name:        "阻止公共访问",
+		Description: "一键阻断公共 ACL 与 Policy。",
+		Category:    "bucket",
+	},
+	FeatureBucketReferer: {
+		ID:          FeatureBucketReferer,
+		Name:        "防盗链 Referer",
+		Description: "配置 Referer 白名单避免盗链。",
+		Category:    "bucket",
+	},
 	FeatureSTS: {
 		ID:          FeatureSTS,
 		Name:        "临时凭证 (STS)",
@@ -118,43 +139,58 @@ var providerCapabilityMatrix = map[Provider]map[FeatureID]ProviderCapability{
 		FeatureBucketCORS:         true,
 		FeatureBucketWebsite:      true,
 		FeatureBucketPolicy:       true,
+		FeatureBucketACL:          true,
+		FeatureBucketPublicAccess: true,
+		FeatureBucketReferer:      false,
 		FeatureSTS:                true,
 	}, map[FeatureID]string{
 		FeatureObjectSymlink: "AWS S3 暂不支持对象级软链接。",
+		FeatureBucketReferer: "AWS S3 未提供 Referer 白名单能力。",
 	}),
 	ProviderOSS: buildCapabilityEntry(ProviderOSS, map[FeatureID]bool{
 		FeatureBucketStorageClass: true,
 		FeatureBucketMultiAZ:      false,
 		FeatureBucketCustomDomain: true,
 		FeatureObjectSymlink:      true,
+		FeatureBucketACL:          true,
+		FeatureBucketPublicAccess: false,
+		FeatureBucketReferer:      true,
 	}, map[FeatureID]string{
-		FeatureBucketMultiAZ:    "阿里云 OSS 当前仅提供同城多活，暂未开放跨可用区冗余开关。",
-		FeatureBucketVersioning: "阿里云 OSS 尚未开放在 CAN 中管理版本控制。",
-		FeatureBucketEncryption: "阿里云 OSS 暂不支持通过 CAN 配置默认加密。",
-		FeatureBucketLifecycle:  "阿里云 OSS 暂不支持在 CAN 中管理生命周期规则。",
-		FeatureBucketCORS:       "阿里云 OSS 暂不支持通过 CAN 管理 CORS。",
-		FeatureBucketWebsite:    "阿里云 OSS 暂未开放静态网站托管设置。",
-		FeatureBucketPolicy:     "阿里云 OSS 暂不支持在 CAN 中编辑 Bucket Policy。",
+		FeatureBucketMultiAZ:      "阿里云 OSS 当前仅提供同城多活，暂未开放跨可用区冗余开关。",
+		FeatureBucketVersioning:   "阿里云 OSS 尚未开放在 CAN 中管理版本控制。",
+		FeatureBucketEncryption:   "阿里云 OSS 暂不支持通过 CAN 配置默认加密。",
+		FeatureBucketLifecycle:    "阿里云 OSS 暂不支持在 CAN 中管理生命周期规则。",
+		FeatureBucketCORS:         "阿里云 OSS 暂不支持通过 CAN 管理 CORS。",
+		FeatureBucketWebsite:      "阿里云 OSS 暂未开放静态网站托管设置。",
+		FeatureBucketPolicy:       "阿里云 OSS 暂不支持在 CAN 中编辑 Bucket Policy。",
+		FeatureBucketPublicAccess: "阿里云 OSS 暂未开放阻止公共访问的 API。",
 	}),
 	ProviderCOS: buildCapabilityEntry(ProviderCOS, map[FeatureID]bool{
 		FeatureBucketStorageClass: true,
 		FeatureBucketMultiAZ:      true,
 		FeatureBucketCustomDomain: true,
 		FeatureObjectSymlink:      false,
+		FeatureBucketACL:          true,
+		FeatureBucketPublicAccess: false,
+		FeatureBucketReferer:      true,
 	}, map[FeatureID]string{
-		FeatureObjectSymlink:    "腾讯云 COS 暂不支持软链接能力。",
-		FeatureBucketVersioning: "腾讯云 COS 暂不支持通过 CAN 管理版本控制。",
-		FeatureBucketEncryption: "腾讯云 COS 暂不支持通过 CAN 配置默认加密。",
-		FeatureBucketLifecycle:  "腾讯云 COS 暂不支持在 CAN 中管理生命周期规则。",
-		FeatureBucketCORS:       "腾讯云 COS 暂不支持通过 CAN 管理 CORS。",
-		FeatureBucketWebsite:    "腾讯云 COS 暂未开放静态网站托管设置。",
-		FeatureBucketPolicy:     "腾讯云 COS 暂不支持在 CAN 中编辑 Bucket Policy。",
+		FeatureObjectSymlink:      "腾讯云 COS 暂不支持软链接能力。",
+		FeatureBucketVersioning:   "腾讯云 COS 暂不支持通过 CAN 管理版本控制。",
+		FeatureBucketEncryption:   "腾讯云 COS 暂不支持通过 CAN 配置默认加密。",
+		FeatureBucketLifecycle:    "腾讯云 COS 暂不支持在 CAN 中管理生命周期规则。",
+		FeatureBucketCORS:         "腾讯云 COS 暂不支持通过 CAN 管理 CORS。",
+		FeatureBucketWebsite:      "腾讯云 COS 暂未开放静态网站托管设置。",
+		FeatureBucketPolicy:       "腾讯云 COS 暂不支持在 CAN 中编辑 Bucket Policy。",
+		FeatureBucketPublicAccess: "腾讯云 COS 暂未提供公共访问阻断配置。",
 	}),
 	ProviderR2: buildCapabilityEntry(ProviderR2, map[FeatureID]bool{
 		FeatureBucketStorageClass: false,
 		FeatureBucketMultiAZ:      false,
 		FeatureBucketCustomDomain: true,
 		FeatureObjectSymlink:      false,
+		FeatureBucketACL:          false,
+		FeatureBucketPublicAccess: false,
+		FeatureBucketReferer:      false,
 	}, map[FeatureID]string{
 		FeatureBucketStorageClass: "R2 仅提供单一存储类型。",
 		FeatureBucketMultiAZ:      "R2 自动管理弹性冗余，无法自定义。",
@@ -165,12 +201,18 @@ var providerCapabilityMatrix = map[Provider]map[FeatureID]ProviderCapability{
 		FeatureBucketCORS:         "Cloudflare R2 暂不支持通过 CAN 管理 CORS。",
 		FeatureBucketWebsite:      "Cloudflare R2 暂不支持静态网站托管配置。",
 		FeatureBucketPolicy:       "Cloudflare R2 暂不支持编辑 Bucket Policy。",
+		FeatureBucketACL:          "Cloudflare R2 暂不支持 ACL 管理。",
+		FeatureBucketPublicAccess: "Cloudflare R2 暂无公共访问阻断。",
+		FeatureBucketReferer:      "Cloudflare R2 暂不支持 Referer 白名单。",
 	}),
 	ProviderCustom: buildCapabilityEntry(ProviderCustom, map[FeatureID]bool{
 		FeatureBucketStorageClass: false,
 		FeatureBucketMultiAZ:      false,
 		FeatureBucketCustomDomain: false,
 		FeatureObjectSymlink:      false,
+		FeatureBucketACL:          false,
+		FeatureBucketPublicAccess: false,
+		FeatureBucketReferer:      false,
 	}, map[FeatureID]string{
 		FeatureBucketStorageClass: "请联系供应商确认是否支持自定义存储类型。",
 		FeatureBucketMultiAZ:      "未知供应商无法确认多 AZ 支持情况。",

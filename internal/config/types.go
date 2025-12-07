@@ -64,3 +64,39 @@ type PolicyStatement struct {
 	Resource  any            `json:"resource"`
 	Condition map[string]any `json:"condition"`
 }
+
+// ACLGrant summarises a single ACL entry for bucket-level permissions.
+type ACLGrant struct {
+	GranteeType string `json:"granteeType"`
+	Grantee     string `json:"grantee"`
+	Permission  string `json:"permission"`
+	DisplayName string `json:"displayName,omitempty"`
+	URI         string `json:"uri,omitempty"`
+}
+
+// BucketACL captures the owner info and grant list for a bucket.
+type BucketACL struct {
+	OwnerID          string     `json:"ownerId"`
+	OwnerDisplayName string     `json:"ownerDisplayName"`
+	Canned           string     `json:"canned"`
+	Grants           []ACLGrant `json:"grants"`
+	Updated          time.Time  `json:"updated" ts_type:"string"`
+}
+
+// PublicAccessBlock mirrors the AWS block public access switches.
+type PublicAccessBlock struct {
+	BlockPublicAcls       bool      `json:"blockPublicAcls"`
+	IgnorePublicAcls      bool      `json:"ignorePublicAcls"`
+	BlockPublicPolicy     bool      `json:"blockPublicPolicy"`
+	RestrictPublicBuckets bool      `json:"restrictPublicBuckets"`
+	Updated               time.Time `json:"updated" ts_type:"string"`
+}
+
+// BucketReferer stores Referer whitelist configuration for OSS/COS.
+type BucketReferer struct {
+	Enabled    bool      `json:"enabled"`
+	AllowEmpty bool      `json:"allowEmpty"`
+	Whitelist  []string  `json:"whitelist"`
+	Mode       string    `json:"mode"`
+	Updated    time.Time `json:"updated" ts_type:"string"`
+}

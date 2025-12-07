@@ -175,6 +175,114 @@ func (d *cosBucketDriver) BucketLocation(ctx context.Context, name string) (stri
 	return result.Location, nil
 }
 
+func (d *cosBucketDriver) GetBucketACL(ctx context.Context, name string) (BucketACL, error) {
+	var result BucketACL
+	client, err := d.forBucket(name)
+	if err != nil {
+		return result, err
+	}
+	out, resp, err := client.Bucket.GetACL(ctx)
+	if err != nil {
+		return result, wrapCOSError("获取 Bucket ACL", err)
+	}
+	if out.Owner != nil {
+		result.OwnerID = out.Owner.ID
+		result.OwnerDisplayName = out.Owner.DisplayName
+	}
+	result.Grants = convertCOSGrants(out.AccessControlList)
+	if resp != nil && resp.Header != nil {
+		result.Canned = resp.Header.Get("x-cos-acl")
+	}
+	if strings.TrimSpace(result.Canned) == "" {
+		result.Canned = guessCOSCannedACL(result.Grants)
+	}
+	return result, nil
+}
+
+func (d *cosBucketDriver) PutBucketACL(ctx context.Context, name string, acl BucketACLInput) error {
+	client, err := d.forBucket(name)
+	if err != nil {
+		return err
+	}
+	opt := &cos.BucketPutACLOptions{}
+	if canned := strings.TrimSpace(acl.Canned); canned != "" {
+		opt.Header = &cos.ACLHeaderOptions{
+			XCosACL: canned,
+		}
+	} else {
+		grants := convertToCOSGrants(acl.Grants)
+		if len(grants) == 0 {
+			return errors.New("请提供预设 ACL 或至少一个授权")
+		}
+		opt.Body = &cos.ACLXml{
+			Owner:             &cos.Owner{ID: acl.OwnerID},
+			AccessControlList: grants,
+		}
+	}
+	if _, err := client.Bucket.PutACL(ctx, opt); err != nil {
+		return wrapCOSError("更新 Bucket ACL", err)
+	}
+	return nil
+}
+
+func (d *cosBucketDriver) GetPublicAccessBlock(ctx context.Context, name string) (PublicAccessBlock, error) {
+	return PublicAccessBlock{}, ErrUnsupportedCapability
+}
+
+func (d *cosBucketDriver) PutPublicAccessBlock(ctx context.Context, name string, _ PublicAccessBlock) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *cosBucketDriver) GetBucketReferer(ctx context.Context, name string) (BucketReferer, error) {
+	var result BucketReferer
+	client, err := d.forBucket(name)
+	if err != nil {
+		return result, err
+	}
+	out, _, err := client.Bucket.GetReferer(ctx)
+	if err != nil {
+		return result, wrapCOSError("获取 Referer 配置", err)
+	}
+	result.Mode = strings.ToLower(strings.TrimSpace(out.RefererType))
+	result.Enabled = strings.EqualFold(strings.TrimSpace(out.Status), "enabled")
+	if len(out.DomainList) > 0 {
+		result.Whitelist = append([]string(nil), out.DomainList...)
+	}
+	result.AllowEmpty = !strings.EqualFold(out.EmptyReferConfiguration, "Deny")
+	return result, nil
+}
+
+func (d *cosBucketDriver) PutBucketReferer(ctx context.Context, name string, referer BucketReferer) error {
+	client, err := d.forBucket(name)
+	if err != nil {
+		return err
+	}
+	status := "Enabled"
+	if !referer.Enabled {
+		status = "Disabled"
+	}
+	mode := referer.Mode
+	if strings.TrimSpace(mode) == "" {
+		mode = "White-List"
+	}
+	opt := &cos.BucketPutRefererOptions{
+		Status:                  status,
+		RefererType:             mode,
+		DomainList:              append([]string(nil), referer.Whitelist...),
+		EmptyReferConfiguration: "Allow",
+	}
+	if !referer.AllowEmpty {
+		opt.EmptyReferConfiguration = "Deny"
+	}
+	if !referer.Enabled {
+		opt.DomainList = []string{}
+	}
+	if _, err := client.Bucket.PutReferer(ctx, opt); err != nil {
+		return wrapCOSError("更新 Referer 配置", err)
+	}
+	return nil
+}
+
 func (d *cosBucketDriver) forBucket(name string) (*cos.Client, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, errors.New("bucket name is required")
@@ -188,6 +296,96 @@ func (d *cosBucketDriver) forBucket(name string) (*cos.Client, error) {
 		BucketURL:  bucketURL,
 	}
 	return cos.NewClient(base, d.httpClient), nil
+}
+
+func convertCOSGrants(grants []cos.ACLGrant) []AccessGrant {
+	if len(grants) == 0 {
+		return nil
+	}
+	out := make([]AccessGrant, 0, len(grants))
+	for _, grant := range grants {
+		if grant.Grantee == nil {
+			continue
+		}
+		entry := AccessGrant{
+			Permission: grant.Permission,
+		}
+		if strings.Contains(strings.ToLower(grant.Grantee.Type), "group") || strings.Contains(strings.ToLower(grant.Grantee.URI), "groups") {
+			entry.GranteeType = "Group"
+			entry.URI = grant.Grantee.URI
+			entry.Grantee = grant.Grantee.URI
+		} else {
+			entry.GranteeType = "CanonicalUser"
+			entry.Grantee = grant.Grantee.ID
+			entry.DisplayName = grant.Grantee.DisplayName
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func convertToCOSGrants(grants []AccessGrant) []cos.ACLGrant {
+	if len(grants) == 0 {
+		return nil
+	}
+	out := make([]cos.ACLGrant, 0, len(grants))
+	for _, grant := range grants {
+		if strings.TrimSpace(grant.Permission) == "" {
+			continue
+		}
+		grantee := &cos.ACLGrantee{}
+		switch strings.ToLower(strings.TrimSpace(grant.GranteeType)) {
+		case "group":
+			grantee.Type = "Group"
+			grantee.URI = strings.TrimSpace(grant.URI)
+			if grantee.URI == "" {
+				grantee.URI = strings.TrimSpace(grant.Grantee)
+			}
+			if grantee.URI == "" {
+				continue
+			}
+		default:
+			grantee.Type = "CanonicalUser"
+			grantee.ID = strings.TrimSpace(grant.Grantee)
+			if grantee.ID == "" {
+				continue
+			}
+			grantee.DisplayName = strings.TrimSpace(grant.DisplayName)
+		}
+		out = append(out, cos.ACLGrant{
+			Grantee:    grantee,
+			Permission: grant.Permission,
+		})
+	}
+	return out
+}
+
+func guessCOSCannedACL(grants []AccessGrant) string {
+	if len(grants) == 0 {
+		return ""
+	}
+	var hasPublicRead, hasPublicWrite bool
+	for _, grant := range grants {
+		if strings.EqualFold(grant.GranteeType, "Group") &&
+			strings.Contains(strings.ToLower(grant.Grantee), "allusers") {
+			switch strings.ToUpper(grant.Permission) {
+			case "READ":
+				hasPublicRead = true
+			case "WRITE":
+				hasPublicWrite = true
+			case "FULL_CONTROL":
+				return "public-read-write"
+			}
+		}
+	}
+	switch {
+	case hasPublicRead && hasPublicWrite:
+		return "public-read-write"
+	case hasPublicRead:
+		return "public-read"
+	default:
+		return "private"
+	}
 }
 
 type cosObjectDriver struct {

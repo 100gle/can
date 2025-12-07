@@ -1,3 +1,4 @@
+import { SessionGuard } from "@/components/security/session-guard";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -20,6 +21,8 @@ const root = createRoot(container!);
 
 root.render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <SessionGuard>
+      <RouterProvider router={router} />
+    </SessionGuard>
   </React.StrictMode>,
 );

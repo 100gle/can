@@ -141,6 +141,94 @@ func (d *ossBucketDriver) BucketLocation(ctx context.Context, name string) (stri
 	return loc, nil
 }
 
+func (d *ossBucketDriver) GetBucketACL(ctx context.Context, name string) (BucketACL, error) {
+	var result BucketACL
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return result, errors.New("bucket name is required")
+	}
+	out, err := d.client.GetBucketACL(bucket, oss.WithContext(ctx))
+	if err != nil {
+		return result, wrapOSSError("获取 Bucket ACL", err)
+	}
+	result.OwnerID = out.Owner.ID
+	result.OwnerDisplayName = out.Owner.DisplayName
+	result.Canned = out.ACL
+	return result, nil
+}
+
+func (d *ossBucketDriver) PutBucketACL(ctx context.Context, name string, acl BucketACLInput) error {
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return errors.New("bucket name is required")
+	}
+	canned := strings.TrimSpace(strings.ToLower(acl.Canned))
+	if canned == "" {
+		return fmt.Errorf("阿里云 OSS 仅支持设置预设 ACL")
+	}
+	var aclType oss.ACLType
+	switch canned {
+	case "private":
+		aclType = oss.ACLPrivate
+	case "public-read":
+		aclType = oss.ACLPublicRead
+	case "public-read-write":
+		aclType = oss.ACLPublicReadWrite
+	default:
+		return fmt.Errorf("不支持的 ACL：%s", acl.Canned)
+	}
+	if err := d.client.SetBucketACL(bucket, aclType, oss.WithContext(ctx)); err != nil {
+		return wrapOSSError("更新 Bucket ACL", err)
+	}
+	return nil
+}
+
+func (d *ossBucketDriver) GetPublicAccessBlock(ctx context.Context, name string) (PublicAccessBlock, error) {
+	return PublicAccessBlock{}, ErrUnsupportedCapability
+}
+
+func (d *ossBucketDriver) PutPublicAccessBlock(ctx context.Context, name string, _ PublicAccessBlock) error {
+	return ErrUnsupportedCapability
+}
+
+func (d *ossBucketDriver) GetBucketReferer(ctx context.Context, name string) (BucketReferer, error) {
+	var result BucketReferer
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return result, errors.New("bucket name is required")
+	}
+	out, err := d.client.GetBucketReferer(bucket, oss.WithContext(ctx))
+	if err != nil {
+		return result, wrapOSSError("获取 Referer 配置", err)
+	}
+	result.AllowEmpty = out.AllowEmptyReferer
+	if len(out.RefererList) > 0 {
+		result.Whitelist = append([]string(nil), out.RefererList...)
+	}
+	result.Enabled = len(result.Whitelist) > 0
+	result.Mode = "whitelist"
+	return result, nil
+}
+
+func (d *ossBucketDriver) PutBucketReferer(ctx context.Context, name string, referer BucketReferer) error {
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return errors.New("bucket name is required")
+	}
+	cfg := oss.RefererXML{
+		AllowEmptyReferer: referer.AllowEmpty,
+	}
+	if referer.Enabled {
+		cfg.RefererList = append([]string(nil), referer.Whitelist...)
+	} else {
+		cfg.RefererList = []string{}
+	}
+	if err := d.client.SetBucketRefererV2(bucket, cfg, oss.WithContext(ctx)); err != nil {
+		return wrapOSSError("更新 Referer 配置", err)
+	}
+	return nil
+}
+
 type ossObjectDriver struct {
 	client *oss.Client
 }

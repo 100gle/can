@@ -70,6 +70,12 @@ type BucketDriver interface {
 	DeleteBucket(ctx context.Context, name string) error
 	HeadBucket(ctx context.Context, name string) error
 	BucketLocation(ctx context.Context, name string) (string, error)
+	GetBucketACL(ctx context.Context, name string) (BucketACL, error)
+	PutBucketACL(ctx context.Context, name string, acl BucketACLInput) error
+	GetPublicAccessBlock(ctx context.Context, name string) (PublicAccessBlock, error)
+	PutPublicAccessBlock(ctx context.Context, name string, block PublicAccessBlock) error
+	GetBucketReferer(ctx context.Context, name string) (BucketReferer, error)
+	PutBucketReferer(ctx context.Context, name string, referer BucketReferer) error
 }
 
 // ObjectDriver exposes object-level operations for a provider.
@@ -112,6 +118,39 @@ type AccessGrant struct {
 	GranteeType string `json:"granteeType"`
 	Grantee     string `json:"grantee"`
 	Permission  string `json:"permission"`
+	DisplayName string `json:"displayName,omitempty"`
+	URI         string `json:"uri,omitempty"`
+}
+
+// BucketACL summarises grants for a bucket.
+type BucketACL struct {
+	OwnerID          string        `json:"ownerId"`
+	OwnerDisplayName string        `json:"ownerDisplayName"`
+	Canned           string        `json:"canned"`
+	Grants           []AccessGrant `json:"grants"`
+}
+
+// BucketACLInput is used when updating ACL configuration.
+type BucketACLInput struct {
+	OwnerID string
+	Canned  string
+	Grants  []AccessGrant
+}
+
+// PublicAccessBlock describes the four S3 block switches.
+type PublicAccessBlock struct {
+	BlockPublicAcls       bool `json:"blockPublicAcls"`
+	IgnorePublicAcls      bool `json:"ignorePublicAcls"`
+	BlockPublicPolicy     bool `json:"blockPublicPolicy"`
+	RestrictPublicBuckets bool `json:"restrictPublicBuckets"`
+}
+
+// BucketReferer represents a Referer whitelist configuration.
+type BucketReferer struct {
+	Enabled    bool     `json:"enabled"`
+	AllowEmpty bool     `json:"allowEmpty"`
+	Whitelist  []string `json:"whitelist"`
+	Mode       string   `json:"mode"`
 }
 
 // PresignRequest captures the knobs for building a pre-signed URL.

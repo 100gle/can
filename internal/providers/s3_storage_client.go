@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 
 	"can/internal/types"
 )
@@ -137,6 +138,115 @@ func (d *s3BucketDriver) BucketLocation(ctx context.Context, name string) (strin
 	return region, nil
 }
 
+func (d *s3BucketDriver) GetBucketACL(ctx context.Context, name string) (BucketACL, error) {
+	var result BucketACL
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return result, errors.New("bucket name is required")
+	}
+	out, err := d.client.GetBucketAcl(ctx, &s3.GetBucketAclInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		return result, WrapS3Error("获取 Bucket ACL", err)
+	}
+	result.OwnerID = aws.ToString(out.Owner.ID)
+	result.OwnerDisplayName = aws.ToString(out.Owner.DisplayName)
+	result.Grants = convertS3AccessGrants(out.Grants)
+	result.Canned = guessS3CannedACL(result.Grants)
+	return result, nil
+}
+
+func (d *s3BucketDriver) PutBucketACL(ctx context.Context, name string, acl BucketACLInput) error {
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return errors.New("bucket name is required")
+	}
+	if strings.TrimSpace(acl.Canned) != "" && len(acl.Grants) > 0 {
+		return errors.New("不能同时设置预设 ACL 与自定义授权")
+	}
+	input := &s3.PutBucketAclInput{
+		Bucket: aws.String(bucket),
+	}
+	if canned := strings.TrimSpace(acl.Canned); canned != "" {
+		input.ACL = s3types.BucketCannedACL(canned)
+	} else {
+		grants := make([]s3types.Grant, 0, len(acl.Grants))
+		for _, grant := range acl.Grants {
+			if converted := mapToS3Grant(grant); converted != nil {
+				grants = append(grants, *converted)
+			}
+		}
+		if len(grants) == 0 {
+			return errors.New("请至少配置一个授权或选择预设 ACL")
+		}
+		input.AccessControlPolicy = &s3types.AccessControlPolicy{
+			Owner: &s3types.Owner{
+				ID: aws.String(strings.TrimSpace(acl.OwnerID)),
+			},
+			Grants: grants,
+		}
+	}
+	if _, err := d.client.PutBucketAcl(ctx, input); err != nil {
+		return WrapS3Error("更新 Bucket ACL", err)
+	}
+	return nil
+}
+
+func (d *s3BucketDriver) GetPublicAccessBlock(ctx context.Context, name string) (PublicAccessBlock, error) {
+	var result PublicAccessBlock
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return result, errors.New("bucket name is required")
+	}
+	out, err := d.client.GetPublicAccessBlock(ctx, &s3.GetPublicAccessBlockInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchPublicAccessBlockConfiguration" {
+			return result, nil
+		}
+		return result, WrapS3Error("获取 Block Public Access", err)
+	}
+	if out.PublicAccessBlockConfiguration != nil {
+		cfg := out.PublicAccessBlockConfiguration
+		result.BlockPublicAcls = aws.ToBool(cfg.BlockPublicAcls)
+		result.IgnorePublicAcls = aws.ToBool(cfg.IgnorePublicAcls)
+		result.BlockPublicPolicy = aws.ToBool(cfg.BlockPublicPolicy)
+		result.RestrictPublicBuckets = aws.ToBool(cfg.RestrictPublicBuckets)
+	}
+	return result, nil
+}
+
+func (d *s3BucketDriver) PutPublicAccessBlock(ctx context.Context, name string, block PublicAccessBlock) error {
+	bucket := strings.TrimSpace(name)
+	if bucket == "" {
+		return errors.New("bucket name is required")
+	}
+	_, err := d.client.PutPublicAccessBlock(ctx, &s3.PutPublicAccessBlockInput{
+		Bucket: aws.String(bucket),
+		PublicAccessBlockConfiguration: &s3types.PublicAccessBlockConfiguration{
+			BlockPublicAcls:       aws.Bool(block.BlockPublicAcls),
+			IgnorePublicAcls:      aws.Bool(block.IgnorePublicAcls),
+			BlockPublicPolicy:     aws.Bool(block.BlockPublicPolicy),
+			RestrictPublicBuckets: aws.Bool(block.RestrictPublicBuckets),
+		},
+	})
+	if err != nil {
+		return WrapS3Error("更新 Block Public Access", err)
+	}
+	return nil
+}
+
+func (d *s3BucketDriver) GetBucketReferer(ctx context.Context, name string) (BucketReferer, error) {
+	return BucketReferer{}, ErrUnsupportedCapability
+}
+
+func (d *s3BucketDriver) PutBucketReferer(ctx context.Context, name string, referer BucketReferer) error {
+	return ErrUnsupportedCapability
+}
+
 func (d *s3BucketDriver) lookupBucketRegion(ctx context.Context, name string) (string, error) {
 	out, err := d.client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{Bucket: aws.String(name)})
 	if err != nil {
@@ -146,6 +256,125 @@ func (d *s3BucketDriver) lookupBucketRegion(ctx context.Context, name string) (s
 		return "us-east-1", nil
 	}
 	return string(out.LocationConstraint), nil
+}
+
+func convertS3AccessGrants(grants []s3types.Grant) []AccessGrant {
+	if len(grants) == 0 {
+		return nil
+	}
+	result := make([]AccessGrant, 0, len(grants))
+	for _, grant := range grants {
+		if grant.Grantee == nil {
+			continue
+		}
+		entry := AccessGrant{
+			Permission: string(grant.Permission),
+		}
+		switch grant.Grantee.Type {
+		case s3types.TypeCanonicalUser:
+			entry.GranteeType = "CanonicalUser"
+			entry.Grantee = aws.ToString(grant.Grantee.ID)
+			entry.DisplayName = aws.ToString(grant.Grantee.DisplayName)
+		case s3types.TypeGroup:
+			entry.GranteeType = "Group"
+			entry.Grantee = aws.ToString(grant.Grantee.URI)
+			entry.URI = aws.ToString(grant.Grantee.URI)
+		case s3types.TypeAmazonCustomerByEmail:
+			entry.GranteeType = "AmazonCustomerByEmail"
+			entry.Grantee = aws.ToString(grant.Grantee.EmailAddress)
+		default:
+			entry.GranteeType = string(grant.Grantee.Type)
+			entry.Grantee = aws.ToString(grant.Grantee.ID)
+		}
+		result = append(result, entry)
+	}
+	return result
+}
+
+func mapToS3Grant(grant AccessGrant) *s3types.Grant {
+	permission := strings.ToUpper(strings.TrimSpace(grant.Permission))
+	if permission == "" {
+		return nil
+	}
+	perm := s3types.Permission(permission)
+	grantee := &s3types.Grantee{}
+	switch strings.ToLower(strings.TrimSpace(grant.GranteeType)) {
+	case "group":
+		grantee.Type = s3types.TypeGroup
+		uri := strings.TrimSpace(grant.URI)
+		if uri == "" {
+			uri = strings.TrimSpace(grant.Grantee)
+		}
+		if uri == "" {
+			return nil
+		}
+		grantee.URI = aws.String(uri)
+	case "canonicaluser", "canonical":
+		grantee.Type = s3types.TypeCanonicalUser
+		id := strings.TrimSpace(grant.Grantee)
+		if id == "" {
+			return nil
+		}
+		grantee.ID = aws.String(id)
+		if strings.TrimSpace(grant.DisplayName) != "" {
+			grantee.DisplayName = aws.String(strings.TrimSpace(grant.DisplayName))
+		}
+	case "amazoncustomerbyemail", "email":
+		grantee.Type = s3types.TypeAmazonCustomerByEmail
+		email := strings.TrimSpace(grant.Grantee)
+		if email == "" {
+			return nil
+		}
+		grantee.EmailAddress = aws.String(email)
+	default:
+		id := strings.TrimSpace(grant.Grantee)
+		if id == "" {
+			return nil
+		}
+		grantee.Type = s3types.TypeCanonicalUser
+		grantee.ID = aws.String(id)
+	}
+	return &s3types.Grant{
+		Grantee:    grantee,
+		Permission: perm,
+	}
+}
+
+func guessS3CannedACL(grants []AccessGrant) string {
+	if len(grants) == 0 {
+		return ""
+	}
+	var hasAllUsersRead, hasAllUsersWrite, hasAllUsersFull bool
+	var hasAuthRead bool
+	for _, grant := range grants {
+		if strings.EqualFold(grant.GranteeType, "Group") {
+			switch grant.URI {
+			case "http://acs.amazonaws.com/groups/global/AllUsers":
+				switch strings.ToUpper(grant.Permission) {
+				case "READ":
+					hasAllUsersRead = true
+				case "WRITE":
+					hasAllUsersWrite = true
+				case "FULL_CONTROL":
+					hasAllUsersFull = true
+				}
+			case "http://acs.amazonaws.com/groups/global/AuthenticatedUsers":
+				if strings.ToUpper(grant.Permission) == "READ" {
+					hasAuthRead = true
+				}
+			}
+		}
+	}
+	switch {
+	case hasAllUsersFull || (hasAllUsersRead && hasAllUsersWrite):
+		return "public-read-write"
+	case hasAllUsersRead:
+		return "public-read"
+	case hasAuthRead:
+		return "authenticated-read"
+	default:
+		return "private"
+	}
 }
 
 type s3ObjectDriver struct {
