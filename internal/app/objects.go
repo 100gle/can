@@ -120,6 +120,16 @@ func (a *App) GetPresignedDownloadURL(accountID, bucket, key string, expirationM
 	return a.objects.GetPresignedURL(ctx, accountID, bucket, key, expirationMinutes*60, "GET")
 }
 
+// GetPresignedDownloadURLWithHeaders returns a GET URL customised with response headers.
+func (a *App) GetPresignedDownloadURLWithHeaders(accountID, bucket, key string, expirationMinutes int64, headers map[string]string) (string, error) {
+	if expirationMinutes <= 0 {
+		expirationMinutes = 60
+	}
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetPresignedURLWithHeaders(ctx, accountID, bucket, key, expirationMinutes*60, "GET", headers)
+}
+
 // GetPresignedUploadURL returns a PUT URL for direct uploads.
 func (a *App) GetPresignedUploadURL(accountID, bucket, key string, expirationMinutes int64) (string, error) {
 	if expirationMinutes <= 0 {
@@ -163,6 +173,48 @@ func (a *App) GenerateAccessLinks(accountID string, input objects.AccessLinkRequ
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.GenerateAccessLinks(ctx, accountID, input)
+}
+
+// CreateSymlink creates an OSS soft link pointing to another key.
+func (a *App) CreateSymlink(accountID, bucket, linkKey, targetKey string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.CreateSymlink(ctx, accountID, bucket, linkKey, targetKey)
+}
+
+// GetObjectLockConfiguration fetches bucket-level object lock defaults.
+func (a *App) GetObjectLockConfiguration(accountID, bucket string) (objects.ObjectLockConfiguration, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetObjectLockConfiguration(ctx, accountID, bucket)
+}
+
+// GetObjectRetention returns retention metadata for the specified object/version.
+func (a *App) GetObjectRetention(accountID, bucket, key, versionID string) (objects.ObjectRetentionState, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetObjectRetention(ctx, accountID, bucket, key, versionID)
+}
+
+// UpdateObjectRetention applies retention settings for an object/version.
+func (a *App) UpdateObjectRetention(accountID string, input objects.UpdateObjectRetentionInput) (objects.ObjectRetentionState, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.UpdateObjectRetention(ctx, accountID, input)
+}
+
+// GetObjectLegalHold returns the legal hold status for an object/version.
+func (a *App) GetObjectLegalHold(accountID, bucket, key, versionID string) (objects.ObjectLegalHoldState, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetObjectLegalHold(ctx, accountID, bucket, key, versionID)
+}
+
+// UpdateObjectLegalHold toggles object legal hold.
+func (a *App) UpdateObjectLegalHold(accountID string, input objects.UpdateObjectLegalHoldInput) (objects.ObjectLegalHoldState, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.UpdateObjectLegalHold(ctx, accountID, input)
 }
 
 // ListAccessLinkHistory returns stored presigned link history for an account.

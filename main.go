@@ -18,6 +18,7 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	application := app.New()
+	application.InitSystemTray()
 
 	// Create application with options
 	err := wails.Run(&options.App{

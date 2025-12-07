@@ -4,14 +4,17 @@ import "time"
 
 // ObjectInfo describes a file or pseudo-folder inside a bucket.
 type ObjectInfo struct {
-	Key          string    `json:"key"`
-	Size         int64     `json:"size"`
-	LastModified time.Time `json:"lastModified" ts_type:"string"`
-	ETag         string    `json:"etag"`
-	ContentType  string    `json:"contentType"`
-	StorageClass string    `json:"storageClass"`
-	VersionID    string    `json:"versionId"`
-	IsDir        bool      `json:"isDir"`
+	Key           string            `json:"key"`
+	Size          int64             `json:"size"`
+	LastModified  time.Time         `json:"lastModified" ts_type:"string"`
+	ETag          string            `json:"etag"`
+	ContentType   string            `json:"contentType"`
+	StorageClass  string            `json:"storageClass"`
+	VersionID     string            `json:"versionId"`
+	IsDir         bool              `json:"isDir"`
+	Metadata      map[string]string `json:"metadata"`
+	IsSymlink     bool              `json:"isSymlink"`
+	SymlinkTarget string            `json:"symlinkTarget"`
 }
 
 // ListObjectsInput specifies the listing boundaries.
@@ -93,6 +96,43 @@ type BatchDeleteResult struct {
 	Total     int                     `json:"total"`
 	Succeeded int                     `json:"succeeded"`
 	Failed    []BatchOperationFailure `json:"failed"`
+}
+
+// ObjectLockConfiguration summarises the bucket-level object lock defaults.
+type ObjectLockConfiguration struct {
+	Enabled        bool   `json:"enabled"`
+	Mode           string `json:"mode"`
+	RetentionDays  int32  `json:"retentionDays"`
+	RetentionYears int32  `json:"retentionYears"`
+}
+
+// ObjectRetentionState captures retention metadata of a specific object/version.
+type ObjectRetentionState struct {
+	Mode        string    `json:"mode"`
+	RetainUntil time.Time `json:"retainUntil" ts_type:"string"`
+}
+
+// UpdateObjectRetentionInput controls retention mutations for an object/version.
+type UpdateObjectRetentionInput struct {
+	Bucket           string    `json:"bucket"`
+	Key              string    `json:"key"`
+	VersionID        string    `json:"versionId"`
+	Mode             string    `json:"mode"`
+	RetainUntil      time.Time `json:"retainUntil" ts_type:"string"`
+	BypassGovernance bool      `json:"bypassGovernance"`
+}
+
+// ObjectLegalHoldState reflects the current legal hold flag.
+type ObjectLegalHoldState struct {
+	Status string `json:"status"`
+}
+
+// UpdateObjectLegalHoldInput toggles legal hold status.
+type UpdateObjectLegalHoldInput struct {
+	Bucket    string `json:"bucket"`
+	Key       string `json:"key"`
+	VersionID string `json:"versionId"`
+	Status    string `json:"status"`
 }
 
 // DownloadObjectInput describes advanced download preferences for a single object.

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"can/internal/accounts"
@@ -34,9 +35,12 @@ type App struct {
 	backup         backup.Service
 	audit          *security.Service
 	quitRequested  bool
+	tray           *systemTray
+	windowVisible  atomic.Bool
 }
 
 // New creates a new App application struct
+
 func New() *App {
 	store := bootstrap.InitAccountsStore()
 	cipher := security.DefaultCipher()
@@ -79,7 +83,7 @@ func New() *App {
 	dataDir, _ := bootstrap.DefaultDataDir() // Best effort
 	backupSvc := backup.NewService(accountSvc, objectSvc, dataDir)
 
-	return &App{
+	instance := &App{
 		requestTimeout: bootstrap.ResolveRequestTimeout(),
 		accounts:       accountSvc,
 		buckets:        bucketSvc,
@@ -91,6 +95,8 @@ func New() *App {
 		backup:         backupSvc,
 		audit:          auditSvc,
 	}
+	instance.windowVisible.Store(true)
+	return instance
 }
 
 // Startup is called when the app starts. The context is saved

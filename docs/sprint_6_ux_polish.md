@@ -32,3 +32,9 @@
     *   [x] 更新检查: 集成 GitHub Releases API 检查新版本。
     *   [x] i18n 完善: 确保所有新增界面都有完整的中英文翻译。
     *   [x] UI Review: 统一间距、字体和颜色，修复视觉 Bug。
+
+## 验收记录（2025-12-07）
+- ✅ 系统托盘与隐藏/显示：`internal/app/tray.go` + `internal/app/lifecycle.go` 组合提供统一的窗口可见性状态（`windowVisible` 原子 + `runtime.EventsEmit`），托盘项会随状态禁用/启用，`OnSecondInstance` 复用 `showWindow` 确保重新激活时同步 UI。
+- ✅ 桌面事件回传：`frontend/src/components/providers/app-events-bridge.tsx` 通过 `EventsOn("app:window-visibility")` 监听托盘隐藏事件，仅在 Bridge 可用时订阅，并以 `sonner` Toast 向用户提示“隐藏到托盘”的入口。
+- ✅ 对象合规管理：`frontend/src/components/objects/object-details-drawer.tsx` 新增“合规”页签，打通 `GetObjectLockConfiguration / GetObjectRetention / GetObjectLegalHold` 等 API（`internal/app/objects.go`、`internal/objects/service.go`、`internal/providers/*`），可设置 Governance/Compliance 模式、保留截止时间、Bypass Governance 及法律保留开关。
+- 🔬 测试：`go test ./...`；`pnpm --dir frontend test`（Vitest，Settings 页依旧模拟 `GetSystemMetrics` 报警但场景受控）。

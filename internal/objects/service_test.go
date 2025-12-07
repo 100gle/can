@@ -453,12 +453,36 @@ func (s *stubObjectDriver) CopyObject(_ context.Context, sourceBucket, sourceKey
 	return nil
 }
 
+func (s *stubObjectDriver) CreateSymlink(context.Context, string, string, string) error {
+	return nil
+}
+
 func (s *stubObjectDriver) HeadObject(_ context.Context, bucket, key string) (providers.ObjectDescriptor, error) {
 	resp, ok := s.headResponses[s.key(bucket, key)]
 	if !ok {
 		return providers.ObjectDescriptor{}, errors.New("head response not configured")
 	}
 	return resp.desc, resp.err
+}
+
+func (s *stubObjectDriver) GetObjectLockConfiguration(context.Context, string) (providers.ObjectLockConfiguration, error) {
+	return providers.ObjectLockConfiguration{}, nil
+}
+
+func (s *stubObjectDriver) GetObjectRetention(context.Context, string, string, string) (providers.ObjectRetentionState, error) {
+	return providers.ObjectRetentionState{}, nil
+}
+
+func (s *stubObjectDriver) PutObjectRetention(context.Context, providers.PutObjectRetentionInput) error {
+	return nil
+}
+
+func (s *stubObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (providers.ObjectLegalHoldState, error) {
+	return providers.ObjectLegalHoldState{}, nil
+}
+
+func (s *stubObjectDriver) PutObjectLegalHold(context.Context, providers.PutObjectLegalHoldInput) error {
+	return nil
 }
 
 type stubStorageFactory struct {

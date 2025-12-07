@@ -30,6 +30,10 @@ func (a *App) BeforeClose(ctx context.Context) (prevent bool) {
 func (a *App) Shutdown(ctx context.Context) {
 	runtime.LogInfo(ctx, "Application shutting down...")
 
+	if a.tray != nil {
+		a.tray.Shutdown()
+	}
+
 	// Close transfer queue and wait for workers to finish
 	if a.transfers != nil {
 		runtime.LogInfo(ctx, "Closing transfer service...")
@@ -46,9 +50,8 @@ func (a *App) ForceQuit() {
 
 // OnSecondInstance is called when a second instance of the app is launched.
 // It brings the existing window to the front.
-func (a *App) OnSecondInstance(data options.SecondInstanceData) {
-	runtime.WindowUnminimise(a.ctx)
-	runtime.Show(a.ctx)
+func (a *App) OnSecondInstance(_ options.SecondInstanceData) {
+	a.showWindow()
 }
 
 func (a *App) requestQuit(force bool) {
@@ -106,6 +109,7 @@ func (a *App) hideWindow(ctx context.Context) {
 	runtime.WindowMinimise(ctx)
 	runtime.WindowHide(ctx)
 	runtime.Hide(ctx)
+	a.setWindowVisible(false)
 }
 
 func (a *App) showWindow() {
@@ -117,8 +121,19 @@ func (a *App) showWindow() {
 	runtime.WindowUnminimise(ctx)
 	runtime.WindowShow(ctx)
 	runtime.Show(ctx)
+	a.setWindowVisible(true)
 }
 
 func (a *App) minimizeToTray() {
 	a.hideWindow(nil)
+}
+
+func (a *App) setWindowVisible(visible bool) {
+	a.windowVisible.Store(visible)
+	if a.tray != nil {
+		a.tray.UpdateWindowState(visible)
+	}
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, windowVisibilityEvent, visible)
+	}
 }

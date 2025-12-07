@@ -10,11 +10,21 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { isBridgeAvailable } from "@/lib/bridge";
 import { objectsStore, useObjectsStore } from "@/state/objects";
-import { GetBucketVersioning } from "@wailsjs/go/app/App";
+import {
+  GetBucketVersioning,
+  GetObjectLegalHold,
+  GetObjectLockConfiguration,
+  GetObjectRetention,
+  UpdateObjectLegalHold,
+  UpdateObjectRetention,
+} from "@wailsjs/go/app/App";
 import { config, objects } from "@wailsjs/go/models";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 type KeyValueEditorProps = {
   data: Record<string, string>;
@@ -97,6 +107,17 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
   const [storageClass, setStorageClass] = useState("");
   const [acl, setAcl] = useState("private");
   const [versioning, setVersioning] = useState<config.BucketVersioning | null>(null);
+  const [lockConfig, setLockConfig] = useState<objects.ObjectLockConfiguration | null>(null);
+  const [retentionState, setRetentionState] = useState<objects.ObjectRetentionState | null>(null);
+  const [legalHoldState, setLegalHoldState] = useState<objects.ObjectLegalHoldState | null>(null);
+  const [retentionMode, setRetentionMode] = useState("GOVERNANCE");
+  const [retainUntil, setRetainUntil] = useState("");
+  const [bypassGovernance, setBypassGovernance] = useState(false);
+  const [complianceLoading, setComplianceLoading] = useState(false);
+  const [complianceError, setComplianceError] = useState<string | null>(null);
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const [legalHoldSaving, setLegalHoldSaving] = useState(false);
+  const info = attributes?.object;
 
   useEffect(() => {
     if (open && objectKey) {
@@ -122,6 +143,43 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
     };
     void loadVersioning();
   }, [open, accountId, bucket]);
+
+  useEffect(() => {
+    if (!open || !objectKey || !accountId || !bucket || !isBridgeAvailable()) {
+      setLockConfig(null);
+      setRetentionState(null);
+      setLegalHoldState(null);
+      setComplianceError(null);
+      return;
+    }
+    const loadCompliance = async () => {
+      setComplianceLoading(true);
+      try {
+        const versionId = info?.versionId || "";
+        const [lockCfg, retention, legal] = await Promise.all([
+          GetObjectLockConfiguration(accountId, bucket),
+          GetObjectRetention(accountId, bucket, objectKey, versionId),
+          GetObjectLegalHold(accountId, bucket, objectKey, versionId),
+        ]);
+        setLockConfig(lockCfg);
+        setRetentionState(retention);
+        setLegalHoldState(legal);
+        if (retention?.mode) {
+          setRetentionMode(retention.mode);
+        } else if (lockCfg?.mode) {
+          setRetentionMode(lockCfg.mode);
+        }
+        setRetainUntil(retention?.retainUntil ? formatLocalInput(retention.retainUntil) : "");
+        setComplianceError(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "加载合规信息失败";
+        setComplianceError(message);
+      } finally {
+        setComplianceLoading(false);
+      }
+    };
+    void loadCompliance();
+  }, [open, objectKey, accountId, bucket, info?.versionId]);
 
   const loadAttributes = async (key: string) => {
     setLoading(true);
@@ -163,7 +221,52 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
     }
   };
 
-  const info = attributes?.object;
+  const handleRetentionUpdate = async () => {
+    if (!accountId || !bucket || !objectKey || !retainUntil) {
+      toast.error("请填写保留到期时间");
+      return;
+    }
+    setRetentionSaving(true);
+    try {
+      const payload = {
+        bucket,
+        key: objectKey,
+        versionId: info?.versionId ?? "",
+        mode: retentionMode,
+        retainUntil: new Date(retainUntil).toISOString(),
+        bypassGovernance,
+      } as objects.UpdateObjectRetentionInput;
+      const updated = await UpdateObjectRetention(accountId, payload);
+      setRetentionState(updated);
+      toast.success("对象保留策略已更新");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "更新保留策略失败";
+      toast.error(message);
+    } finally {
+      setRetentionSaving(false);
+    }
+  };
+
+  const handleLegalHoldToggle = async (next: boolean) => {
+    if (!accountId || !bucket || !objectKey) return;
+    setLegalHoldSaving(true);
+    try {
+      const payload = {
+        bucket,
+        key: objectKey,
+        versionId: info?.versionId ?? "",
+        status: next ? "ON" : "OFF",
+      } as objects.UpdateObjectLegalHoldInput;
+      const updated = await UpdateObjectLegalHold(accountId, payload);
+      setLegalHoldState(updated);
+      toast.success(next ? "已启用法律保留" : "已关闭法律保留");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "更新法律保留失败";
+      toast.error(message);
+    } finally {
+      setLegalHoldSaving(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -195,14 +298,23 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
 
                 <span className="text-muted-foreground">ETag</span>
                 <span className="col-span-2 font-mono text-xs">{info?.etag}</span>
+                {info?.isSymlink && (
+                  <>
+                    <span className="text-muted-foreground">Symlink</span>
+                    <span className="col-span-2 text-sm text-muted-foreground">
+                      → {info.symlinkTarget || "未指定目标"}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
             <Tabs defaultValue="general">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="general">常规</TabsTrigger>
                 <TabsTrigger value="metadata">元数据</TabsTrigger>
                 <TabsTrigger value="tags">标签</TabsTrigger>
+                <TabsTrigger value="compliance">合规</TabsTrigger>
               </TabsList>
 
               <div className="my-4 h-[calc(100vh-400px)] overflow-y-auto pr-2">
@@ -274,6 +386,114 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                 <TabsContent value="tags">
                   <KeyValueEditor data={tags} onChange={setTags} />
                 </TabsContent>
+
+                <TabsContent value="compliance" className="space-y-4">
+                  {!isBridgeAvailable() ? (
+                    <p className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm text-muted-foreground">
+                      Bridge 未就绪，无法获取对象锁信息。
+                    </p>
+                  ) : complianceLoading ? (
+                    <div className="flex items-center justify-center py-8 text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      加载合规信息...
+                    </div>
+                  ) : complianceError ? (
+                    <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                      {complianceError}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="space-y-1 rounded-md border border-border/60 p-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">对象锁配置</p>
+                            <p className="text-xs text-muted-foreground">
+                              {lockConfig?.enabled
+                                ? "Bucket 已启用默认保留"
+                                : "尚未启用默认对象锁"}
+                            </p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {lockConfig?.mode || "未设置"}
+                          </span>
+                        </div>
+                        {lockConfig?.retentionDays ? (
+                          <p className="text-xs text-muted-foreground">
+                            默认保留 {lockConfig.retentionDays} 天
+                          </p>
+                        ) : lockConfig?.retentionYears ? (
+                          <p className="text-xs text-muted-foreground">
+                            默认保留 {lockConfig.retentionYears} 年
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="space-y-3 rounded-md border border-border/60 p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-sm">对象保留</p>
+                          {retentionState?.retainUntil && (
+                            <span className="text-xs text-muted-foreground">
+                              当前：{new Date(retentionState.retainUntil).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">模式</Label>
+                            <Select value={retentionMode} onValueChange={setRetentionMode}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="GOVERNANCE">Governance</SelectItem>
+                                <SelectItem value="COMPLIANCE">Compliance</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">保留到期</Label>
+                            <Input
+                              type="datetime-local"
+                              value={retainUntil}
+                              onChange={(e) => setRetainUntil(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id="bypass-governance"
+                            checked={bypassGovernance}
+                            onCheckedChange={setBypassGovernance}
+                          />
+                          <Label htmlFor="bypass-governance" className="text-xs text-muted-foreground">
+                            Bypass Governance
+                          </Label>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleRetentionUpdate}
+                          disabled={retentionSaving || !retainUntil}
+                          className="w-fit"
+                        >
+                          {retentionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          保存保留策略
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between rounded-md border border-border/60 p-3">
+                        <div>
+                          <p className="font-medium text-sm">法律保留</p>
+                          <p className="text-xs text-muted-foreground">
+                            防止对象被删除或覆盖，适用于审计场景。
+                          </p>
+                        </div>
+                        <Switch
+                          checked={legalHoldState?.status === "ON"}
+                          disabled={legalHoldSaving}
+                          onCheckedChange={handleLegalHoldToggle}
+                        />
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
               </div>
             </Tabs>
           </div>
@@ -292,3 +512,11 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
     </Sheet>
   );
 }
+
+const formatLocalInput = (iso: string) => {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};

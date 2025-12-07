@@ -37,3 +37,10 @@
     *   [x] 后端: 在 `HeadObject` 中解析 `x-oss-object-type: Symlink` 等特定头（`internal/providers/oss_storage_client.go`）。
     *   [x] 前端: 在文件列表为软链接显示特殊图标（`frontend/src/components/browser/file-explorer.tsx`）。
     *   [x] 前端: 创建软链接的对话框。
+
+## 验收记录（2025-12-07）
+- ✅ 高级文件预览器：代码走查 `frontend/src/components/objects/file-preview-modal.tsx`，确认多格式分支、5MB 文本兜底提示与 `content-disposition: inline` 的预签名 URL 组合满足设计，Markdown/Monaco 渲染路径与错误兜底一致。
+- ✅ 在线文本编辑：验证同一组件的“编辑”模式会携带最新 ETag、在 `GetPresignedUploadURL` 成功后回写对象并调用 `objectsStore.refreshObject`，满足并发冲突规避与保存提示要求。
+- ✅ 对象锁定与合规保留：复核 `internal/objects/service.go` 中的 `Get/PutObjectRetention`、`Get/PutObjectLegalHold` 逻辑及 `frontend/src/components/objects/object-details-drawer.tsx` 的 UI 绑定，确保 Governance/Compliance、保留截止时间和 Legal Hold 的读写链路完整。
+- ✅ 高级元数据与软链接：确认 `internal/providers/oss_storage_client.go` 对 `x-oss-object-type: Symlink` 的解析在 `frontend/src/components/browser/file-explorer.tsx` 中触发特殊图标与“创建软链接”对话框，有效覆盖 OSS 场景。
+- 🔬 测试：`go test ./...`、`pnpm --dir frontend test`（Vitest，settings-page 测试期望的 system metrics mock 告警与既有警示一致）。

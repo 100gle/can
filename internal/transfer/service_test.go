@@ -499,3 +499,27 @@ func (d *fakeObjectDriver) GetObjectACL(context.Context, string, string) (provid
 func (d *fakeObjectDriver) PutObjectACL(context.Context, string, string, string) error {
 	return providers.ErrUnsupportedCapability
 }
+
+func (d *fakeObjectDriver) CreateSymlink(context.Context, string, string, string) error {
+	return providers.ErrUnsupportedCapability
+}
+
+func (d *fakeObjectDriver) GetObjectLockConfiguration(context.Context, string) (providers.ObjectLockConfiguration, error) {
+	return providers.ObjectLockConfiguration{}, providers.ErrUnsupportedCapability
+}
+
+func (d *fakeObjectDriver) GetObjectRetention(context.Context, string, string, string) (providers.ObjectRetentionState, error) {
+	return providers.ObjectRetentionState{}, providers.ErrUnsupportedCapability
+}
+
+func (d *fakeObjectDriver) PutObjectRetention(context.Context, providers.PutObjectRetentionInput) error {
+	return providers.ErrUnsupportedCapability
+}
+
+func (d *fakeObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (providers.ObjectLegalHoldState, error) {
+	return providers.ObjectLegalHoldState{}, providers.ErrUnsupportedCapability
+}
+
+func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, providers.PutObjectLegalHoldInput) error {
+	return providers.ErrUnsupportedCapability
+}

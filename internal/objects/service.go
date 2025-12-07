@@ -330,6 +330,24 @@ func (s *Service) CreateFolder(ctx context.Context, accountID, bucket, prefix st
 	return client.Objects().UploadObject(ctx, bucket, key, body, 0, "application/x-directory")
 }
 
+// CreateSymlink materialises an OSS-style symbolic link referencing another object key.
+func (s *Service) CreateSymlink(ctx context.Context, accountID, bucket, linkKey, targetKey string) error {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return errors.New("bucket is required")
+	}
+	linkKey = strings.TrimSpace(linkKey)
+	targetKey = strings.TrimSpace(targetKey)
+	if linkKey == "" || targetKey == "" {
+		return errors.New("link key 与目标 key 均不能为空")
+	}
+	return client.Objects().CreateSymlink(ctx, bucket, linkKey, targetKey)
+}
+
 // HeadObject fetches metadata for a single object.
 func (s *Service) HeadObject(ctx context.Context, accountID, bucket, key string) (ObjectInfo, error) {
 	var info ObjectInfo
@@ -426,12 +444,135 @@ func (s *Service) BatchUpdateObjectAttributes(ctx context.Context, accountID str
 	return result, nil
 }
 
+// GetObjectLockConfiguration fetches the bucket-level object lock defaults.
+func (s *Service) GetObjectLockConfiguration(ctx context.Context, accountID, bucket string) (ObjectLockConfiguration, error) {
+	var cfg ObjectLockConfiguration
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return cfg, err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return cfg, errors.New("bucket is required")
+	}
+	providerCfg, err := client.Objects().GetObjectLockConfiguration(ctx, bucket)
+	if err != nil {
+		return cfg, err
+	}
+	return convertLockConfiguration(providerCfg), nil
+}
+
+// GetObjectRetention returns current retention metadata for the object/version.
+func (s *Service) GetObjectRetention(ctx context.Context, accountID, bucket, key, versionID string) (ObjectRetentionState, error) {
+	var state ObjectRetentionState
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return state, err
+	}
+	bucket = strings.TrimSpace(bucket)
+	key = strings.TrimSpace(key)
+	if bucket == "" || key == "" {
+		return state, errors.New("bucket and key are required")
+	}
+	providerState, err := client.Objects().GetObjectRetention(ctx, bucket, key, versionID)
+	if err != nil {
+		return state, err
+	}
+	return convertRetentionState(providerState), nil
+}
+
+// UpdateObjectRetention applies a new retention policy for the object/version and returns the resulting state.
+func (s *Service) UpdateObjectRetention(ctx context.Context, accountID string, input UpdateObjectRetentionInput) (ObjectRetentionState, error) {
+	var state ObjectRetentionState
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return state, err
+	}
+	input.Bucket = strings.TrimSpace(input.Bucket)
+	input.Key = strings.TrimSpace(input.Key)
+	if input.Bucket == "" || input.Key == "" {
+		return state, errors.New("bucket and key are required")
+	}
+	if input.RetainUntil.IsZero() {
+		return state, errors.New("retain until 时间不能为空")
+	}
+	payload := providers.PutObjectRetentionInput{
+		Bucket:           input.Bucket,
+		Key:              input.Key,
+		VersionID:        input.VersionID,
+		Mode:             input.Mode,
+		RetainUntil:      input.RetainUntil,
+		BypassGovernance: input.BypassGovernance,
+	}
+	if err := client.Objects().PutObjectRetention(ctx, payload); err != nil {
+		return state, err
+	}
+	return s.GetObjectRetention(ctx, accountID, input.Bucket, input.Key, input.VersionID)
+}
+
+// GetObjectLegalHold returns the current legal hold status for an object/version.
+func (s *Service) GetObjectLegalHold(ctx context.Context, accountID, bucket, key, versionID string) (ObjectLegalHoldState, error) {
+	var state ObjectLegalHoldState
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return state, err
+	}
+	bucket = strings.TrimSpace(bucket)
+	key = strings.TrimSpace(key)
+	if bucket == "" || key == "" {
+		return state, errors.New("bucket and key are required")
+	}
+	providerState, err := client.Objects().GetObjectLegalHold(ctx, bucket, key, versionID)
+	if err != nil {
+		return state, err
+	}
+	return convertLegalHoldState(providerState), nil
+}
+
+// UpdateObjectLegalHold toggles the legal hold status for an object/version.
+func (s *Service) UpdateObjectLegalHold(ctx context.Context, accountID string, input UpdateObjectLegalHoldInput) (ObjectLegalHoldState, error) {
+	var state ObjectLegalHoldState
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return state, err
+	}
+	input.Bucket = strings.TrimSpace(input.Bucket)
+	input.Key = strings.TrimSpace(input.Key)
+	if input.Bucket == "" || input.Key == "" {
+		return state, errors.New("bucket and key are required")
+	}
+	if strings.TrimSpace(input.Status) == "" {
+		return state, errors.New("status is required")
+	}
+	payload := providers.PutObjectLegalHoldInput{
+		Bucket:    input.Bucket,
+		Key:       input.Key,
+		VersionID: input.VersionID,
+		Status:    input.Status,
+	}
+	if err := client.Objects().PutObjectLegalHold(ctx, payload); err != nil {
+		return state, err
+	}
+	return s.GetObjectLegalHold(ctx, accountID, input.Bucket, input.Key, input.VersionID)
+}
+
 // GetPresignedURL generates a time-bound URL for downloading or uploading objects.
 func (s *Service) GetPresignedURL(
 	ctx context.Context,
 	accountID, bucket, key string,
 	expirationSeconds int64,
 	method string,
+) (string, error) {
+	return s.GetPresignedURLWithHeaders(ctx, accountID, bucket, key, expirationSeconds, method, nil)
+}
+
+// GetPresignedURLWithHeaders allows callers to override response headers on the generated URL.
+func (s *Service) GetPresignedURLWithHeaders(
+	ctx context.Context,
+	accountID, bucket, key string,
+	expirationSeconds int64,
+	method string,
+	headers map[string]string,
 ) (string, error) {
 	client, err := s.client(ctx, accountID)
 	if err != nil {
@@ -454,10 +595,11 @@ func (s *Service) GetPresignedURL(
 	}
 	duration := time.Duration(expirationSeconds) * time.Second
 	url, err := client.Objects().PresignURL(ctx, providers.PresignRequest{
-		Bucket:     bucket,
-		Key:        key,
-		Method:     method,
-		Expiration: duration,
+		Bucket:          bucket,
+		Key:             key,
+		Method:          method,
+		Expiration:      duration,
+		ResponseHeaders: cloneHeaders(headers),
 	})
 	if err != nil {
 		return "", err
@@ -687,14 +829,17 @@ func isNotFoundError(err error) bool {
 
 func toObjectInfo(desc providers.ObjectDescriptor) ObjectInfo {
 	return ObjectInfo{
-		Key:          desc.Key,
-		Size:         desc.Size,
-		LastModified: desc.LastModified,
-		ETag:         desc.ETag,
-		ContentType:  desc.ContentType,
-		StorageClass: desc.StorageClass,
-		VersionID:    desc.VersionID,
-		IsDir:        desc.IsDir,
+		Key:           desc.Key,
+		Size:          desc.Size,
+		LastModified:  desc.LastModified,
+		ETag:          desc.ETag,
+		ContentType:   desc.ContentType,
+		StorageClass:  desc.StorageClass,
+		VersionID:     desc.VersionID,
+		IsDir:         desc.IsDir,
+		Metadata:      cloneStringMap(desc.Metadata),
+		IsSymlink:     desc.IsSymlink,
+		SymlinkTarget: desc.SymlinkTarget,
 	}
 }
 
@@ -707,6 +852,28 @@ func cloneStringMap(input map[string]string) map[string]string {
 		clone[k] = v
 	}
 	return clone
+}
+
+func convertLockConfiguration(cfg providers.ObjectLockConfiguration) ObjectLockConfiguration {
+	return ObjectLockConfiguration{
+		Enabled:        cfg.Enabled,
+		Mode:           cfg.Mode,
+		RetentionDays:  cfg.RetentionDays,
+		RetentionYears: cfg.RetentionYears,
+	}
+}
+
+func convertRetentionState(state providers.ObjectRetentionState) ObjectRetentionState {
+	return ObjectRetentionState{
+		Mode:        state.Mode,
+		RetainUntil: state.RetainUntil,
+	}
+}
+
+func convertLegalHoldState(state providers.ObjectLegalHoldState) ObjectLegalHoldState {
+	return ObjectLegalHoldState{
+		Status: state.Status,
+	}
 }
 
 func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch ObjectAttributesPatch) error {
