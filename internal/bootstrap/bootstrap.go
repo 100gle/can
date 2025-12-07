@@ -141,14 +141,6 @@ func defaultSearchPath() (string, error) {
 	return filepath.Join(dir, "search.db"), nil
 }
 
-func DefaultAnalyticsPath() (string, error) {
-	dir, err := DefaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "analytics.db"), nil
-}
-
 func DefaultAuditPath() (string, error) {
 	dir, err := DefaultDataDir()
 	if err != nil {

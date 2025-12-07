@@ -22,10 +22,6 @@ export function BucketLocation(arg1, arg2) {
   return window['go']['app']['App']['BucketLocation'](arg1, arg2);
 }
 
-export function CancelMigrationJob(arg1) {
-  return window['go']['app']['App']['CancelMigrationJob'](arg1);
-}
-
 export function CancelTransferTask(arg1) {
   return window['go']['app']['App']['CancelTransferTask'](arg1);
 }
@@ -56,14 +52,6 @@ export function CreateBucketSnapshot(arg1, arg2) {
 
 export function CreateFolder(arg1, arg2, arg3) {
   return window['go']['app']['App']['CreateFolder'](arg1, arg2, arg3);
-}
-
-export function CreateMigrationJob(arg1, arg2, arg3) {
-  return window['go']['app']['App']['CreateMigrationJob'](arg1, arg2, arg3);
-}
-
-export function CreateSyncRule(arg1) {
-  return window['go']['app']['App']['CreateSyncRule'](arg1);
 }
 
 export function DeleteAccessLinkHistory(arg1, arg2) {
@@ -110,10 +98,6 @@ export function DeleteSavedSearchQuery(arg1) {
   return window['go']['app']['App']['DeleteSavedSearchQuery'](arg1);
 }
 
-export function DeleteSyncRule(arg1) {
-  return window['go']['app']['App']['DeleteSyncRule'](arg1);
-}
-
 export function DownloadBatch(arg1, arg2) {
   return window['go']['app']['App']['DownloadBatch'](arg1, arg2);
 }
@@ -146,10 +130,6 @@ export function GenerateAccessLinks(arg1, arg2) {
   return window['go']['app']['App']['GenerateAccessLinks'](arg1, arg2);
 }
 
-export function GetAnalyticsSummary(arg1) {
-  return window['go']['app']['App']['GetAnalyticsSummary'](arg1);
-}
-
 export function GetBucketCORS(arg1, arg2) {
   return window['go']['app']['App']['GetBucketCORS'](arg1, arg2);
 }
@@ -174,10 +154,6 @@ export function GetBucketWebsite(arg1, arg2) {
   return window['go']['app']['App']['GetBucketWebsite'](arg1, arg2);
 }
 
-export function GetMigrationJob(arg1) {
-  return window['go']['app']['App']['GetMigrationJob'](arg1);
-}
-
 export function GetObjectAttributes(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetObjectAttributes'](arg1, arg2, arg3);
 }
@@ -188,10 +164,6 @@ export function GetPresignedDownloadURL(arg1, arg2, arg3, arg4) {
 
 export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetPresignedUploadURL'](arg1, arg2, arg3, arg4);
-}
-
-export function GetSyncRule(arg1) {
-  return window['go']['app']['App']['GetSyncRule'](arg1);
 }
 
 export function GetSystemMetrics() {
@@ -234,24 +206,12 @@ export function ListBuckets(arg1) {
   return window['go']['app']['App']['ListBuckets'](arg1);
 }
 
-export function ListMigrationJobs() {
-  return window['go']['app']['App']['ListMigrationJobs']();
-}
-
 export function ListObjects(arg1, arg2) {
   return window['go']['app']['App']['ListObjects'](arg1, arg2);
 }
 
 export function ListSavedSearchQueries() {
   return window['go']['app']['App']['ListSavedSearchQueries']();
-}
-
-export function ListSyncRules() {
-  return window['go']['app']['App']['ListSyncRules']();
-}
-
-export function ListSyncTasks(arg1) {
-  return window['go']['app']['App']['ListSyncTasks'](arg1);
 }
 
 export function ListTransferTasks() {
@@ -264,10 +224,6 @@ export function MoveObjects(arg1, arg2) {
 
 export function OnSecondInstance(arg1) {
   return window['go']['app']['App']['OnSecondInstance'](arg1);
-}
-
-export function PauseMigrationJob(arg1) {
-  return window['go']['app']['App']['PauseMigrationJob'](arg1);
 }
 
 export function PauseTransferTask(arg1) {
@@ -330,18 +286,6 @@ export function SetTransferSpeedLimit(arg1) {
   return window['go']['app']['App']['SetTransferSpeedLimit'](arg1);
 }
 
-export function StartMigrationJob(arg1) {
-  return window['go']['app']['App']['StartMigrationJob'](arg1);
-}
-
-export function StartSyncRule(arg1) {
-  return window['go']['app']['App']['StartSyncRule'](arg1);
-}
-
-export function StopSyncRule(arg1) {
-  return window['go']['app']['App']['StopSyncRule'](arg1);
-}
-
 export function SupportedProviders() {
   return window['go']['app']['App']['SupportedProviders']();
 }
@@ -368,10 +312,6 @@ export function UpdateObjectAttributes(arg1, arg2) {
 
 export function UpdateSavedSearchQuery(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateSavedSearchQuery'](arg1, arg2, arg3);
-}
-
-export function UpdateSyncRule(arg1) {
-  return window['go']['app']['App']['UpdateSyncRule'](arg1);
 }
 
 export function UploadObject(arg1, arg2, arg3, arg4) {

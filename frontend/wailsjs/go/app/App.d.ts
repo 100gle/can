@@ -3,11 +3,8 @@
 import {accounts} from '../models';
 import {objects} from '../models';
 import {backup} from '../models';
-import {migration} from '../models';
-import {sync} from '../models';
 import {transfer} from '../models';
 import {search} from '../models';
-import {analytics} from '../models';
 import {config} from '../models';
 import {system} from '../models';
 import {buckets} from '../models';
@@ -24,8 +21,6 @@ export function BatchUpdateObjectAttributes(arg1:string,arg2:Array<objects.Objec
 
 export function BucketLocation(arg1:string,arg2:string):Promise<string>;
 
-export function CancelMigrationJob(arg1:string):Promise<void>;
-
 export function CancelTransferTask(arg1:string):Promise<void>;
 
 export function CompleteMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string,arg5:Record<number, string>):Promise<void>;
@@ -41,10 +36,6 @@ export function CreateBucket(arg1:string,arg2:string,arg3:string):Promise<void>;
 export function CreateBucketSnapshot(arg1:string,arg2:string):Promise<backup.BackupHeader>;
 
 export function CreateFolder(arg1:string,arg2:string,arg3:string):Promise<void>;
-
-export function CreateMigrationJob(arg1:migration.EndpointInfo,arg2:migration.EndpointInfo,arg3:migration.MigrationOptions):Promise<migration.MigrationJob>;
-
-export function CreateSyncRule(arg1:sync.SyncRule):Promise<void>;
 
 export function DeleteAccessLinkHistory(arg1:string,arg2:string):Promise<void>;
 
@@ -68,8 +59,6 @@ export function DeleteObject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function DeleteSavedSearchQuery(arg1:string):Promise<void>;
 
-export function DeleteSyncRule(arg1:string):Promise<void>;
-
 export function DownloadBatch(arg1:string,arg2:objects.DownloadBatchInput):Promise<transfer.TransferTask>;
 
 export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
@@ -86,8 +75,6 @@ export function ForceQuit():Promise<void>;
 
 export function GenerateAccessLinks(arg1:string,arg2:objects.AccessLinkRequest):Promise<Array<objects.AccessLink>>;
 
-export function GetAnalyticsSummary(arg1:string):Promise<analytics.AnalyticsSummary>;
-
 export function GetBucketCORS(arg1:string,arg2:string):Promise<config.BucketCORS>;
 
 export function GetBucketEncryption(arg1:string,arg2:string):Promise<config.BucketEncryption>;
@@ -100,15 +87,11 @@ export function GetBucketVersioning(arg1:string,arg2:string):Promise<config.Buck
 
 export function GetBucketWebsite(arg1:string,arg2:string):Promise<config.BucketWebsite>;
 
-export function GetMigrationJob(arg1:string):Promise<migration.MigrationJob>;
-
 export function GetObjectAttributes(arg1:string,arg2:string,arg3:string):Promise<objects.ObjectAttributes>;
 
 export function GetPresignedDownloadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
 export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
-
-export function GetSyncRule(arg1:string):Promise<sync.SyncRule>;
 
 export function GetSystemMetrics():Promise<system.SystemMetrics>;
 
@@ -130,23 +113,15 @@ export function ListBucketSnapshots(arg1:string,arg2:string):Promise<Array<backu
 
 export function ListBuckets(arg1:string):Promise<Array<buckets.BucketInfo>>;
 
-export function ListMigrationJobs():Promise<Array<migration.MigrationJob>>;
-
 export function ListObjects(arg1:string,arg2:objects.ListObjectsInput):Promise<objects.ListObjectsResult>;
 
 export function ListSavedSearchQueries():Promise<Array<search.SavedQuery>>;
-
-export function ListSyncRules():Promise<Array<sync.SyncRule>>;
-
-export function ListSyncTasks(arg1:string):Promise<Array<sync.SyncTask>>;
 
 export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
 
 export function MoveObjects(arg1:string,arg2:Array<objects.MoveObjectRequest>):Promise<objects.MoveObjectsResult>;
 
 export function OnSecondInstance(arg1:options.SecondInstanceData):Promise<void>;
-
-export function PauseMigrationJob(arg1:string):Promise<void>;
 
 export function PauseTransferTask(arg1:string):Promise<void>;
 
@@ -178,12 +153,6 @@ export function SetBucketWebsite(arg1:string,arg2:string,arg3:config.BucketWebsi
 
 export function SetTransferSpeedLimit(arg1:number):Promise<void>;
 
-export function StartMigrationJob(arg1:string):Promise<void>;
-
-export function StartSyncRule(arg1:string):Promise<sync.SyncTask>;
-
-export function StopSyncRule(arg1:string):Promise<void>;
-
 export function SupportedProviders():Promise<Array<types.ProviderMetadata>>;
 
 export function SuspendBucketVersioning(arg1:string,arg2:string):Promise<void>;
@@ -197,8 +166,6 @@ export function UpdateAccount(arg1:string,arg2:accounts.UpdateAccountInput):Prom
 export function UpdateObjectAttributes(arg1:string,arg2:objects.ObjectAttributesPatch):Promise<objects.ObjectAttributes>;
 
 export function UpdateSavedSearchQuery(arg1:string,arg2:string,arg3:search.SearchQuery):Promise<search.SavedQuery>;
-
-export function UpdateSyncRule(arg1:sync.SyncRule):Promise<void>;
 
 export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 

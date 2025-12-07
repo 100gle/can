@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"can/internal/analytics"
 	"can/internal/types"
 )
 
@@ -13,7 +12,6 @@ type storageFactory struct {
 	s3Factory      S3ClientFactory
 	builders       map[types.Provider]StorageBuilder
 	defaultBuilder StorageBuilder
-	analytics      *analytics.Service
 }
 
 // StorageBuilder creates a provider-specific storage client from credentials.
@@ -64,13 +62,6 @@ func NewStorageFactory(s3Factory S3ClientFactory, opts ...StorageFactoryOption) 
 	return factory
 }
 
-// WithAnalytics enables automatic traffic monitoring.
-func WithAnalytics(service *analytics.Service) StorageFactoryOption {
-	return func(factory *storageFactory) {
-		factory.analytics = service
-	}
-}
-
 func (f *storageFactory) NewClient(ctx context.Context, creds ConnectionCredentials) (StorageClient, error) {
 	var client StorageClient
 	var err error
@@ -83,14 +74,7 @@ func (f *storageFactory) NewClient(ctx context.Context, creds ConnectionCredenti
 		return nil, fmt.Errorf("storage provider %s is not supported", creds.Provider)
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
-	if f.analytics != nil {
-		client = NewMonitoringStorageClient(client, f.analytics)
-	}
-	return client, nil
+	return client, err
 }
 
 // ErrUnsupportedCapability helps drivers communicate unsupported operations.

@@ -3,16 +3,7 @@ import { AccountSwitcher } from "@/components/accounts/account-switcher";
 import { Button } from "@/components/ui/button";
 import { useAccountsStore } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  ArrowRightLeft,
-  BarChart,
-  FolderSync,
-  HelpCircle,
-  Plus,
-  Settings,
-  Share2,
-  ShieldCheck,
-} from "lucide-react";
+import { HelpCircle, Plus, Settings, Share2, ShieldCheck } from "lucide-react";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -77,33 +68,6 @@ export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
         >
           <Share2 className="h-4 w-4" />
           传输队列
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2"
-          onClick={() => navigate({ to: "/migration" })}
-        >
-          <ArrowRightLeft className="h-4 w-4" />
-          数据迁移
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2"
-          onClick={() => navigate({ to: "/sync" })}
-        >
-          <FolderSync className="h-4 w-4" />
-          同步管理
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2"
-          onClick={() => navigate({ to: "/analytics" })}
-        >
-          <BarChart className="h-4 w-4" />
-          数据分析
         </Button>
 
         <Button

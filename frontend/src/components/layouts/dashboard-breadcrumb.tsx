@@ -34,30 +34,6 @@ export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
       return { items, isSubPage: true };
     }
 
-    // Handle Analytics Page
-    if (location.pathname === "/analytics") {
-      // If we have an active account, insert it as the parent
-      if (activeAccountId) {
-        const account = accounts.find((a) => a.id === activeAccountId);
-        const label = account ? account.name : activeAccountId;
-        items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
-      }
-      items.push({ label: "数据分析", to: "/analytics" });
-      return { items, isSubPage: true };
-    }
-
-    // Handle Sync Page
-    if (location.pathname === "/sync") {
-      items.push({ label: "同步管理", to: "/sync" });
-      return { items, isSubPage: true };
-    }
-
-    // Handle Migration Page
-    if (location.pathname === "/migration") {
-      items.push({ label: "数据迁移", to: "/migration" });
-      return { items, isSubPage: true };
-    }
-
     const accountId = (params as any).accountId;
     if (accountId) {
       const account = accounts.find((a) => a.id === accountId);

@@ -10,10 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransfersRouteImport } from './routes/transfers'
-import { Route as SyncRouteImport } from './routes/sync'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as MigrationRouteImport } from './routes/migration'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
 import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
@@ -26,24 +23,9 @@ const TransfersRoute = TransfersRouteImport.update({
   path: '/transfers',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SyncRoute = SyncRouteImport.update({
-  id: '/sync',
-  path: '/sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MigrationRoute = MigrationRouteImport.update({
-  id: '/migration',
-  path: '/migration',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -83,10 +65,7 @@ const AccountsAccountIdBucketsBucketIdSettingsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
-  '/sync': typeof SyncRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
@@ -96,10 +75,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
-  '/sync': typeof SyncRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
@@ -110,10 +86,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/migration': typeof MigrationRoute
   '/settings': typeof SettingsRoute
-  '/sync': typeof SyncRoute
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
@@ -125,10 +98,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/analytics'
-    | '/migration'
     | '/settings'
-    | '/sync'
     | '/transfers'
     | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
@@ -138,10 +108,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/analytics'
-    | '/migration'
     | '/settings'
-    | '/sync'
     | '/transfers'
     | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
@@ -151,10 +118,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/analytics'
-    | '/migration'
     | '/settings'
-    | '/sync'
     | '/transfers'
     | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
@@ -165,10 +129,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AnalyticsRoute: typeof AnalyticsRoute
-  MigrationRoute: typeof MigrationRoute
   SettingsRoute: typeof SettingsRoute
-  SyncRoute: typeof SyncRoute
   TransfersRoute: typeof TransfersRoute
   AccountsAccountIdRoute: typeof AccountsAccountIdRouteWithChildren
 }
@@ -182,32 +143,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransfersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sync': {
-      id: '/sync'
-      path: '/sync'
-      fullPath: '/sync'
-      preLoaderRoute: typeof SyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/migration': {
-      id: '/migration'
-      path: '/migration'
-      fullPath: '/migration'
-      preLoaderRoute: typeof MigrationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -275,10 +215,7 @@ const AccountsAccountIdRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AnalyticsRoute: AnalyticsRoute,
-  MigrationRoute: MigrationRoute,
   SettingsRoute: SettingsRoute,
-  SyncRoute: SyncRoute,
   TransfersRoute: TransfersRoute,
   AccountsAccountIdRoute: AccountsAccountIdRouteWithChildren,
 }

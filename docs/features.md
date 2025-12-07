@@ -8,8 +8,7 @@
 | 统一文件浏览与桶设置（`docs/spec/bucket_listing.md`、`bucket_properties_config.md`） | ✅ 已上线 | `src/components/browser/file-explorer.tsx` 提供根级桶视图、对象视图、拖拽上传、右键菜单和高级工具栏；`src/pages/bucket-settings-page.tsx` 搭配 `bucketConfigStore` 可管理版本控制、加密、生命周期、CORS 与策略。 |
 | 高级搜索与保存条件（`docs/spec/search_and_filter.md`） | ✅ 已上线 | `src/components/search/search-panel.tsx` 暴露全部过滤器、分页、CSV/JSON 导出与搜索条件保存/加载；`src/state/search.ts` 已落地分页、导出及保存查询接口。 |
 | 传输管理与限速（`docs/spec/transfer_management.md`、`file_upload.md`） | ✅ 已上线 | `src/state/transfers.ts` 与 `src/pages/transfers-page.tsx` 管理上传/下载任务、分片进度、暂停/恢复/取消以及全局速度限制，`UploadProgress` 嵌入仪表盘实时展示。 |
-| 同步规则与数据迁移（`docs/spec/synchronization.md`、`data_migration.md`） | ✅ 已上线 | `src/components/sync/sync-panel.tsx` 提供规则 CRUD、启动/停止、本地目录选择；`src/components/migration/migration-wizard.tsx` 支持跨账户/跨服务商的迁移筹备、执行与取消。 |
-| 分析仪表盘与系统设置（`docs/spec/cost_analysis.md`、`backup_recovery.md`） | ✅ 已上线 | `src/pages/analytics-page.tsx` 汇总成本/流量/请求要素；`src/pages/settings-page.tsx` 集成主题切换、账户导入导出、系统备份、性能监控与高级参数。 |
+| 系统设置与备份（`backup_recovery.md`） | ✅ 已上线 | `src/pages/settings-page.tsx` 集成主题切换、账户导入导出、本地系统备份、性能监控与高级参数。 |
 
 > 以上状态同步了近期实现，后续若有新增/变化请同时更新对应 spec 章节。
 
@@ -196,47 +195,19 @@
 - [x] 传输历史记录
 - [x] 失败任务重试
 
-### 4.4 同步功能
-- [x] 本地文件夹与存储桶同步
-- [x] 双向同步选项
-- [x] 同步规则配置：
-  - [x] 排除/包含特定文件类型
-  - [x] 增量同步
-  - [x] 删除策略
-- [x] 定时同步任务
-- [x] 同步日志查看
-
-### 4.5 数据迁移
-- [x] 跨账户迁移
-- [x] 跨服务商迁移（AWS → 阿里云等）
-- [x] 迁移进度跟踪
-- [x] 迁移前数据对比
-- [x] 迁移后数据校验
-
 ## 五、监控与统计
 
-### 5.1 存储统计
-- [x] 存储空间使用情况（按存储桶）
-- [x] 对象数量统计
-- [x] 存储类型分布
-- [x] 按时间的趋势图表
+> [!NOTE]
+> 存储统计和流量监控功能已移除。用户可直接在云厂商控制台查看详细的统计数据和账单信息。
 
-### 5.2 流量监控
-- **【根据服务商 API 可用性】** 上传/下载流量统计
-- **【根据服务商 API 可用性】** 请求次数统计
-- **【AWS 特有】** CloudWatch 集成
-- **【OSS 特有】** 实时日志查询
-
-### 5.3 成本分析
-- [x] **【根据服务商】** 存储成本估算
-- [x] **【根据服务商】** 流量成本估算
-- [x] 成本趋势分析
-- [x] 成本优化建议
+### 5.1 流量监控
+- **本地流量记录**：记录通过CAN应用产生的上传/下载流量
+- ~~CloudWatch/CloudMonitor集成~~（已移除，建议使用云厂商控制台查看）
 
 ## 六、安全与权限
 
 ### 6.1 访问控制
-- [x] IAM 用户管理（如果支持）
+- ~~IAM 用户管理~~（已移除，建议在云厂商控制台管理）
 - [x] STS 临时凭证支持
 - [x] 最小权限原则提示
 
@@ -302,20 +273,21 @@
 
 ### 8.1 实用工具
 - 文件完整性校验（MD5/SHA256）
-- 图片压缩/格式转换
 - 文件分片上传配置
-- CDN 刷新集成（如支持）
+- ~~图片压缩/格式转换~~（已移除）
+- ~~CDN 刷新集成~~（已移除）
 
 ### 8.2 开发者工具
 - API 请求日志查看
 - 调试模式
-- 导出配置为代码（SDK 代码生成）
-- Webhook 配置
+- 基础代码示例生成（S3兼容代码）
+- ~~Webhook 配置~~（已移除）
 
 ### 8.3 备份与恢复
-- [x] 配置备份
+- [x] **本地配置备份**
 - [x] 数据备份策略设置
 - [x] 快速恢复功能
+- ~~云备份集成~~（已移除，用户可手动上传备份文件）
 
 ## 九、性能优化
 

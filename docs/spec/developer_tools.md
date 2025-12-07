@@ -1,7 +1,7 @@
 # 开发者工具
 
 ## 功能描述
-提供API调试、日志查看、代码生成和Webhook配置等开发者相关功能。
+提供API调试、日志查看和基础代码生成等开发者相关功能。
 
 ## 核心需求
 
@@ -57,17 +57,16 @@
 
 ### 3. 导出配置为代码
 **功能**：
-- 根据当前账户配置生成SDK代码
-- 支持多种编程语言
+- 根据当前账户配置生成基础S3兼容代码示例
+- 仅提供通用S3标准API代码，不针对特定云厂商SDK
 
-**支持的语言和SDK**：
-- Python：boto3
-- Node.js：aws-sdk或@aws-sdk/client-s3
-- Go：aws-sdk-go
-- Java：aws-java-sdk
-- Go：minio-go（阿里云OSS）
-- Python：oss2（阿里云OSS）
-- JavaScript/TypeScript：cos-nodejs-sdk-v5（腾讯云COS）
+> [!NOTE]
+> 本功能提供基础的S3兼容代码示例，帮助开发者快速上手。由于各云厂商SDK版本频繁更新且API差异较大，建议参考官方文档获取最新SDK使用方法。
+
+**支持的代码示例**：
+- Python (boto3) - 通用S3兼容
+- Node.js (AWS SDK v3) - 通用S3兼容
+- Go (aws-sdk-go-v2) - 通用S3兼容
 
 **生成的代码示例**（Python + boto3）：
 ```python
@@ -95,65 +94,10 @@ s3.download_file('bucket-name', 'object-key', 'local_file.txt')
 ```
 
 **功能**：
-- 选择目标语言和SDK版本
-- 配置代码片段（初始化、列表、上传等）
+- 选择目标语言
+- 选择代码片段类型（初始化、列表、上传、下载等）
 - 预览生成的代码
-- 复制到剪贴板或下载文件
-- 支持代码模板定制（可选）
-
-### 4. Webhook配置
-**功能**：
-- 配置Webhook端点
-- 订阅特定事件
-- 查看Webhook调用历史
-- 测试Webhook
-
-**支持的事件**：
-- 文件上传完成：`object.uploaded`
-- 文件删除：`object.deleted`
-- 文件修改：`object.updated`
-- 存储桶创建：`bucket.created`
-- 存储桶删除：`bucket.deleted`
-
-**Webhook配置**：
-```
-{
-  "id": "wh_123456",
-  "endpoint": "https://example.com/webhook",
-  "events": ["object.uploaded", "object.deleted"],
-  "active": true,
-  "secret": "whsec_abc123def456"  // 用于验证请求
-}
-```
-
-**Webhook请求格式**：
-```json
-{
-  "event": "object.uploaded",
-  "timestamp": 1609459200000,
-  "data": {
-    "bucket": "my-bucket",
-    "object_key": "path/to/file.txt",
-    "size": 1024,
-    "content_type": "text/plain",
-    "account": "account-id"
-  },
-  "signature": "hmac-sha256-签名"  // 使用secret验证
-}
-```
-
-**Webhook管理**：
-- 添加新Webhook
-- 编辑Webhook配置
-- 启用/禁用Webhook
-- 删除Webhook
-- 重试失败的Webhook调用
-- 查看调用历史和状态
-
-**测试Webhook**：
-- 发送测试事件到Webhook端点
-- 显示响应状态和内容
-- 帮助调试Webhook集成
+- 复制到剪贴板
 
 ## 开发任务清单
 - [ ] 实现API请求日志记录（拦截器/中间件）
@@ -163,14 +107,13 @@ s3.download_file('bucket-name', 'object-key', 'local_file.txt')
 - [ ] 实现日志导出功能
 - [ ] 实现调试模式开关
 - [ ] 配置调试日志输出
-- [ ] 设计代码生成模板
-- [ ] 实现代码生成引擎
-- [ ] 实现多语言SDK代码生成
+- [ ] 设计基础代码生成模板（仅S3兼容代码）
+- [ ] 实现简化版代码生成引擎
 - [ ] 构建代码预览和复制UI
-- [ ] 实现Webhook配置存储
-- [ ] 实现Webhook事件分发
-- [ ] 实现HMAC签名验证
-- [ ] 实现Webhook调用重试机制
-- [ ] 构建Webhook管理UI
-- [ ] 实现Webhook测试功能
-- [ ] 实现Webhook调用历史记录
+- [ ] ~~实现Webhook配置存储~~ (已移除，S3标准API不支持)
+- [ ] ~~实现Webhook事件分发~~ (已移除)
+- [ ] ~~实现HMAC签名验证~~ (已移除)
+- [ ] ~~实现Webhook调用重试机制~~ (已移除)
+- [ ] ~~构建Webhook管理UI~~ (已移除)
+- [ ] ~~实现Webhook测试功能~~ (已移除)
+- [ ] ~~实现Webhook调用历史记录~~ (已移除)

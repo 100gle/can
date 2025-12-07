@@ -40,49 +40,13 @@ func (a *App) BeforeClose(ctx context.Context) (prevent bool) {
 func (a *App) Shutdown(ctx context.Context) {
 	runtime.LogInfo(ctx, "Application shutting down...")
 
-	// 1. Close transfer queue and wait for workers to finish
+	// Close transfer queue and wait for workers to finish
 	if a.transfers != nil {
 		runtime.LogInfo(ctx, "Closing transfer service...")
 		a.transfers.Close()
 	}
 
-	// 2. Stop all sync jobs
-	if a.sync != nil {
-		runtime.LogInfo(ctx, "Stopping sync jobs...")
-		a.stopAllSyncJobs(ctx)
-	}
-
-	// 3. Cancel all migration jobs
-	if a.migration != nil {
-		runtime.LogInfo(ctx, "Cancelling migration jobs...")
-		a.cancelAllMigrationJobs()
-	}
-
 	runtime.LogInfo(ctx, "Shutdown complete")
-}
-
-// stopAllSyncJobs stops all running sync jobs gracefully.
-func (a *App) stopAllSyncJobs(ctx context.Context) {
-	rules, err := a.sync.ListRules(ctx)
-	if err != nil {
-		return
-	}
-	for _, rule := range rules {
-		_ = a.sync.StopSync(ctx, rule.ID)
-	}
-}
-
-// cancelAllMigrationJobs cancels all running migration jobs.
-func (a *App) cancelAllMigrationJobs() {
-	jobs, err := a.migration.ListJobs()
-	if err != nil {
-		return
-	}
-	for _, job := range jobs {
-		if job.Status == "running" || job.Status == "pending" {
-			_ = a.migration.CancelJob(job.ID)
-		}
-	}
 }
 
 // ForceQuit allows the frontend to force quit after user confirmation.

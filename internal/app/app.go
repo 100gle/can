@@ -6,18 +6,15 @@ import (
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/analytics"
 	"can/internal/backup"
 	"can/internal/bootstrap"
 	"can/internal/buckets"
 	"can/internal/config"
 	"can/internal/configfacade"
-	"can/internal/migration"
 	"can/internal/objects"
 	"can/internal/providers"
 	"can/internal/search"
 	"can/internal/security"
-	"can/internal/sync"
 	"can/internal/system"
 	"can/internal/transfer"
 	"can/internal/types"
@@ -33,10 +30,7 @@ type App struct {
 	transfers      *transfer.Service
 	config         *configfacade.Service
 	search         *search.Service
-	sync           sync.Service
-	analytics      *analytics.Service
 	system         *system.Service
-	migration      migration.Service
 	backup         backup.Service
 	audit          *security.Service
 }
@@ -45,36 +39,21 @@ type App struct {
 func New() *App {
 	store := bootstrap.InitAccountsStore()
 	cipher := security.DefaultCipher()
-	// Analytics
-	analyticsDBPath, _ := bootstrap.DefaultAnalyticsPath()
-	var analyticsSvc *analytics.Service
-
-	analyticsSQLStore, err := analytics.NewSQLiteStoreFromFile(analyticsDBPath)
-	if err != nil {
-		fmt.Printf("failed to open analytics db: %v\n", err)
-	} else {
-		if err := analyticsSQLStore.Init(); err != nil {
-			fmt.Printf("failed to init analytics schema: %v\n", err)
-		}
-		analyticsSvc = analytics.NewService(analyticsSQLStore)
-		analyticsSvc = analytics.NewService(analyticsSQLStore)
-	}
 
 	// Audit
 	auditDBPath, _ := bootstrap.DefaultAuditPath()
 	var auditSvc *security.Service
 	auditStore, err := security.NewSQLiteAuditStore(auditDBPath)
 	if err != nil {
-		fmt.Printf("failed to open audit db: %v\n", err)
-	} else {
-		if err := auditStore.Init(); err != nil {
-			fmt.Printf("failed to init audit schema: %v\n", err)
-		}
-		auditSvc = security.NewService(auditStore)
+		panic(fmt.Sprintf("failed to open audit db: %v", err))
 	}
+	if err := auditStore.Init(); err != nil {
+		panic(fmt.Sprintf("failed to init audit schema: %v", err))
+	}
+	auditSvc = security.NewService(auditStore)
 
 	s3Factory := providers.NewS3ClientFactory()
-	storageFactory := providers.NewStorageFactory(s3Factory, providers.WithAnalytics(analyticsSvc))
+	storageFactory := providers.NewStorageFactory(s3Factory)
 	clientPool := providers.NewClientPool(storageFactory)
 	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
 	sessionStore := bootstrap.InitSessionStore()
@@ -89,17 +68,11 @@ func New() *App {
 	configFacade := configfacade.NewService(accountSvc, configSvc)
 	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
-	syncSvc := sync.NewService(accountSvc, transferSvc, clientPool)
 
 	systemSvc := system.NewService(func() int {
 		count, _ := transferSvc.CountActiveTasks(context.Background())
 		return count
 	})
-
-	// Migration Service Init
-	migrationStore := migration.NewInMemoryJobStore()
-	migrator := migration.NewGenericMigrator(accountSvc, clientPool)
-	migrationSvc := migration.NewService(migrationStore, migrator)
 
 	// Backup Service Init
 	dataDir, _ := bootstrap.DefaultDataDir() // Best effort
@@ -113,10 +86,7 @@ func New() *App {
 		transfers:      transferSvc,
 		config:         configFacade,
 		search:         searchSvc,
-		sync:           syncSvc,
-		analytics:      analyticsSvc,
 		system:         systemSvc,
-		migration:      migrationSvc,
 		backup:         backupSvc,
 		audit:          auditSvc,
 	}
