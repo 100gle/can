@@ -1,5 +1,4 @@
 import { FileExplorer } from "@/components/browser/file-explorer";
-import { UploadProgress } from "@/components/transfer/upload-progress";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
@@ -143,9 +142,6 @@ export default function DashboardPage() {
           onOpenBucketSettings={handleOpenBucketSettings}
           className="h-full border-none rounded-none shadow-none bg-transparent"
         />
-      </section>
-      <section className="p-4">
-        <UploadProgress />
       </section>
     </main>
   );

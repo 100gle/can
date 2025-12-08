@@ -30,6 +30,10 @@ export function CheckForUpdates(arg1) {
   return window['go']['app']['App']['CheckForUpdates'](arg1);
 }
 
+export function ClearCompletedTransfers() {
+  return window['go']['app']['App']['ClearCompletedTransfers']();
+}
+
 export function CompleteMultipartUpload(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['CompleteMultipartUpload'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -108,6 +112,10 @@ export function DeleteObjectWithOptions(arg1, arg2, arg3, arg4) {
 
 export function DeleteSavedSearchQuery(arg1) {
   return window['go']['app']['App']['DeleteSavedSearchQuery'](arg1);
+}
+
+export function DeleteTransferTask(arg1) {
+  return window['go']['app']['App']['DeleteTransferTask'](arg1);
 }
 
 export function DownloadBatch(arg1, arg2) {

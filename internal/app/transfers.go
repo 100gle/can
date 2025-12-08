@@ -40,3 +40,19 @@ func (a *App) SetTransferSpeedLimit(bytesPerSec int64) {
 func (a *App) GetTransferSpeedLimit() int64 {
 	return a.transfers.GetGlobalSpeedLimit()
 }
+
+// DeleteTransferTask removes a specific task from the transfer queue.
+// Only completed, failed, or canceled tasks can be deleted.
+func (a *App) DeleteTransferTask(taskID string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.transfers.DeleteTask(ctx, taskID)
+}
+
+// ClearCompletedTransfers removes all completed tasks from the transfer queue.
+// Returns the number of tasks cleared.
+func (a *App) ClearCompletedTransfers() (int, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.transfers.ClearCompletedTasks(ctx)
+}

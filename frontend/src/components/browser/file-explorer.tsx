@@ -29,6 +29,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBridgeAvailable, saveFileDialog } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,8 @@ import {
   Link2,
   List,
   Loader2,
+  MoreHorizontal,
+  Move,
   Plus,
   RefreshCcw,
   Search,
@@ -494,6 +497,8 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                object={item as any}
                prefix={prefix}
                viewMode="grid"
+               selected={selectedKeys.has((item as any).key)}
+               onToggleSelect={objectsStore.toggleSelect}
                onEnterFolder={handleEnterFolder}
                onPreview={handlePreview}
                onDownload={handleDownload}
@@ -697,64 +702,83 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                     </Button>
                   )}
                   {selectedKeys.size > 0 && level === "objects" ? (
-                    <>
-                      <div className="flex items-center gap-2 mr-2 border-r border-border/40 pr-2">
-                        <span className="text-sm text-muted-foreground">已选 {selectedKeys.size} 项</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
                         <Button
-                           variant="outline"
-                           size="sm"
-                           className="h-8 gap-1"
-                           onClick={() => void objectsStore.deleteSelected()}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5"
                         >
-                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                           <span className="text-destructive">删除</span>
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                          <span className="text-sm">已选 {selectedKeys.size} 项</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-1" align="end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-9"
+                          onClick={() => {
+                            const targets = objects.filter(o => selectedKeys.has(o.key) && !o.isDir);
+                            if (targets.length === 0) {
+                              toast.error("请选择至少一个文件");
+                              return;
+                            }
+                            
+                            if (isBridgeAvailable()) {
+                              if (targets.length > 20 && !confirm(`确认下载 ${targets.length} 个文件?`)) return;
+                              targets.forEach(async (target) => {
+                                try {
+                                  await handleDownload(target.key);
+                                } catch (e) {
+                                  console.error(`Failed to download ${target.key}:`, e);
+                                }
+                              });
+                              toast.success(`开始下载 ${targets.length} 个文件`);
+                            } else {
+                              toast.error("Web 端暂不支持批量下载");
+                            }
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                          <span>下载</span>
                         </Button>
                         <Button
-                           variant="outline"
-                           size="sm"
-                           className="h-8 gap-1"
-                           onClick={() => {
-                              // Batch download logic - creating a batch input
-                             const targets = objects.filter(o => selectedKeys.has(o.key) && !o.isDir);
-                             if (targets.length === 0) return;
-                             // Just download one by one or support batch?
-                             // store.downloadBatch takes Input.
-                             // For now we can use simple loop or the store batch function if applicable.
-                             // But browser mode batch download is tricky (multiple popups).
-                             // Bridge mode supports it.
-                             if (isBridgeAvailable()) {
-                                 // We need a path dialog... 
-                                 // Actually downloadBatch might ask for directory?
-                                 // Store implementation of downloadBatch:
-                                 /*
-                                  downloadBatch: async (input: ObjectModels.DownloadBatchInput) => {
-                                    ... DownloadBatch(accountId, input);
-                                  }
-                                 */
-                                 // We need to implement a folder picker for batch download.
-                                 // For now let's just toast "Batch download not fully implemented in UI" or
-                                 // triggers individual downloads if small count.
-                                 // Or better: Let's loop downloadToPath for now if desktop, or show error if web.
-                                 
-                                 if (targets.length > 5 && !confirm(`Confirm download ${targets.length} files?`)) return;
-                                 
-                                 // This is a Placeholder for robust batch support.
-                                 // Proper way: "Download All to..." -> Pick Folder -> Batch Download Task.
-                                 // I will leave it as TODO or simple loop. 
-                                 // The user requirement says "Ensure SDK supports it". 
-                                 // SDK `DownloadBatch` exists.
-                                 // We need UI to pick destination.
-                                 toast.info("批量下载将在后续支持完善，暂不支持");
-                             } else {
-                                toast.error("Web端暂不支持批量下载");
-                             }
-                           }}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-9"
+                          onClick={() => {
+                            toast.info("移动功能正在开发中");
+                            // TODO: Implement move functionality
+                            // Need to add a dialog to select target bucket/prefix
+                          }}
                         >
-                           <Download className="h-3.5 w-3.5" />
-                           <span>下载</span>
+                          <Move className="h-4 w-4" />
+                          <span>移动</span>
                         </Button>
-                      </div>
-                    </>
+                        <div className="h-px bg-border my-1" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-9 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            const count = selectedKeys.size;
+                            if (count === 0) return;
+                            
+                            const confirmed = confirm(
+                              `确认要删除选中的 ${count} 个项目吗？\n\n此操作不可撤销！`
+                            );
+                            
+                            if (confirmed) {
+                              void objectsStore.deleteSelected();
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>删除</span>
+                        </Button>
+                      </PopoverContent>
+                    </Popover>
                   ) : null}
                   {level === "buckets" && (
                     <Button
@@ -922,7 +946,6 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         prefix={prefix}
         onError={(msg) => {
           setErrorMessage(msg);
-          setErrorDialogOpen(true);
         }}
       />
 

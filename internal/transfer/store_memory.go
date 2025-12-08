@@ -101,3 +101,13 @@ func (s *memoryStore) CountByStatus(_ context.Context, statuses ...TaskStatus) (
 	}
 	return count, nil
 }
+
+func (s *memoryStore) Delete(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.tasks[id]; !ok {
+		return ErrTaskNotFound
+	}
+	delete(s.tasks, id)
+	return nil
+}

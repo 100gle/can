@@ -564,6 +564,41 @@ func (s *Service) GetGlobalSpeedLimit() int64 {
 	return 0
 }
 
+// DeleteTask removes a task from the store by ID.
+// It only allows deletion of tasks that are in a terminal state (completed, failed, or canceled).
+func (s *Service) DeleteTask(ctx context.Context, taskID string) error {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return errors.New("task id is required")
+	}
+	task, err := s.store.Get(ctx, taskID)
+	if err != nil {
+		return err
+	}
+	// Only allow deletion of tasks in terminal states
+	switch task.Status {
+	case TaskCompleted, TaskFailed, TaskCanceled:
+		return s.store.Delete(ctx, taskID)
+	default:
+		return fmt.Errorf("cannot delete task in status %s, only completed/failed/canceled tasks can be deleted", task.Status)
+	}
+}
+
+// ClearCompletedTasks removes all completed tasks from the store.
+func (s *Service) ClearCompletedTasks(ctx context.Context) (int, error) {
+	tasks, err := s.store.ListByStatus(ctx, TaskCompleted)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, task := range tasks {
+		if err := s.store.Delete(ctx, task.ID); err == nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
 // Close gracefully shuts down the transfer service.
 // It closes the task queue which causes workers to exit after finishing their current task.
 func (s *Service) Close() {

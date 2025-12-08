@@ -26,6 +26,8 @@ export function CancelTransferTask(arg1:string):Promise<void>;
 
 export function CheckForUpdates(arg1:string):Promise<system.UpdateInfo>;
 
+export function ClearCompletedTransfers():Promise<number>;
+
 export function CompleteMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string,arg5:Record<number, string>):Promise<void>;
 
 export function CopyObject(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
@@ -65,6 +67,8 @@ export function DeleteObject(arg1:string,arg2:string,arg3:string):Promise<void>;
 export function DeleteObjectWithOptions(arg1:string,arg2:string,arg3:string,arg4:objects.MutationOptions):Promise<void>;
 
 export function DeleteSavedSearchQuery(arg1:string):Promise<void>;
+
+export function DeleteTransferTask(arg1:string):Promise<void>;
 
 export function DownloadBatch(arg1:string,arg2:objects.DownloadBatchInput):Promise<transfer.TransferTask>;
 
@@ -210,4 +214,4 @@ export function UpdateSavedSearchQuery(arg1:string,arg2:string,arg3:search.Searc
 
 export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
-export function UploadPart(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number,arg6:Array<number>):Promise<string>;
+export function UploadPart(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number,arg6:string):Promise<string>;

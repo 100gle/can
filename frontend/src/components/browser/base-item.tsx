@@ -10,9 +10,11 @@ export type BaseItemProps = {
   icon: React.ReactNode;
   iconBackground?: string;
   badge?: React.ReactNode;
+  overlay?: React.ReactNode;
+  selected?: boolean;
 
   // 交互控制
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   clickable?: boolean;
 
   // 菜单控制
@@ -25,6 +27,8 @@ export function BaseItem({
   icon,
   iconBackground = "bg-primary/10",
   badge,
+  overlay,
+  selected = false,
   onClick,
   clickable = true,
   menuItems,
@@ -36,14 +40,16 @@ export function BaseItem({
           type="button"
           onClick={onClick}
           className={cn(
-            "group flex items-center justify-center rounded-md transition-all text-center",
+            "group relative flex items-center justify-center rounded-md transition-all text-center",
             "hover:bg-accent/60",
             viewMode === "grid"
               ? "flex-col gap-1.5 aspect-square w-full mt-2"
               : "flex-row gap-3 px-3 py-2 w-full border-b border-border/30",
             !clickable && "cursor-default",
+            selected && "ring-2 ring-primary bg-accent/80",
           )}
         >
+          {overlay}
           <div
             className={cn(
               "relative flex items-center justify-center rounded-md transition-transform group-hover:scale-105 shrink-0",

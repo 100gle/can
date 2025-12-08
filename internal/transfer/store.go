@@ -15,6 +15,7 @@ type Store interface {
 	List(ctx context.Context) ([]*TransferTask, error)
 	ListByStatus(ctx context.Context, statuses ...TaskStatus) ([]*TransferTask, error)
 	CountByStatus(ctx context.Context, statuses ...TaskStatus) (int, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type taskRecord struct {

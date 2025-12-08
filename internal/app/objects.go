@@ -1,6 +1,9 @@
 package app
 
 import (
+	"encoding/base64"
+	"fmt"
+
 	"can/internal/objects"
 	"can/internal/transfer"
 )
@@ -169,9 +172,16 @@ func (a *App) InitiateMultipartUpload(accountID, bucket, key string) (string, er
 }
 
 // UploadPart uploads a single chunk to an existing multipart session.
-func (a *App) UploadPart(accountID, bucket, key, uploadID string, partNumber int, data []byte) (string, error) {
+func (a *App) UploadPart(accountID, bucket, key, uploadID string, partNumber int, dataBase64 string) (string, error) {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
+
+	// Decode base64 to []byte
+	data, err := base64.StdEncoding.DecodeString(dataBase64)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode upload data: %w", err)
+	}
+
 	return a.objects.UploadPart(ctx, accountID, bucket, key, uploadID, partNumber, data)
 }
 

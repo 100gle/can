@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isBridgeAvailable } from "@/lib/bridge";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import MonacoEditor from "@monaco-editor/react";
 import {
   GetObjectAttributes,
@@ -18,7 +18,7 @@ import {
   GetPresignedUploadURL,
 } from "@wailsjs/go/app/App";
 import { objects as ObjectModels } from "@wailsjs/go/models";
-import { AlertTriangle, Eye, Loader2, Pencil, Save } from "lucide-react";
+import { AlertTriangle, Eye, Loader2, Maximize2, Minimize2, Pencil, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -135,6 +135,7 @@ export function FilePreviewModal({
   const [attributesLoaded, setAttributesLoaded] = useState(false);
   const [textTooLarge, setTextTooLarge] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fileName = object?.key.split("/").filter(Boolean).pop() ?? "object";
   const extension = useMemo(() => fileName.split(".").pop()?.toLowerCase() ?? "", [fileName]);
@@ -242,14 +243,23 @@ export function FilePreviewModal({
         return;
       }
 
-      const [url, attrs] = await Promise.all([
-        GetPresignedDownloadURLWithHeaders(account, bucketName, key, 10, headers),
-        GetObjectAttributes(account, bucketName, key),
-      ]);
+      // 1. Get URL first (Critical)
+      const url = await GetPresignedDownloadURLWithHeaders(account, bucketName, key, 10, headers);
       setPreviewUrl(url);
-      setEtag(attrs.object.etag || null);
-      setContentType(attrs.object.contentType || contentTypeFromExtension(extension));
-      setAttributesLoaded(true);
+
+      // 2. Try get attributes (Optional - for metadata display)
+      try {
+        const attrs = await GetObjectAttributes(account, bucketName, key);
+        setEtag(attrs.object.etag || null);
+        setContentType(attrs.object.contentType || contentTypeFromExtension(extension));
+        setAttributesLoaded(true);
+      } catch (attrErr) {
+        console.warn("Failed to load object attributes:", attrErr);
+        // Fallback: use extension for content type
+        setContentType(contentTypeFromExtension(extension));
+        setEtag(null);
+        setAttributesLoaded(true); // Still mark as loaded to allow basic display
+      }
 
       if (previewKind === "text" || previewKind === "markdown") {
         const response = await fetch(url);
@@ -261,6 +271,7 @@ export function FilePreviewModal({
         setEditorValue(text);
       }
     } catch (err) {
+      console.error("Preview load failed:", err);
       const message = err instanceof Error ? err.message : "加载预览失败";
       setError(message);
     } finally {
@@ -356,12 +367,33 @@ export function FilePreviewModal({
     switch (previewKind) {
       case "image":
         return (
-          <div className="flex items-center justify-center rounded-md border border-border/60 bg-muted/20 p-4">
+          <div
+            className={cn(
+              "relative flex items-center justify-center rounded-md border border-border/60 bg-muted/20 p-4 overflow-hidden group",
+              isFullscreen ? "h-[calc(100vh-180px)]" : "max-h-[50vh]"
+            )}
+          >
             <img
               src={previewUrl}
               alt={fileName}
-              className="max-h-[60vh] rounded-md object-contain"
+              className={cn(
+                "rounded-md object-contain",
+                isFullscreen ? "max-h-full max-w-full" : "max-h-[45vh] max-w-full"
+              )}
             />
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-2 top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              title={isFullscreen ? "退出全屏" : "全屏预览"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         );
       case "video":
@@ -457,8 +489,11 @@ export function FilePreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl gap-4">
-        <DialogHeader>
+      <DialogContent className={cn(
+        "gap-4 flex flex-col",
+        isFullscreen ? "max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh]" : "max-w-4xl max-h-[90vh]"
+      )}>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center justify-between text-base">
             <span className="truncate">{fileName}</span>
             {object?.size !== undefined && (

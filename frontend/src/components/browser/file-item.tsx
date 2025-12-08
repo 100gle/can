@@ -1,3 +1,4 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { Download, Eye, Folder, Link2, Share2, Trash2 } from "lucide-react";
@@ -16,6 +17,8 @@ export type FileItemProps = {
   object: FileItemObject;
   prefix: string;
   viewMode: "grid" | "list";
+  selected?: boolean;
+  onToggleSelect?: (key: string) => void;
   onEnterFolder: (key: string) => void;
   onPreview: (key: string) => void;
   onDownload: (key: string) => void;
@@ -27,6 +30,8 @@ export function FileItem({
   object,
   prefix,
   viewMode,
+  selected = false,
+  onToggleSelect,
   onEnterFolder,
   onPreview,
   onDownload,
@@ -85,6 +90,26 @@ export function FileItem({
     </>
   );
 
+  // Checkbox overlay for grid view when selection is enabled
+  const checkbox = viewMode === "grid" && onToggleSelect ? (
+    <div
+      className="absolute left-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleSelect(object.key);
+      }}
+    >
+      <Checkbox
+        checked={selected}
+        className={cn(
+          "h-5 w-5 border-2 bg-background/95 shadow-md backdrop-blur-sm",
+          selected && "opacity-100"
+        )}
+        aria-label="Select item"
+      />
+    </div>
+  ) : undefined;
+
   return (
     <BaseItem
       viewMode={viewMode}
@@ -92,8 +117,22 @@ export function FileItem({
       icon={icon}
       iconBackground={isDir ? "bg-primary/10" : "bg-muted/50"}
       badge={badge}
-      onClick={isDir ? () => onEnterFolder(object.key) : undefined}
-      clickable={isDir}
+      overlay={checkbox}
+      onClick={
+        onToggleSelect && viewMode === "grid"
+          ? (e) => {
+              if (e?.ctrlKey || e?.metaKey) {
+                onToggleSelect(object.key);
+              } else if (isDir) {
+                onEnterFolder(object.key);
+              }
+            }
+          : isDir
+            ? () => onEnterFolder(object.key)
+            : undefined
+      }
+      clickable={isDir || (viewMode === "grid" && !!onToggleSelect)}
+      selected={selected}
       menuItems={menuItems}
     />
   );

@@ -1,25 +1,25 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { ObjectModel } from "@/state/objects";
 import {
-    ColumnDef,
-    SortingState,
-    flexRender,
-    getCoreRowModel,
-    getSortedRowModel,
-    useReactTable,
+  ColumnDef,
+  SortingState,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
-import { Download, Eye, Folder, Link2, Share2, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react"; // Added useState
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Eye, Folder, Link2, Share2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveLabel, formatDate, formatSize, getFileIcon } from "./file-utils";
 
 interface FileTableProps {
@@ -51,10 +51,26 @@ export function FileTable({
 }: FileTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [lastSelectedKey, setLastSelectedKey] = useState<string | null>(null);
+  const checkboxRef = useRef<HTMLButtonElement>(null);
 
-  // Handle shift-select
+  // Compute selection state
+  const allSelected = data.length > 0 && data.every(d => selectedKeys.has(d.key));
+  const someSelected = data.some(d => selectedKeys.has(d.key)) && !allSelected;
+
+  // Set indeterminate state for header checkbox
+  useEffect(() => {
+    if (checkboxRef.current) {
+      const checkbox = checkboxRef.current.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      if (checkbox) {
+        checkbox.indeterminate = someSelected;
+      }
+    }
+  }, [someSelected]);
+
+  // Handle row click with OS-standard multi-select behavior
   const handleRowClick = (e: React.MouseEvent, key: string) => {
     if (e.shiftKey && lastSelectedKey) {
+      // Shift+Click: Range selection
       const lastIndex = data.findIndex((item) => item.key === lastSelectedKey);
       const currentIndex = data.findIndex((item) => item.key === key);
       
@@ -62,42 +78,34 @@ export function FileTable({
         const start = Math.min(lastIndex, currentIndex);
         const end = Math.max(lastIndex, currentIndex);
         const keysToSelect = data.slice(start, end + 1).map((item) => item.key);
-        // We want to add these to selection, not replace, usually. 
-        // But for standard OS behavior, click = select one, shift+click = select range. 
-        // Cmd/Ctrl+click is toggle.
-        // Since we are clicking the row (not specifically checkbox), let's assume standard behavior:
-        // - Click: Select only this (clear others) unless Ctrl/Cmd is held.
-        // - Shift+Click: Select range.
-        // - Ctrl/Cmd+Click: Toggle.
-        
-        // However, the props provided are `onToggleSelect`. I might need to implement the logic here 
-        // or just use `onSelectAll` for range. 
-        // Let's rely on simple toggle for now for the Checkbox column, 
-        // and Row click could trigger selection.
+        onSelectAll(keysToSelect);
       }
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd+Click: Toggle individual item
+      onToggleSelect(key);
+      setLastSelectedKey(key);
+    } else {
+      // Plain click: Select only this item (clear others)
+      onClearSelection();
+      onToggleSelect(key);
+      setLastSelectedKey(key);
     }
-    // For now, let's keep row click simple: toggle selection if ctrl/cmd, or select-one if plain click?
-    // Current requirement is "Support user multi-select files". 
-    // Standard table behavior usually separates "row click" (maybe navigation) from "selection".
-    // But in file explorer, row click IS selection.
   };
 
   const columns = useMemo<ColumnDef<ObjectModel>[]>(
     () => [
       {
         id: "select",
-        header: ({ table }) => (
+        header: () => (
           <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
+            ref={checkboxRef}
+            checked={allSelected}
             onCheckedChange={(value) => {
-               if (value) {
-                 onSelectAll(data.map(d => d.key));
-               } else {
-                 onClearSelection();
-               }
+              if (value) {
+                onSelectAll(data.map(d => d.key));
+              } else {
+                onClearSelection();
+              }
             }}
             aria-label="Select all"
             className="translate-y-[2px]"
@@ -120,11 +128,27 @@ export function FileTable({
       },
       {
         accessorKey: "key",
-        header: "名称",
+        header: ({ column }) => {
+          return (
+            <button
+              type="button"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
+              名称
+              {column.getIsSorted() === "asc" ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : column.getIsSorted() === "desc" ? ( 
+                <ArrowDown className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+              )}
+            </button>
+          );
+        },
         cell: ({ row }) => {
           const item = row.original;
           const label = deriveLabel(item.key, prefix);
-          const Icon = item.isDir ? Folder : null;
           
           return (
             <div className="flex items-center gap-2 min-w-[200px]">
@@ -140,12 +164,46 @@ export function FileTable({
       },
       {
         accessorKey: "lastModified",
-        header: "修改日期",
+        header: ({ column }) => {
+          return (
+            <button
+              type="button"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
+              修改日期
+              {column.getIsSorted() === "asc" ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : column.getIsSorted() === "desc" ? (
+                <ArrowDown className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+              )}
+            </button>
+          );
+        },
         cell: ({ row }) => <span className="text-muted-foreground whitespace-nowrap">{formatDate(row.original.lastModified)}</span>,
       },
       {
-        accessorKey: "isDir", // Helper for sorting by type
-        header: "类型",
+        accessorKey: "isDir",
+        header: ({ column }) => {
+          return (
+            <button
+              type="button"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
+              类型
+              {column.getIsSorted() === "asc" ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : column.getIsSorted() === "desc" ? (
+                <ArrowDown className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+              )}
+            </button>
+          );
+        },
         cell: ({ row }) => {
              if (row.original.isDir) return <span className="text-muted-foreground">文件夹</span>;
              const ext = row.original.key.split(".").pop()?.toUpperCase() || "FILE";
@@ -154,7 +212,24 @@ export function FileTable({
       },
       {
         accessorKey: "size",
-        header: "大小",
+        header: ({ column }) => {
+          return (
+            <button
+              type="button"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
+              大小
+              {column.getIsSorted() === "asc" ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : column.getIsSorted() === "desc" ? (
+                <ArrowDown className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+              )}
+            </button>
+          );
+        },
         cell: ({ row }) => {
             if (row.original.isDir) return <span className="text-muted-foreground">-</span>;
             return <span className="text-muted-foreground font-mono">{formatSize(row.original.size)}</span>
@@ -208,22 +283,7 @@ export function FileTable({
                         "cursor-pointer hover:bg-muted/50 transition-colors", 
                         selectedKeys.has(row.original.key) && "bg-muted"
                     )}
-                    onClick={(e) => {
-                        // Basic selection logic for row click
-                        if (e.ctrlKey || e.metaKey) {
-                            onToggleSelect(row.original.key);
-                        } else if (e.shiftKey && lastSelectedKey) {
-                             // Simple range select logic could go here, 
-                             // but for now let's just do single select or toggle
-                             // to avoid complex range logic in first iteration.
-                             onToggleSelect(row.original.key); 
-                        } else {
-                             // If clicking valid row without modifiers, clear others and select this
-                             onClearSelection();
-                             onToggleSelect(row.original.key);
-                        }
-                        setLastSelectedKey(row.original.key);
-                    }}
+                    onClick={(e) => handleRowClick(e, row.original.key)}
                     onDoubleClick={() => {
                         if (row.original.isDir) {
                             onEnterFolder(row.original.key);

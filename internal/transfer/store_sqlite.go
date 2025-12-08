@@ -107,3 +107,14 @@ func (s *sqliteStore) CountByStatus(ctx context.Context, statuses ...TaskStatus)
 	}
 	return int(count), nil
 }
+
+func (s *sqliteStore) Delete(ctx context.Context, id string) error {
+	result := s.db.WithContext(ctx).Delete(&taskRecord{}, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrTaskNotFound
+	}
+	return nil
+}

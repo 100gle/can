@@ -2,7 +2,9 @@ import { isBridgeAvailable } from "@/lib/bridge";
 import {
   AbortMultipartUpload,
   CancelTransferTask,
+  ClearCompletedTransfers,
   CompleteMultipartUpload,
+  DeleteTransferTask,
   GetTransferSpeedLimit,
   InitiateMultipartUpload,
   ListTransferTasks,
@@ -60,6 +62,7 @@ type TransfersActions = {
   pauseTask: (taskID: string) => Promise<void>;
   resumeTask: (taskID: string) => Promise<void>;
   cancelTask: (taskID: string) => Promise<void>;
+  deleteTask: (taskID: string) => void;
   clearCompleted: () => void;
   // Speed Limit
   loadGlobalSpeedLimit: () => Promise<void>;
@@ -174,10 +177,21 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     try {
       const result = await ListTransferTasks();
       set((state) => {
-        const updates = { ...state.tasks };
+        // Backend is the source of truth - use its data directly
+        const updates: Record<string, TransferViewModel> = {};
+        
+        // Keep local tasks that are still running (not yet synced to backend)
+        Object.values(state.tasks).forEach((task) => {
+          if (task.source === "local" && (task.status === "running" || task.status === "pending")) {
+            updates[task.id] = task;
+          }
+        });
+        
+        // Merge all backend tasks (backend is authoritative)
         result.forEach((task) => {
           updates[task.id] = toViewModel(task);
         });
+        
         return { tasks: updates };
       });
     } catch (error) {
@@ -295,17 +309,48 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     await CancelTransferTask(taskID);
     void get().syncBackendTasks();
   },
-  clearCompleted: () => {
-    set((state) => {
-      const next: Record<string, TransferViewModel> = {};
-      Object.values(state.tasks).forEach((task) => {
-        if (task.status === "completed") {
-          return;
-        }
-        next[task.id] = task;
+  deleteTask: async (taskID: string) => {
+    if (!isBridgeAvailable()) {
+      // Frontend only - remove immediately
+      set((state) => {
+        const { [taskID]: deleted, ...remaining } = state.tasks;
+        return { tasks: remaining };
       });
-      return { tasks: next };
-    });
+      return;
+    }
+    // Backend-first: call backend API
+    try {
+      await DeleteTransferTask(taskID);
+      // Sync to get updated state from backend
+      void get().syncBackendTasks();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "删除任务失败";
+      set({ error: message });
+    }
+  },
+  clearCompleted: async () => {
+    if (!isBridgeAvailable()) {
+      // Frontend only - filter locally
+      set((state) => {
+        const next: Record<string, TransferViewModel> = {};
+        Object.values(state.tasks).forEach((task) => {
+          if (task.status !== "completed") {
+            next[task.id] = task;
+          }
+        });
+        return { tasks: next };
+      });
+      return;
+    }
+    // Backend-first: call backend API
+    try {
+      await ClearCompletedTransfers();
+      // Sync to get updated state from backend
+      void get().syncBackendTasks();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "清理已完成任务失败";
+      set({ error: message });
+    }
   },
   loadGlobalSpeedLimit: async () => {
     if (!isBridgeAvailable()) return;
@@ -354,13 +399,17 @@ const processUploadTask = async (
       const chunk = runtime.file.slice(offset, Math.min(offset + CHUNK_SIZE, runtime.file.size));
       const buffer = await chunk.arrayBuffer();
       const payload = new Uint8Array(buffer);
+
+      // Convert Uint8Array to Base64 string
+      const base64 = btoa(String.fromCharCode(...payload));
+
       const etag = await UploadPart(
         runtime.accountId,
         runtime.bucket,
         runtime.key,
         uploadId,
         partNumber,
-        payload as unknown as number[],
+        base64,
       );
       runtime.completedParts[partNumber] = etag;
       set((state) => {
@@ -433,6 +482,16 @@ const processUploadTask = async (
 export const useTransfersStore = <T>(selector: (state: TransfersState) => T): T =>
   useTransfersStoreBase(selector as (state: TransfersStore) => T);
 
+export const useTransferStats = () => {
+  const tasks = useTransfersStore((state) => state.tasks);
+  const taskList = Object.values(tasks);
+  const active = taskList.filter((t) => t.status === "running" || t.status === "pending").length;
+  const failed = taskList.filter((t) => t.status === "failed").length;
+  const total = taskList.length;
+  return { active, failed, total };
+};
+
+
 const relay = <Args extends unknown[], Return>(
   selector: (store: TransfersStore) => (...args: Args) => Return,
 ) => {
@@ -448,6 +507,7 @@ export const transfersStore = {
   pauseTask: relay((store) => store.pauseTask),
   resumeTask: relay((store) => store.resumeTask),
   cancelTask: relay((store) => store.cancelTask),
+  deleteTask: relay((store) => store.deleteTask),
   clearCompleted: relay((store) => store.clearCompleted),
   loadGlobalSpeedLimit: relay((store) => store.loadGlobalSpeedLimit),
   setGlobalSpeedLimit: relay((store) => store.setGlobalSpeedLimit),
