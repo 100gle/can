@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { transferService } from "@/lib/services";
+import { showSuccess } from "@/lib/toast";
 import { useObjectsStore } from "@/state/objects";
-import { DeleteAccessLinkHistory, ListAccessLinkHistory } from "@wailsjs/go/app/App";
 import { objects } from "@wailsjs/go/models";
 import { Clipboard, History, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -19,16 +20,17 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
   const loadHistory = async () => {
     if (!accountId) return;
     setLoading(true);
-    try {
-      const result = await ListAccessLinkHistory(accountId, 100);
+    
+    const result = await transferService.listAccessLinkHistory(accountId, 100);
+    setLoading(false);
+    
+    if (result.success) {
       // Sort by creation time desc if not already
       setLinks(
-        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        result.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
       );
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+    } else {
+      setLinks([]);
     }
   };
 
@@ -40,17 +42,17 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
 
   const handleDelete = async (id: string) => {
     if (!accountId) return;
-    try {
-      await DeleteAccessLinkHistory(accountId, id);
+    
+    const result = await transferService.deleteAccessLinkHistory(accountId, id);
+    
+    if (result.success) {
       setLinks((prev) => prev.filter((l) => l.id !== id));
-    } catch (e) {
-      console.error(e);
     }
   };
 
   const handleCopy = (url: string) => {
     navigator.clipboard.writeText(url);
-    // toast.success("已复制到剪贴板");
+    showSuccess("已复制到剪贴板");
   };
 
   return (

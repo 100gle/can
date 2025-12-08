@@ -1,30 +1,26 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
+import { bucketService } from "@/lib/services";
 import { useParams } from "@tanstack/react-router";
-import {
-  CreateBucketSnapshot,
-  DeleteBucketSnapshot,
-  ListBucketSnapshots,
-} from "@wailsjs/go/app/App";
 import { backup } from "@wailsjs/go/models";
 import { AlertCircle, Camera, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -46,13 +42,13 @@ export function SnapshotPanel() {
   const loadSnapshots = async () => {
     if (!accountId || !bucketId) return;
     setListLoading(true);
-    try {
-      const list = await ListBucketSnapshots(accountId, bucketId);
-      setSnapshots(list || []);
-    } catch (err) {
-      console.error("Failed to load snapshots:", err);
-    } finally {
-      setListLoading(false);
+    const result = await bucketService.listSnapshots(accountId, bucketId);
+    setListLoading(false);
+    
+    if (result.success) {
+      setSnapshots(result.data || []);
+    } else {
+      setSnapshots([]);
     }
   };
 
@@ -60,26 +56,29 @@ export function SnapshotPanel() {
     if (!accountId || !bucketId) return;
     setLoading(true);
     setError(null);
-    try {
-      await CreateBucketSnapshot(accountId, bucketId);
+    
+    const result = await bucketService.createSnapshot(accountId, bucketId);
+    setLoading(false);
+    
+    if (result.success) {
       await loadSnapshots();
-    } catch (err) {
-      setError("创建快照失败: " + String(err));
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.error);
     }
   };
 
   const confirmDelete = async () => {
     if (!deleteId) return;
-    try {
-      await DeleteBucketSnapshot(deleteId);
+    
+    const result = await bucketService.deleteSnapshot(deleteId);
+    
+    if (result.success) {
       await loadSnapshots();
-    } catch (err) {
-      setError("删除失败: " + String(err));
-    } finally {
-      setDeleteId(null);
+    } else {
+      setError(result.error);
     }
+    
+    setDeleteId(null);
   };
 
   const formatDate = (dateString: string) => {
