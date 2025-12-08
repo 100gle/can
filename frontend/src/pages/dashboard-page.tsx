@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { bucketsStore } from "@/state/buckets";
+import { objectsStore } from "@/state/objects";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { RefreshCcw, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -28,10 +29,20 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
+      const refreshPromise = Promise.all([
         accountsStore.refresh(),
         accountId ? bucketsStore.loadBuckets(accountId) : Promise.resolve(),
+        objectsStore.refresh(),
       ]);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("刷新超时")), 30000),
+      );
+
+      await Promise.race([refreshPromise, timeoutPromise]);
+    } catch (error) {
+      console.error("Refresh failed:", error);
+      // Optional: Add toast here if desired, but console error is fine for now as per plan
     } finally {
       setRefreshing(false);
     }

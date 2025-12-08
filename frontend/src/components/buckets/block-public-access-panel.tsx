@@ -77,7 +77,10 @@ export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps
       </CardHeader>
       <CardContent className="space-y-4">
         {TOGGLES.map((item) => (
-          <div key={item.key} className="flex items-center justify-between gap-4 rounded-xl border p-4">
+          <div
+            key={item.key}
+            className="flex items-center justify-between gap-4 rounded-xl border p-4"
+          >
             <div>
               <p className="font-medium">{item.label}</p>
               <p className="text-sm text-muted-foreground">{item.description}</p>

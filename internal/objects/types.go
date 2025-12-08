@@ -2,6 +2,12 @@ package objects
 
 import "time"
 
+// MutationOptions carries idempotency and origin metadata for stateful object operations.
+type MutationOptions struct {
+	RequestID string `json:"requestId"`
+	Origin    string `json:"origin"`
+}
+
 // ObjectInfo describes a file or pseudo-folder inside a bucket.
 type ObjectInfo struct {
 	Key           string            `json:"key"`

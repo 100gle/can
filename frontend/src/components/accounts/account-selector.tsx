@@ -19,7 +19,6 @@ import {
   Plus,
   RefreshCcw,
   Rows,
-  Sparkles,
   UploadCloud,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -160,12 +159,8 @@ export const AccountSelector = ({
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-8">
             <div>
-              <p className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
-                <Sparkles className="h-3 w-3" />
-                Multi-Account
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold">选择你的云存储账户</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-2xl font-semibold">选择你的云存储账户</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
                 集中管理 S3 兼容服务，快速切换并查看连接状态。
               </p>
             </div>

@@ -243,6 +243,69 @@ func TestPauseTaskUpdatesStatus(t *testing.T) {
 	if paused.Status != TaskPaused && paused.Status != TaskCompleted {
 		// Task may have completed if it was fast
 		t.Logf("task status: %s (may have completed before pause)", paused.Status)
+	} else if paused.Status == TaskPaused && paused.PauseReason != PauseReasonUser {
+		t.Fatalf("expected pause reason %q, got %q", PauseReasonUser, paused.PauseReason)
+	}
+}
+
+func TestPauseAllAndResumePendingRespectReason(t *testing.T) {
+	driver := newFakeObjectDriver()
+	payload := bytes.Repeat([]byte("net"), 1024*256)
+	driver.setObject("docs", "one.bin", payload)
+	driver.setObject("docs", "two.bin", payload)
+	svc, accountID := newTestTransferService(t, driver)
+	dir := t.TempDir()
+
+	var tasks []*TransferTask
+	keys := []string{"one.bin", "two.bin"}
+	for idx, key := range keys {
+		target := filepath.Join(dir, key)
+		task, err := svc.EnqueueDownload(context.Background(), DownloadRequest{
+			AccountID: accountID,
+			Bucket:    "docs",
+			Key:       key,
+			SavePath:  target,
+		})
+		if err != nil {
+			t.Fatalf("enqueue download %d: %v", idx, err)
+		}
+		tasks = append(tasks, task)
+	}
+
+	paused, err := svc.PauseAll(context.Background(), PauseReasonNetwork)
+	if err != nil {
+		t.Fatalf("pause all: %v", err)
+	}
+	if paused == 0 {
+		t.Fatalf("expected at least one task to pause")
+	}
+
+	snapshot, err := svc.ListTasks(context.Background())
+	if err != nil {
+		t.Fatalf("list transfer tasks: %v", err)
+	}
+	networkPaused := 0
+	for _, task := range snapshot {
+		if task.Status == TaskPaused {
+			if task.PauseReason != PauseReasonNetwork {
+				t.Fatalf("expected pause reason %q, got %q", PauseReasonNetwork, task.PauseReason)
+			}
+			networkPaused++
+		}
+	}
+	if networkPaused == 0 {
+		t.Fatalf("expected paused tasks in snapshot")
+	}
+
+	resumed, err := svc.ResumePending(context.Background(), PauseReasonNetwork)
+	if err != nil {
+		t.Fatalf("resume pending: %v", err)
+	}
+	if resumed == 0 {
+		t.Fatalf("expected resume to process paused tasks")
+	}
+	for _, task := range tasks {
+		waitForStatus(t, svc, task.ID, TaskCompleted)
 	}
 }
 

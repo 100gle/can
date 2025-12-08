@@ -78,6 +78,30 @@ func TestRenameObjectValidatesKeys(t *testing.T) {
 	}
 }
 
+func TestDeleteObjectWithRequestIDSkipsDuplicates(t *testing.T) {
+	driver := newStubObjectDriver()
+	store := &memoryAuditStore{}
+	auditSvc := security.NewService(store)
+	svc, accountID := newTestObjectsService(t, driver, auditSvc)
+	ctx := context.Background()
+	opts := WithMutationOptions(MutationOptions{
+		RequestID: "req-123",
+		Origin:    "offline-queue",
+	})
+	if err := svc.DeleteObject(ctx, accountID, "docs", "file.txt", opts); err != nil {
+		t.Fatalf("first delete failed: %v", err)
+	}
+	if err := svc.DeleteObject(ctx, accountID, "docs", "file.txt", opts); err != nil {
+		t.Fatalf("duplicate delete should be skipped, got error: %v", err)
+	}
+	if len(driver.deleteCalls) != 1 {
+		t.Fatalf("expected exactly one delete call, got %d", len(driver.deleteCalls))
+	}
+	if processed, _ := store.HasRequest(ctx, "req-123"); !processed {
+		t.Fatalf("expected request id to be recorded")
+	}
+}
+
 func TestMoveObjectsMovesAndDeletes(t *testing.T) {
 	driver := newStubObjectDriver()
 	svc, accountID := newTestObjectsService(t, driver)
@@ -313,6 +337,38 @@ type deleteCall struct {
 	key    string
 }
 
+type memoryAuditStore struct {
+	events []security.AuditEvent
+}
+
+func (m *memoryAuditStore) Record(_ context.Context, event security.AuditEvent) error {
+	m.events = append(m.events, event)
+	return nil
+}
+
+func (m *memoryAuditStore) Query(context.Context, security.AuditFilter) ([]security.AuditEvent, error) {
+	copied := make([]security.AuditEvent, len(m.events))
+	copy(copied, m.events)
+	return copied, nil
+}
+
+func (m *memoryAuditStore) Init() error {
+	return nil
+}
+
+func (m *memoryAuditStore) HasRequest(_ context.Context, requestID string) (bool, error) {
+	id := strings.TrimSpace(requestID)
+	if id == "" {
+		return false, nil
+	}
+	for _, event := range m.events {
+		if event.RequestID == id && strings.EqualFold(event.Status, "Success") {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func newStubObjectDriver() *stubObjectDriver {
 	return &stubObjectDriver{
 		headResponses: make(map[string]headResponse),
@@ -520,7 +576,7 @@ func (s *stubStorageClient) Security() providers.SecurityDriver {
 	return nil
 }
 
-func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Service, string) {
+func newTestObjectsService(t *testing.T, driver providers.ObjectDriver, audits ...*security.Service) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
 	cipher := security.NoopCipher{}
@@ -544,6 +600,10 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Servic
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
 	pool := providers.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
-	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore(), nil)
+	var audit *security.Service
+	if len(audits) > 0 {
+		audit = audits[0]
+	}
+	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore(), audit)
 	return service, account.ID
 }

@@ -22,8 +22,8 @@
 *   **功能描述**: 提升 Mac/Windows 桌面端的原生体验。
 *   **关联文档**: `docs/features.md` (Section 8)
 *   **关键任务**:
-    *   [x] Wails: 优化系统托盘 (System Tray) 菜单 (显示/隐藏, 退出)。
-    *   [x] Wails: 拦截窗口关闭事件 (Cmd+W)，实现 "最小化到托盘" 逻辑 (已部分实现，需优化交互)。
+    *   [x] ~~Wails: 优化系统托盘 (System Tray) 菜单~~ (已移除：systray 库与 Wails 存在 AppDelegate 冲突)
+    *   [x] Wails: 拦截窗口关闭事件 (Cmd+W)，实现窗口最小化/隐藏逻辑。
     *   [x] Wails: 实现退出确认 (Cmd+Q)，检查是否有正在进行的传输任务。
 
 ## 4. 全局细节打磨
@@ -34,7 +34,7 @@
     *   [x] UI Review: 统一间距、字体和颜色，修复视觉 Bug。
 
 ## 验收记录（2025-12-07）
-- ✅ 系统托盘与隐藏/显示：`internal/app/tray.go` + `internal/app/lifecycle.go` 组合提供统一的窗口可见性状态（`windowVisible` 原子 + `runtime.EventsEmit`），托盘项会随状态禁用/启用，`OnSecondInstance` 复用 `showWindow` 确保重新激活时同步 UI。
-- ✅ 桌面事件回传：`frontend/src/components/providers/app-events-bridge.tsx` 通过 `EventsOn("app:window-visibility")` 监听托盘隐藏事件，仅在 Bridge 可用时订阅，并以 `sonner` Toast 向用户提示“隐藏到托盘”的入口。
+- ~~系统托盘：`internal/app/tray.go` 已移除~~，因 `github.com/getlantern/systray` 与 Wails 存在 macOS AppDelegate 符号冲突。窗口隐藏/显示功能通过 `lifecycle.go` 和原生菜单 (Cmd+W/Cmd+H) 提供。
+- ✅ 桌面事件回传：`frontend/src/components/providers/app-events-bridge.tsx` 通过 `EventsOn("app:window-visibility")` 监听窗口隐藏事件，仅在 Bridge 可用时订阅。
 - ✅ 对象合规管理：`frontend/src/components/objects/object-details-drawer.tsx` 新增“合规”页签，打通 `GetObjectLockConfiguration / GetObjectRetention / GetObjectLegalHold` 等 API（`internal/app/objects.go`、`internal/objects/service.go`、`internal/providers/*`），可设置 Governance/Compliance 模式、保留截止时间、Bypass Governance 及法律保留开关。
 - 🔬 测试：`go test ./...`；`pnpm --dir frontend test`（Vitest，Settings 页依旧模拟 `GetSystemMetrics` 报警但场景受控）。

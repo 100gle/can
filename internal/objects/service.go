@@ -135,7 +135,8 @@ func (s *Service) DownloadBatch(ctx context.Context, accountID string, input Dow
 }
 
 // DeleteObject removes a single object from the bucket.
-func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key string) error {
+func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key string, opts ...MutationOption) error {
+	meta := applyMutationOptions(opts)
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
@@ -148,16 +149,14 @@ func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key strin
 	if key == "" {
 		return errors.New("object key is required")
 	}
-	if err := client.Objects().DeleteObject(ctx, bucket, key); err != nil {
-		if s.audit != nil {
-			_ = s.audit.Log(ctx, "DeleteObject", fmt.Sprintf("%s/%s", bucket, key), accountID, "Failure", err.Error())
-		}
+	if skip, err := s.shouldSkipMutation(ctx, meta); err != nil {
 		return err
+	} else if skip {
+		return nil
 	}
-	if s.audit != nil {
-		_ = s.audit.Log(ctx, "DeleteObject", fmt.Sprintf("%s/%s", bucket, key), accountID, "Success", "")
-	}
-	return nil
+	err = client.Objects().DeleteObject(ctx, bucket, key)
+	s.logMutation(ctx, "DeleteObject", fmt.Sprintf("%s/%s", bucket, key), accountID, err, meta)
+	return err
 }
 
 // BatchDeleteObjects removes multiple objects from the bucket.
@@ -179,20 +178,17 @@ func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket stri
 		if key == "" {
 			continue
 		}
+		resource := fmt.Sprintf("%s/%s", bucket, key)
 		if err := driver.DeleteObject(ctx, bucket, key); err != nil {
 			result.Failed = append(result.Failed, BatchOperationFailure{
 				Bucket: bucket,
 				Key:    key,
 				Error:  err.Error(),
 			})
-			if s.audit != nil {
-				_ = s.audit.Log(ctx, "BatchDeleteObjects", fmt.Sprintf("%s/%s", bucket, key), accountID, "Failure", err.Error())
-			}
+			s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, err, mutationContext{})
 		} else {
 			result.Succeeded++
-			if s.audit != nil {
-				_ = s.audit.Log(ctx, "BatchDeleteObjects", fmt.Sprintf("%s/%s", bucket, key), accountID, "Success", "")
-			}
+			s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, nil, mutationContext{})
 		}
 	}
 	return result, nil
@@ -214,7 +210,8 @@ func (s *Service) CopyObject(ctx context.Context, accountID, sourceBucket, sourc
 }
 
 // RenameObject renames an object by copying it to the new key and deleting the old key.
-func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, newKey string) error {
+func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, newKey string, opts ...MutationOption) error {
+	meta := applyMutationOptions(opts)
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
@@ -235,22 +232,32 @@ func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, n
 		return errors.New("new object key must be different from the current key")
 	}
 	driver := client.Objects()
+	if skip, err := s.shouldSkipMutation(ctx, meta); err != nil {
+		return err
+	} else if skip {
+		return nil
+	}
+	resource := fmt.Sprintf("%s/%s->%s", bucket, oldKey, newKey)
 	if _, err := driver.HeadObject(ctx, bucket, newKey); err == nil {
 		return fmt.Errorf("object %q already exists", newKey)
 	} else if err != nil && !isNotFoundError(err) {
 		return err
 	}
 	if err := driver.CopyObject(ctx, bucket, oldKey, bucket, newKey); err != nil {
+		s.logMutation(ctx, "RenameObject", resource, accountID, err, meta)
 		return err
 	}
 	if err := driver.DeleteObject(ctx, bucket, oldKey); err != nil {
+		s.logMutation(ctx, "RenameObject", resource, accountID, err, meta)
 		return err
 	}
+	s.logMutation(ctx, "RenameObject", resource, accountID, nil, meta)
 	return nil
 }
 
 // MoveObjects copies objects to their new destination and deletes the originals.
-func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []MoveObjectRequest) (MoveObjectsResult, error) {
+func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []MoveObjectRequest, opts ...MutationOption) (MoveObjectsResult, error) {
+	meta := applyMutationOptions(opts)
 	var result MoveObjectsResult
 	client, err := s.client(ctx, accountID)
 	if err != nil {
@@ -258,6 +265,12 @@ func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []
 	}
 	driver := client.Objects()
 	result.Total = len(requests)
+	if skip, err := s.shouldSkipMutation(ctx, meta); err != nil {
+		return result, err
+	} else if skip {
+		result.Succeeded = result.Total
+		return result, nil
+	}
 	for _, req := range requests {
 		srcBucket := strings.TrimSpace(req.SourceBucket)
 		srcKey := strings.TrimSpace(req.SourceKey)
@@ -304,6 +317,11 @@ func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []
 		}
 		result.Succeeded++
 	}
+	var opErr error
+	if len(result.Failed) > 0 {
+		opErr = fmt.Errorf("%d move operations failed", len(result.Failed))
+	}
+	s.logMutation(ctx, "MoveObjects", fmt.Sprintf("move:%d", len(requests)), accountID, opErr, meta)
 	return result, nil
 }
 
@@ -792,6 +810,33 @@ func (s *Service) DeleteAccessLinkHistory(ctx context.Context, accountID, id str
 		return nil
 	}
 	return s.history.Delete(ctx, accountID, strings.TrimSpace(id))
+}
+
+func (s *Service) shouldSkipMutation(ctx context.Context, meta mutationContext) (bool, error) {
+	if meta.requestID == "" || s.audit == nil {
+		return false, nil
+	}
+	return s.audit.HasRequest(ctx, meta.requestID)
+}
+
+func (s *Service) logMutation(ctx context.Context, action, resource, accountID string, opErr error, meta mutationContext) {
+	if s.audit == nil {
+		return
+	}
+	status := "Success"
+	details := ""
+	if opErr != nil {
+		status = "Failure"
+		details = opErr.Error()
+	}
+	var opts []security.LogOption
+	if meta.origin != "" {
+		opts = append(opts, security.WithOrigin(meta.origin))
+	}
+	if meta.requestID != "" {
+		opts = append(opts, security.WithRequestID(meta.requestID))
+	}
+	_ = s.audit.Log(ctx, action, resource, accountID, status, details, opts...)
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {

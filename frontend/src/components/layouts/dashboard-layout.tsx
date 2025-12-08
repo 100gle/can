@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { OfflineBanner } from "@/components/ui/offline-banner";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
@@ -52,6 +53,7 @@ export const DashboardLayout = ({
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
+        <OfflineBanner />
         <div className="flex items-center justify-between border-b border-border/40 bg-card/60 px-4 py-3 backdrop-blur">
           <div className="flex items-center gap-3">
             <Button
@@ -69,14 +71,6 @@ export const DashboardLayout = ({
             </Button>
 
             <DashboardBreadcrumb />
-            {accountName ? (
-              <div className="hidden min-w-0 lg:block">
-                <p className="truncate text-sm font-semibold">{accountName}</p>
-                {accountMeta ? (
-                  <p className="truncate text-xs text-muted-foreground">{accountMeta}</p>
-                ) : null}
-              </div>
-            ) : null}
           </div>
           {showSettingsShortcut ? (
             <Button

@@ -57,13 +57,17 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
           </div>
           <Switch
             checked={draft.enabled}
-            onCheckedChange={(value) => setDraft((state) => (state ? { ...state, enabled: value } : state))}
+            onCheckedChange={(value) =>
+              setDraft((state) => (state ? { ...state, enabled: value } : state))
+            }
           />
         </div>
         <div className="flex items-center justify-between rounded-xl border p-4">
           <div>
             <p className="font-medium">允许空 Referer</p>
-            <p className="text-sm text-muted-foreground">部分客户端不会携带 Referer，必要时可放行。</p>
+            <p className="text-sm text-muted-foreground">
+              部分客户端不会携带 Referer，必要时可放行。
+            </p>
           </div>
           <Switch
             checked={draft.allowEmpty}
@@ -93,8 +97,7 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
         </div>
         {provider === "aws" && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            AWS S3 原生不支持 Bucket Referer 白名单，本设置主要用于 OSS/COS，AWS
-            将忽略此配置。
+            AWS S3 原生不支持 Bucket Referer 白名单，本设置主要用于 OSS/COS，AWS 将忽略此配置。
           </p>
         )}
         <div className="flex justify-end gap-2">

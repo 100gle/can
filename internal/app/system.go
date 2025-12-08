@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"time"
 
 	"can/internal/system"
 
@@ -81,4 +82,25 @@ func (a *App) OpenFileDialog(title string, filters []FileFilter) (string, error)
 type FileFilter struct {
 	DisplayName string `json:"displayName"`
 	Pattern     string `json:"pattern"`
+}
+
+// PingEndpoint performs a lightweight reachability check for the provided URL or host.
+// timeoutMs is optional; when <= 0, the backend default (5s) is used.
+func (a *App) PingEndpoint(target string, timeoutMs int) system.PingResult {
+	if a.system == nil {
+		return system.PingResult{
+			URL:       target,
+			CheckedAt: time.Now(),
+			Reason:    "system_unavailable",
+			Error:     "system service unavailable",
+			Online:    false,
+		}
+	}
+	ctx, cancel := a.requestContext(nil)
+	defer cancel()
+	var timeout time.Duration
+	if timeoutMs > 0 {
+		timeout = time.Duration(timeoutMs) * time.Millisecond
+	}
+	return a.system.PingEndpoint(ctx, target, timeout)
 }

@@ -457,8 +457,13 @@ func (s *Service) CancelTask(ctx context.Context, taskID string) error {
 	return nil
 }
 
-// PauseTask attempts to pause an active transfer.
+// PauseTask attempts to pause an active transfer (user initiated).
 func (s *Service) PauseTask(ctx context.Context, taskID string) error {
+	return s.PauseTaskWithReason(ctx, taskID, PauseReasonUser)
+}
+
+// PauseTaskWithReason pauses an active transfer and records why it was stopped.
+func (s *Service) PauseTaskWithReason(ctx context.Context, taskID string, reason PauseReason) error {
 	task, err := s.store.Get(ctx, strings.TrimSpace(taskID))
 	if err != nil {
 		return err
@@ -468,6 +473,7 @@ func (s *Service) PauseTask(ctx context.Context, taskID string) error {
 		return nil
 	}
 	task.Status = TaskPaused
+	task.PauseReason = reason
 	task.Speed = 0
 	task.EstimatedTime = -1
 	if err := s.store.Update(ctx, task); err != nil {
@@ -475,6 +481,51 @@ func (s *Service) PauseTask(ctx context.Context, taskID string) error {
 	}
 	s.requestStop(task.ID, stopReasonPause)
 	return nil
+}
+
+// PauseAll best-effort pauses all running or queued tasks for the provided reason.
+func (s *Service) PauseAll(ctx context.Context, reason PauseReason) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	tasks, err := s.store.ListByStatus(ctx, TaskRunning, TaskPending)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	var firstErr error
+	for _, task := range tasks {
+		if err := s.PauseTaskWithReason(ctx, task.ID, reason); err == nil {
+			count++
+		} else if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return count, firstErr
+}
+
+// ResumePending resumes paused tasks that match the provided reason (or all if reason is unknown).
+func (s *Service) ResumePending(ctx context.Context, reason PauseReason) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	tasks, err := s.store.ListByStatus(ctx, TaskPaused)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	var firstErr error
+	for _, task := range tasks {
+		if reason != PauseReasonUnknown && task.PauseReason != "" && task.PauseReason != reason {
+			continue
+		}
+		if err := s.ResumeTask(ctx, task.ID); err == nil {
+			count++
+		} else if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return count, firstErr
 }
 
 // ResumeTask marks a paused task as running again.
@@ -487,6 +538,7 @@ func (s *Service) ResumeTask(ctx context.Context, taskID string) error {
 		return nil
 	}
 	task.Status = TaskPending
+	task.PauseReason = PauseReasonUnknown
 	task.EndTime = nil
 	task.Error = nil
 	if err := s.store.Update(ctx, task); err != nil {

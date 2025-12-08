@@ -23,6 +23,7 @@ export type ObjectsState = {
   accountId?: string;
   bucket?: string;
   prefix: string;
+  delimiter: string;
   objects: ObjectModel[];
   loading: boolean;
   loadingMore: boolean;
@@ -42,6 +43,7 @@ export type ObjectsActions = {
   goUp: () => Promise<void>;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
+  setDelimiter: (delimiter: string) => Promise<void>;
   uploadFromPath: (filePath: string, key: string) => Promise<void>;
   downloadToPath: (key: string, savePath: string) => Promise<void>;
   deleteObject: (key: string) => Promise<void>;
@@ -75,6 +77,7 @@ type ObjectsStore = ObjectsState & ObjectsActions;
 
 const createInitialState = (): ObjectsState => ({
   prefix: "",
+  delimiter: "/",
   objects: [],
   loading: false,
   loadingMore: false,
@@ -95,6 +98,9 @@ const FALLBACK_OBJECTS: ObjectModel[] = [
     storageClass: "",
     versionId: "",
     isDir: true,
+    metadata: {},
+    isSymlink: false,
+    symlinkTarget: "",
   },
   {
     key: "media/banner.png",
@@ -105,6 +111,9 @@ const FALLBACK_OBJECTS: ObjectModel[] = [
     storageClass: "STANDARD",
     versionId: "",
     isDir: false,
+    metadata: {},
+    isSymlink: false,
+    symlinkTarget: "",
   },
   {
     key: "readme.txt",
@@ -115,6 +124,9 @@ const FALLBACK_OBJECTS: ObjectModel[] = [
     storageClass: "STANDARD",
     versionId: "",
     isDir: false,
+    metadata: {},
+    isSymlink: false,
+    symlinkTarget: "",
   },
 ];
 
@@ -129,10 +141,13 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       set({ ...createInitialState(), accountId: undefined, bucket: undefined });
       return;
     }
+    // Preserve current delimiter when switching buckets
+    const currentDelimiter = get().delimiter;
     set({
       accountId,
       bucket,
       prefix: "",
+      delimiter: currentDelimiter,
       objects: [],
       nextMarker: undefined,
       truncated: false,
@@ -158,7 +173,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     await get().refresh();
   },
   refresh: async () => {
-    const { accountId, bucket, prefix } = get();
+    const { accountId, bucket, prefix, delimiter } = get();
     if (!accountId || !bucket) {
       set({ objects: [], error: undefined });
       return;
@@ -170,7 +185,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
         const result = await ListObjects(accountId, {
           bucket,
           prefix,
-          delimiter: "/",
+          delimiter,
           limit: 500,
           marker: "",
         });
@@ -203,10 +218,11 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
+        const { delimiter } = get();
         const result = await ListObjects(accountId, {
           bucket,
           prefix,
-          delimiter: "/",
+          delimiter,
           limit: 500,
           marker: nextMarker,
         });
@@ -260,6 +276,9 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
           storageClass: "STANDARD",
           versionId: "",
           isDir: false,
+          metadata: {},
+          isSymlink: false,
+          symlinkTarget: "",
         };
         set((state) => ({ objects: [mock, ...state.objects] }));
       }
@@ -331,6 +350,10 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     }
   },
   reset: () => set({ ...createInitialState(), accountId: undefined, bucket: undefined }),
+  setDelimiter: async (delimiter: string) => {
+    set({ delimiter, objects: [], nextMarker: undefined, truncated: false });
+    await get().refresh();
+  },
 
   // Selection actions
   toggleSelect: (key: string) => {
@@ -470,6 +493,7 @@ export const objectsStore = {
   downloadToPath: relay((store) => store.downloadToPath),
   deleteObject: relay((store) => store.deleteObject),
   reset: relay((store) => store.reset),
+  setDelimiter: relay((store) => store.setDelimiter),
   // Selection
   toggleSelect: relay((store) => store.toggleSelect),
   selectAll: relay((store) => store.selectAll),

@@ -18,13 +18,14 @@ type Store interface {
 }
 
 type taskRecord struct {
-	ID             string     `gorm:"primaryKey;size:64"`
-	Type           TaskType   `gorm:"size:16;index"`
-	AccountID      string     `gorm:"size:128;index"`
-	Bucket         string     `gorm:"size:512"`
-	Key            string     `gorm:"size:2048"`
-	LocalPath      string     `gorm:"size:2048"`
-	Status         TaskStatus `gorm:"size:16;index"`
+	ID             string      `gorm:"primaryKey;size:64"`
+	Type           TaskType    `gorm:"size:16;index"`
+	AccountID      string      `gorm:"size:128;index"`
+	Bucket         string      `gorm:"size:512"`
+	Key            string      `gorm:"size:2048"`
+	LocalPath      string      `gorm:"size:2048"`
+	Status         TaskStatus  `gorm:"size:16;index"`
+	PauseReason    PauseReason `gorm:"size:32"`
 	Progress       int64
 	Total          int64
 	Speed          int64
@@ -55,6 +56,7 @@ func (r *taskRecord) toTask() (*TransferTask, error) {
 		Key:            r.Key,
 		LocalPath:      r.LocalPath,
 		Status:         r.Status,
+		PauseReason:    r.PauseReason,
 		Progress:       r.Progress,
 		Total:          r.Total,
 		Speed:          r.Speed,
@@ -100,6 +102,7 @@ func recordFromTask(task *TransferTask) (*taskRecord, error) {
 		Key:           task.Key,
 		LocalPath:     task.LocalPath,
 		Status:        task.Status,
+		PauseReason:   task.PauseReason,
 		Progress:      task.Progress,
 		Total:         task.Total,
 		Speed:         task.Speed,

@@ -10,7 +10,11 @@ type UseIdleTimerResult = {
   reset: () => void;
 };
 
-export const useIdleTimer = ({ timeout, onIdle, onActive }: UseIdleTimerOptions): UseIdleTimerResult => {
+export const useIdleTimer = ({
+  timeout,
+  onIdle,
+  onActive,
+}: UseIdleTimerOptions): UseIdleTimerResult => {
   const timerRef = useRef<number | null>(null);
   const idleRef = useRef(false);
 
@@ -54,13 +58,17 @@ export const useIdleTimer = ({ timeout, onIdle, onActive }: UseIdleTimerOptions)
       "keydown",
       "touchstart",
       "scroll",
-      "visibilitychange",
     ];
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
+    document.addEventListener("visibilitychange", handleActivity, { passive: true });
     reset();
     return () => {
       events.forEach((event) =>
         window.removeEventListener(event, handleActivity as EventListenerOrEventListenerObject),
+      );
+      document.removeEventListener(
+        "visibilitychange",
+        handleActivity as EventListenerOrEventListenerObject,
       );
       clearTimer();
     };

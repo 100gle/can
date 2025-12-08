@@ -304,11 +304,10 @@ func (d *ossObjectDriver) ListObjects(ctx context.Context, input ListObjectsInpu
 	if prefix := strings.TrimSpace(input.Prefix); prefix != "" {
 		options = append(options, oss.Prefix(prefix))
 	}
-	delimiter := strings.TrimSpace(input.Delimiter)
-	if delimiter == "" {
-		delimiter = "/"
+	// Delimiter controls hierarchy: empty = flat list (all objects), "/" = folder hierarchy
+	if input.Delimiter != "" {
+		options = append(options, oss.Delimiter(input.Delimiter))
 	}
-	options = append(options, oss.Delimiter(delimiter))
 	limit := input.Limit
 	if limit <= 0 {
 		limit = 1000

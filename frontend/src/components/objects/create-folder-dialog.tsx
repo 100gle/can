@@ -22,10 +22,9 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
   const [folderName, setFolderName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const { objects, prefix } = useObjectsStore((state) => ({
-    objects: state.objects,
-    prefix: state.prefix,
-  }));
+  // Use individual selectors to avoid new object reference issue with React 19
+  const objects = useObjectsStore((state) => state.objects);
+  const prefix = useObjectsStore((state) => state.prefix);
 
   const handleClose = () => {
     setFolderName("");

@@ -408,9 +408,7 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                           <div>
                             <p className="font-medium">对象锁配置</p>
                             <p className="text-xs text-muted-foreground">
-                              {lockConfig?.enabled
-                                ? "Bucket 已启用默认保留"
-                                : "尚未启用默认对象锁"}
+                              {lockConfig?.enabled ? "Bucket 已启用默认保留" : "尚未启用默认对象锁"}
                             </p>
                           </div>
                           <span className="text-xs text-muted-foreground">
@@ -464,7 +462,10 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                             checked={bypassGovernance}
                             onCheckedChange={setBypassGovernance}
                           />
-                          <Label htmlFor="bypass-governance" className="text-xs text-muted-foreground">
+                          <Label
+                            htmlFor="bypass-governance"
+                            className="text-xs text-muted-foreground"
+                          >
                             Bypass Governance
                           </Label>
                         </div>

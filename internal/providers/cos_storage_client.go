@@ -431,10 +431,8 @@ func (d *cosObjectDriver) ListObjects(ctx context.Context, input ListObjectsInpu
 	if err != nil {
 		return result, err
 	}
-	delimiter := strings.TrimSpace(input.Delimiter)
-	if delimiter == "" {
-		delimiter = "/"
-	}
+	// Delimiter controls hierarchy: empty = flat list (all objects), "/" = folder hierarchy
+	delimiter := input.Delimiter
 	limit := input.Limit
 	if limit <= 0 {
 		limit = 1000

@@ -9,6 +9,8 @@ export type DatabaseDriver = "sqlite" | "memory";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+export type CacheSize = 10 | 50 | 100 | 500; // MB
+
 export type AdvancedOptions = {
   databaseDriver: DatabaseDriver;
   logLevel: LogLevel;
@@ -27,10 +29,14 @@ type PreferencesState = {
   themePreference: ThemePreference;
   systemTheme: ThemeSelection;
   advancedOptions: AdvancedOptions;
+  offlineCacheEnabled: boolean;
+  offlineCacheSize: CacheSize;
   setThemePreference: (value: ThemePreference) => void;
   setSystemTheme: (value: ThemeSelection) => void;
   setAdvancedOptions: (patch: Partial<AdvancedOptions>) => void;
   resetAdvancedOptions: () => void;
+  setOfflineCacheEnabled: (enabled: boolean) => void;
+  setOfflineCacheSize: (size: CacheSize) => void;
 };
 
 const noopStorage: StateStorage = {
@@ -71,6 +77,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       themePreference: "system",
       systemTheme: "light",
       advancedOptions: cloneDefaultAdvancedOptions(),
+      offlineCacheEnabled: true,
+      offlineCacheSize: 100,
       setThemePreference: (value) => set({ themePreference: value }),
       setSystemTheme: (value) => set({ systemTheme: value }),
       setAdvancedOptions: (patch) =>
@@ -78,6 +86,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           advancedOptions: { ...state.advancedOptions, ...patch },
         })),
       resetAdvancedOptions: () => set({ advancedOptions: cloneDefaultAdvancedOptions() }),
+      setOfflineCacheEnabled: (enabled) => set({ offlineCacheEnabled: enabled }),
+      setOfflineCacheSize: (size) => set({ offlineCacheSize: size }),
     }),
     {
       name: PREFERENCES_STORAGE_KEY,
@@ -85,6 +95,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       partialize: (state) => ({
         themePreference: state.themePreference,
         advancedOptions: state.advancedOptions,
+        offlineCacheEnabled: state.offlineCacheEnabled,
+        offlineCacheSize: state.offlineCacheSize,
       }),
     },
   ),

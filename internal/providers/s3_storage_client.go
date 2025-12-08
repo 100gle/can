@@ -397,11 +397,10 @@ func (d *s3ObjectDriver) ListObjects(ctx context.Context, input ListObjectsInput
 	if prefix := strings.TrimSpace(input.Prefix); prefix != "" {
 		params.Prefix = aws.String(prefix)
 	}
-	delimiter := strings.TrimSpace(input.Delimiter)
-	if delimiter == "" {
-		delimiter = "/"
+	// Delimiter controls hierarchy: empty = flat list (all objects), "/" = folder hierarchy
+	if input.Delimiter != "" {
+		params.Delimiter = aws.String(input.Delimiter)
 	}
-	params.Delimiter = aws.String(delimiter)
 	limit := int32(input.Limit)
 	if limit <= 0 {
 		limit = 1000

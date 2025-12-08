@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -67,4 +68,20 @@ func (s *SQLiteAuditStore) Query(ctx context.Context, filter AuditFilter) ([]Aud
 	var events []AuditEvent
 	err := stmt.Find(&events).Error
 	return events, err
+}
+
+func (s *SQLiteAuditStore) HasRequest(ctx context.Context, requestID string) (bool, error) {
+	id := strings.TrimSpace(requestID)
+	if id == "" {
+		return false, nil
+	}
+	var count int64
+	err := s.db.WithContext(ctx).
+		Model(&AuditEvent{}).
+		Where("request_id = ? AND status = ?", id, "Success").
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

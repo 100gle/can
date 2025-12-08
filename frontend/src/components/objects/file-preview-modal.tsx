@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -301,12 +307,20 @@ export function FilePreviewModal({
       case "image":
         return (
           <div className="flex items-center justify-center rounded-md border border-border/60 bg-muted/20 p-4">
-            <img src={previewUrl} alt={fileName} className="max-h-[60vh] rounded-md object-contain" />
+            <img
+              src={previewUrl}
+              alt={fileName}
+              className="max-h-[60vh] rounded-md object-contain"
+            />
           </div>
         );
       case "video":
         return (
-          <video controls src={previewUrl} className="h-[60vh] w-full rounded-md border border-border/60" />
+          <video
+            controls
+            src={previewUrl}
+            className="h-[60vh] w-full rounded-md border border-border/60"
+          />
         );
       case "audio":
         return (
@@ -347,7 +361,10 @@ export function FilePreviewModal({
             </TabsList>
             <TabsContent value="rendered">
               <div className="h-[55vh] overflow-y-auto rounded-md border border-border/60 bg-card p-4">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  className="prose dark:prose-invert max-w-none"
+                >
                   {textContent}
                 </ReactMarkdown>
               </div>

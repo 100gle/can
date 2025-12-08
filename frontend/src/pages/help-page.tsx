@@ -1,3 +1,4 @@
+import quickStartDoc from "@/assets/docs/help/getting-started.md?raw";
 import { PageHeader } from "@/components/layouts/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import quickStartDoc from "@/assets/docs/help/getting-started.md?raw";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   ArrowRight,
   BookOpenCheck,
@@ -26,6 +24,8 @@ import {
   Shield,
 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type QuickStartStep = {
   title: string;
@@ -385,7 +385,9 @@ export default function HelpPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => window.open("https://github.com/100gle/can/wiki/security", "_blank")}
+                  onClick={() =>
+                    window.open("https://github.com/100gle/can/wiki/security", "_blank")
+                  }
                 >
                   打开
                 </Button>
@@ -400,7 +402,7 @@ export default function HelpPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Badge variant="secondary">Discord</Badge>
+                  <Badge variant="default">Discord</Badge>
                   <Badge variant="outline">飞书</Badge>
                 </div>
               </div>

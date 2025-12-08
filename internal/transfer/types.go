@@ -35,6 +35,15 @@ const (
 	PriorityCritical Priority = 3
 )
 
+// PauseReason captures why a task was paused.
+type PauseReason string
+
+const (
+	PauseReasonUnknown PauseReason = ""
+	PauseReasonUser    PauseReason = "user"
+	PauseReasonNetwork PauseReason = "network"
+)
+
 // DownloadMode distinguishes between single-object and archive tasks.
 type DownloadMode string
 
@@ -83,6 +92,7 @@ type TransferTask struct {
 	Key            string          `json:"key"`
 	LocalPath      string          `json:"localPath,omitempty"`
 	Status         TaskStatus      `json:"status"`
+	PauseReason    PauseReason     `json:"pauseReason,omitempty"`
 	Progress       int64           `json:"progress"`
 	Total          int64           `json:"total"`
 	Speed          int64           `json:"speed"`

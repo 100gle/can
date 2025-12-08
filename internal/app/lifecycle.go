@@ -8,6 +8,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+const windowVisibilityEvent = "app:window-visibility"
+
 // DomReady is called after the frontend resources have been loaded.
 // Use this hook for operations that require the window to be ready.
 func (a *App) DomReady(ctx context.Context) {
@@ -30,8 +32,9 @@ func (a *App) BeforeClose(ctx context.Context) (prevent bool) {
 func (a *App) Shutdown(ctx context.Context) {
 	runtime.LogInfo(ctx, "Application shutting down...")
 
-	if a.tray != nil {
-		a.tray.Shutdown()
+	if a.networkEventsCancel != nil {
+		a.networkEventsCancel()
+		a.networkEventsCancel = nil
 	}
 
 	// Close transfer queue and wait for workers to finish
@@ -130,9 +133,6 @@ func (a *App) minimizeToTray() {
 
 func (a *App) setWindowVisible(visible bool) {
 	a.windowVisible.Store(visible)
-	if a.tray != nil {
-		a.tray.UpdateWindowState(visible)
-	}
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, windowVisibilityEvent, visible)
 	}

@@ -23,20 +23,21 @@ import (
 
 // App struct
 type App struct {
-	ctx            context.Context
-	requestTimeout time.Duration
-	accounts       *accounts.Service
-	buckets        *buckets.Service
-	objects        *objects.Service
-	transfers      *transfer.Service
-	config         *configfacade.Service
-	search         *search.Service
-	system         *system.Service
-	backup         backup.Service
-	audit          *security.Service
-	quitRequested  bool
-	tray           *systemTray
-	windowVisible  atomic.Bool
+	ctx                 context.Context
+	requestTimeout      time.Duration
+	accounts            *accounts.Service
+	buckets             *buckets.Service
+	objects             *objects.Service
+	transfers           *transfer.Service
+	config              *configfacade.Service
+	search              *search.Service
+	system              *system.Service
+	backup              backup.Service
+	audit               *security.Service
+	quitRequested       bool
+	windowVisible       atomic.Bool
+	networkOnline       atomic.Bool
+	networkEventsCancel func()
 }
 
 // New creates a new App application struct
@@ -96,6 +97,7 @@ func New() *App {
 		audit:          auditSvc,
 	}
 	instance.windowVisible.Store(true)
+	instance.networkOnline.Store(true)
 	return instance
 }
 
@@ -103,6 +105,7 @@ func New() *App {
 // so we can call the runtime methods
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+	a.subscribeNetworkEvents(ctx)
 }
 
 // SupportedProviders exposes the providers metadata to the UI.

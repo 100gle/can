@@ -155,7 +155,9 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
           </p>
           <Select
             value={draft.canned || ""}
-            onValueChange={(value) => setDraft((state) => (state ? { ...state, canned: value } : state))}
+            onValueChange={(value) =>
+              setDraft((state) => (state ? { ...state, canned: value } : state))
+            }
           >
             <SelectTrigger className="w-full md:w-1/2">
               <SelectValue placeholder="选择预设 ACL" />
@@ -223,7 +225,9 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                       {grant.granteeType === "Group" ? (
                         <Select
                           value={grant.grantee}
-                          onValueChange={(value) => updateGrant(index, { grantee: value, uri: value })}
+                          onValueChange={(value) =>
+                            updateGrant(index, { grantee: value, uri: value })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="选择或手动输入" />
@@ -241,7 +245,9 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                           value={grant.grantee}
                           onChange={(event) => updateGrant(index, { grantee: event.target.value })}
                           placeholder={
-                            grant.granteeType === "AmazonCustomerByEmail" ? "user@example.com" : "Canonical User ID"
+                            grant.granteeType === "AmazonCustomerByEmail"
+                              ? "user@example.com"
+                              : "Canonical User ID"
                           }
                         />
                       )}

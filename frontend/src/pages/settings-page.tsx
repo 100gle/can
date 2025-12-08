@@ -407,7 +407,9 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>会话安全</CardTitle>
-            <CardDescription>配置空闲锁屏/自动注销策略，保护控制台无人值守时的安全。</CardDescription>
+            <CardDescription>
+              配置空闲锁屏/自动注销策略，保护控制台无人值守时的安全。
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -465,9 +467,7 @@ export default function SettingsPage() {
                 尚未检查更新。点击下方按钮开始检测，亦可手动关注 GitHub Releases。
               </p>
             )}
-            {updateError ? (
-              <p className="text-sm text-destructive">{updateError}</p>
-            ) : null}
+            {updateError ? <p className="text-sm text-destructive">{updateError}</p> : null}
             {updateInfo?.releaseNotes ? (
               <div className="rounded-lg border border-border/40 bg-muted/30 p-3">
                 <p className="text-xs font-medium uppercase text-muted-foreground">

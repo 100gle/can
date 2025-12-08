@@ -942,6 +942,20 @@ export namespace objects {
 		    return a;
 		}
 	}
+	export class MutationOptions {
+	    requestId: string;
+	    origin: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MutationOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requestId = source["requestId"];
+	        this.origin = source["origin"];
+	    }
+	}
 	export class ObjectAttributes {
 	    object: ObjectInfo;
 	    metadata: Record<string, string>;
@@ -1263,6 +1277,34 @@ export namespace search {
 
 export namespace system {
 	
+	export class PingResult {
+	    url: string;
+	    method: string;
+	    online: boolean;
+	    statusCode: number;
+	    checkedAt: string;
+	    latencyMs: number;
+	    resolvedIp: string;
+	    reason: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PingResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.method = source["method"];
+	        this.online = source["online"];
+	        this.statusCode = source["statusCode"];
+	        this.checkedAt = source["checkedAt"];
+	        this.latencyMs = source["latencyMs"];
+	        this.resolvedIp = source["resolvedIp"];
+	        this.reason = source["reason"];
+	        this.error = source["error"];
+	    }
+	}
 	export class SystemMetrics {
 	    timestamp: string;
 	    memoryAlloc: number;
@@ -1392,6 +1434,7 @@ export namespace transfer {
 	    key: string;
 	    localPath?: string;
 	    status: string;
+	    pauseReason?: string;
 	    progress: number;
 	    total: number;
 	    speed: number;
@@ -1428,6 +1471,7 @@ export namespace transfer {
 	        this.key = source["key"];
 	        this.localPath = source["localPath"];
 	        this.status = source["status"];
+	        this.pauseReason = source["pauseReason"];
 	        this.progress = source["progress"];
 	        this.total = source["total"];
 	        this.speed = source["speed"];

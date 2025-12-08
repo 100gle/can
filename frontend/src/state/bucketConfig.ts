@@ -265,7 +265,9 @@ const normalizeCORS = (cors: ConfigModels.BucketCORS | undefined): BucketCORSMod
   };
 };
 
-const normalizeACL = (acl: ConfigModels.BucketACL | undefined | null): BucketACLModel | undefined => {
+const normalizeACL = (
+  acl: ConfigModels.BucketACL | undefined | null,
+): BucketACLModel | undefined => {
   if (!acl) return undefined;
   return clone({
     ownerId: acl.ownerId || "",
@@ -334,41 +336,33 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
-        const [
-          versioning,
-          encryption,
-          lifecycle,
-          cors,
-          policy,
-          acl,
-          publicAccess,
-          referer,
-        ] = await Promise.all([
-          canVersioning
-            ? GetBucketVersioning(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.BucketVersioning | undefined),
-          canEncryption
-            ? GetBucketEncryption(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.BucketEncryption | undefined),
-          canLifecycle
-            ? GetBucketLifecycle(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.LifecycleRule[] | undefined),
-          canCORS
-            ? GetBucketCORS(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.BucketCORS | undefined),
-          canPolicy
-            ? GetBucketPolicy(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.BucketPolicy | undefined),
-          canACL
-            ? GetBucketACL(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.BucketACL | undefined),
-          canPublicAccess
-            ? GetPublicAccessBlock(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.PublicAccessBlock | undefined),
-          canReferer
-            ? GetBucketReferer(accountId, bucket)
-            : Promise.resolve(undefined as ConfigModels.BucketReferer | undefined),
-        ]);
+        const [versioning, encryption, lifecycle, cors, policy, acl, publicAccess, referer] =
+          await Promise.all([
+            canVersioning
+              ? GetBucketVersioning(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.BucketVersioning | undefined),
+            canEncryption
+              ? GetBucketEncryption(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.BucketEncryption | undefined),
+            canLifecycle
+              ? GetBucketLifecycle(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.LifecycleRule[] | undefined),
+            canCORS
+              ? GetBucketCORS(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.BucketCORS | undefined),
+            canPolicy
+              ? GetBucketPolicy(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.BucketPolicy | undefined),
+            canACL
+              ? GetBucketACL(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.BucketACL | undefined),
+            canPublicAccess
+              ? GetPublicAccessBlock(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.PublicAccessBlock | undefined),
+            canReferer
+              ? GetBucketReferer(accountId, bucket)
+              : Promise.resolve(undefined as ConfigModels.BucketReferer | undefined),
+          ]);
         set({
           versioning: canVersioning
             ? normalizeVersioning(versioning as ConfigModels.BucketVersioning)
