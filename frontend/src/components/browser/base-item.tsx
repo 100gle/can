@@ -15,6 +15,7 @@ export type BaseItemProps = {
 
   // 交互控制
   onClick?: (e?: React.MouseEvent) => void;
+  onDoubleClick?: () => void;
   clickable?: boolean;
 
   // 菜单控制
@@ -30,6 +31,7 @@ export function BaseItem({
   overlay,
   selected = false,
   onClick,
+  onDoubleClick,
   clickable = true,
   menuItems,
 }: BaseItemProps) {
@@ -39,6 +41,7 @@ export function BaseItem({
         <button
           type="button"
           onClick={onClick}
+          onDoubleClick={onDoubleClick}
           className={cn(
             "group relative flex items-center justify-center rounded-md transition-all text-center",
             "hover:bg-accent/60",
@@ -52,7 +55,7 @@ export function BaseItem({
           {overlay}
           <div
             className={cn(
-              "relative flex items-center justify-center rounded-md transition-transform group-hover:scale-105 shrink-0",
+              "relative flex items-center justify-center rounded-md transition-opacity shrink-0 overflow-hidden group-hover:opacity-90",
               iconBackground,
               viewMode === "grid" ? "size-20" : "size-8",
             )}

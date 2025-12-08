@@ -1425,6 +1425,20 @@ export namespace transfer {
 		}
 	}
 	
+	export class TransferConfig {
+	    workerCount: number;
+	    speedLimit: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TransferConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.workerCount = source["workerCount"];
+	        this.speedLimit = source["speedLimit"];
+	    }
+	}
 	export class TransferTask {
 	    id: string;
 	    type: string;

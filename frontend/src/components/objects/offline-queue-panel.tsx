@@ -121,7 +121,9 @@ const ActionRow = ({ action }: ActionRowProps) => {
               </>
             )}
           </div>
-          {action.lastError && <div className="mt-1 text-xs text-red-600">错误: {action.lastError}</div>}
+          {action.lastError && (
+            <div className="mt-1 text-xs text-red-600">错误: {action.lastError}</div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">

@@ -4,23 +4,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -29,15 +29,15 @@ import { offlineQueueStore } from "@/state/offlineQueue";
 import type { TransferViewModel } from "@/state/transfers";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
 import {
-    ArrowDownCircle,
-    ArrowUpCircle,
-    CloudOff,
-    Pause,
-    Play,
-    RotateCcw,
-    Settings2,
-    Trash2,
-    XCircle,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CloudOff,
+  Pause,
+  Play,
+  RotateCcw,
+  Settings2,
+  Trash2,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 

@@ -5,11 +5,13 @@ import {
   ClearCompletedTransfers,
   CompleteMultipartUpload,
   DeleteTransferTask,
+  GetTransferConfig,
   GetTransferSpeedLimit,
   InitiateMultipartUpload,
   ListTransferTasks,
   PauseTransferTask,
   ResumeTransferTask,
+  SetTransferConcurrency,
   SetTransferSpeedLimit,
   UploadPart,
 } from "@wailsjs/go/app/App";
@@ -49,6 +51,7 @@ type TransfersState = {
   tasks: Record<string, TransferViewModel>;
   uploading: boolean;
   globalSpeedLimit: number; // bytes per second, 0 = unlimited
+  workerCount: number;
   error?: string;
   pollTimer?: number;
 };
@@ -67,6 +70,9 @@ type TransfersActions = {
   // Speed Limit
   loadGlobalSpeedLimit: () => Promise<void>;
   setGlobalSpeedLimit: (bytesPerSec: number) => Promise<void>;
+  // Concurrency
+  loadConfig: () => Promise<void>;
+  setWorkerCount: (count: number) => Promise<void>;
 };
 
 type TransfersStore = TransfersState & TransfersActions;
@@ -127,6 +133,7 @@ const createInitialState = (): TransfersState => ({
   tasks: {},
   uploading: false,
   globalSpeedLimit: 0,
+  workerCount: 2,
 });
 
 const waitForResume = async (runtime: LocalTaskRuntime) => {
@@ -163,7 +170,7 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     }, BACKEND_POLL_INTERVAL);
     set({ pollTimer: handle });
     void get().syncBackendTasks();
-    void get().loadGlobalSpeedLimit(); // Load speed limit on start
+    void get().loadConfig(); // Load initial config
   },
   stopPolling: () => {
     const timer = get().pollTimer;
@@ -179,19 +186,19 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       set((state) => {
         // Backend is the source of truth - use its data directly
         const updates: Record<string, TransferViewModel> = {};
-        
+
         // Keep local tasks that are still running (not yet synced to backend)
         Object.values(state.tasks).forEach((task) => {
           if (task.source === "local" && (task.status === "running" || task.status === "pending")) {
             updates[task.id] = task;
           }
         });
-        
+
         // Merge all backend tasks (backend is authoritative)
         result.forEach((task) => {
           updates[task.id] = toViewModel(task);
         });
-        
+
         return { tasks: updates };
       });
     } catch (error) {
@@ -313,7 +320,7 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     if (!isBridgeAvailable()) {
       // Frontend only - remove immediately
       set((state) => {
-        const { [taskID]: deleted, ...remaining } = state.tasks;
+        const { [taskID]: _deleted, ...remaining } = state.tasks;
         return { tasks: remaining };
       });
       return;
@@ -368,6 +375,28 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       set({ globalSpeedLimit: bytesPerSec });
     } catch (error) {
       const message = error instanceof Error ? error.message : "设置限速失败";
+      set({ error: message });
+    }
+  },
+  loadConfig: async () => {
+    if (!isBridgeAvailable()) return;
+    try {
+      const config = await GetTransferConfig();
+      set({
+        workerCount: config.workerCount,
+        globalSpeedLimit: config.speedLimit,
+      });
+    } catch {
+      // ignore
+    }
+  },
+  setWorkerCount: async (count: number) => {
+    if (!isBridgeAvailable()) return;
+    try {
+      await SetTransferConcurrency(count);
+      set({ workerCount: count });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "设置并发数失败";
       set({ error: message });
     }
   },
@@ -491,7 +520,6 @@ export const useTransferStats = () => {
   return { active, failed, total };
 };
 
-
 const relay = <Args extends unknown[], Return>(
   selector: (store: TransfersStore) => (...args: Args) => Return,
 ) => {
@@ -511,4 +539,6 @@ export const transfersStore = {
   clearCompleted: relay((store) => store.clearCompleted),
   loadGlobalSpeedLimit: relay((store) => store.loadGlobalSpeedLimit),
   setGlobalSpeedLimit: relay((store) => store.setGlobalSpeedLimit),
+  loadConfig: relay((store) => store.loadConfig),
+  setWorkerCount: relay((store) => store.setWorkerCount),
 };

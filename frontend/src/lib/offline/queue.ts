@@ -1,10 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
-import type {
-  OfflineAction,
-  OfflineActionInput,
-  OfflineActionStatus,
-} from "@/lib/offline/types";
+import type { OfflineAction, OfflineActionInput, OfflineActionStatus } from "@/lib/offline/types";
 
 const DB_NAME = "can-offline-queue";
 const DB_VERSION = 2;

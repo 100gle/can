@@ -147,7 +147,7 @@ const hydrateFromLegacyKeys = () => {
 
 if (typeof window !== "undefined") {
   hydrateFromLegacyKeys();
-  
+
   // Subscribe to offlineCacheSize changes
   let previousSize = usePreferencesStore.getState().offlineCacheSize;
   usePreferencesStore.subscribe((state) => {

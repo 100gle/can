@@ -186,7 +186,7 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
       });
       // Update cache
       if (usePreferencesStore.getState().offlineCacheEnabled) {
-          void get().refresh();
+        void get().refresh();
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "删除 Bucket 失败";

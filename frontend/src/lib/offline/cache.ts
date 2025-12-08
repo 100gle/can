@@ -137,11 +137,7 @@ export class OfflineCache {
     const db = await this.dbPromise;
     const lastSyncedAt = Date.now();
     const versionToken = createVersionToken(items.map((bucket) => bucket.name));
-    await db.put(
-      "bucketLists",
-      { items, lastSyncedAt, versionToken },
-      this.bucketKey(accountId),
-    );
+    await db.put("bucketLists", { items, lastSyncedAt, versionToken }, this.bucketKey(accountId));
   }
 
   async getBucketList(accountId: string) {

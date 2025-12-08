@@ -17,7 +17,7 @@ func TestQueuePriorityOrdering(t *testing.T) {
 	// Pop should return in priority order (highest first)
 	expected := []string{"critical", "high", "normal", "low"}
 	for _, want := range expected {
-		got, ok := tq.Pop()
+		got, ok := tq.Pop(nil)
 		if !ok {
 			t.Fatalf("expected to pop %s, queue closed", want)
 		}
@@ -39,7 +39,7 @@ func TestQueueFIFOStability(t *testing.T) {
 	// Pop should return in FIFO order for same priority
 	expected := []string{"first", "second", "third"}
 	for _, want := range expected {
-		got, ok := tq.Pop()
+		got, ok := tq.Pop(nil)
 		if !ok {
 			t.Fatalf("expected to pop %s, queue closed", want)
 		}
@@ -54,7 +54,7 @@ func TestQueueCloseUnblocksWaiters(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		_, ok := tq.Pop()
+		_, ok := tq.Pop(nil)
 		if ok {
 			t.Error("expected Pop to return false after Close")
 		}
@@ -80,7 +80,7 @@ func TestQueueMixedPriorities(t *testing.T) {
 	// Expected order: h1, h2, n1, n2, l1
 	expected := []string{"h1", "h2", "n1", "n2", "l1"}
 	for _, want := range expected {
-		got, ok := tq.Pop()
+		got, ok := tq.Pop(nil)
 		if !ok {
 			t.Fatalf("expected to pop %s, queue closed", want)
 		}
@@ -98,7 +98,7 @@ func TestQueuePushAfterClose(t *testing.T) {
 	tq.Push("ignored", PriorityNormal)
 
 	// Queue should be empty and closed
-	_, ok := tq.Pop()
+	_, ok := tq.Pop(nil)
 	if ok {
 		t.Error("expected Pop to return false for closed empty queue")
 	}

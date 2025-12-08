@@ -586,3 +586,40 @@ func (d *fakeObjectDriver) GetObjectLegalHold(context.Context, string, string, s
 func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, providers.PutObjectLegalHoldInput) error {
 	return providers.ErrUnsupportedCapability
 }
+
+func TestWorkerScalingRace(t *testing.T) {
+	driver := newFakeObjectDriver()
+	store := accounts.NewMemoryStore()
+	cipher := security.NoopCipher{}
+	dialer := providers.NewStubDialer()
+	session := accounts.NewMemorySessionStore()
+	accountSvc := accounts.NewService(store, cipher, dialer, session)
+	pool := providers.NewClientPool(&fakeStorageFactory{client: &fakeStorageClient{objects: driver}})
+	// Start with 100 workers to increase chance of race
+	svc := NewService(accountSvc, pool, NewMemoryStore(), WithWorkerCount(100))
+
+	// Wait for workers to start
+	time.Sleep(100 * time.Millisecond)
+
+	svc.mu.RLock()
+	initial := svc.activeWorkers
+	svc.mu.RUnlock()
+
+	if initial != 100 {
+		t.Fatalf("expected 100 workers, got %d", initial)
+	}
+
+	// Scale down to 1
+	svc.SetWorkerCount(1)
+
+	// Wait for scaling to settle
+	time.Sleep(100 * time.Millisecond)
+
+	svc.mu.RLock()
+	active := svc.activeWorkers
+	svc.mu.RUnlock()
+
+	if active != 1 {
+		t.Errorf("race condition detected: expected 1 worker remaining, got %d. This indicates over-scaling or under-scaling.", active)
+	}
+}

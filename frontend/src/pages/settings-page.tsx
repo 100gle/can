@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layouts/page-header";
 import { useResolvedTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -10,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { offlineCache } from "@/lib/offline";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
@@ -23,6 +25,7 @@ import {
   type ThemePreference,
 } from "@/state/preferences";
 import { useSessionStore } from "@/state/session";
+import { transfersStore, useTransfersStore } from "@/state/transfers";
 import {
   CheckForUpdates,
   CreateAppBackup,
@@ -94,6 +97,89 @@ function PerformanceCard() {
         ) : (
           <p className="text-sm text-muted-foreground">Loading metrics...</p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TransferSettingsCard() {
+  const workerCount = useTransfersStore((state) => state.workerCount);
+  const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
+  const [speedLimitInput, setSpeedLimitInput] = useState("");
+
+  useEffect(() => {
+    if (globalSpeedLimit === 0) {
+      setSpeedLimitInput("");
+    } else {
+      setSpeedLimitInput(String(globalSpeedLimit));
+    }
+  }, [globalSpeedLimit]);
+
+  const handleWorkerCountChange = (val: number[]) => {
+    if (val.length > 0) {
+      transfersStore.setWorkerCount(val[0]);
+    }
+  };
+
+  const handleSpeedLimitBlur = () => {
+    const val = parseInt(speedLimitInput);
+    if (!isNaN(val) && val >= 0) {
+      transfersStore.setGlobalSpeedLimit(val);
+    } else {
+      // reset to current store value
+      setSpeedLimitInput(globalSpeedLimit === 0 ? "" : String(globalSpeedLimit));
+      if (speedLimitInput === "") {
+        transfersStore.setGlobalSpeedLimit(0);
+      }
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>传输设置</CardTitle>
+        <CardDescription>配置并发任务数和全局限速。</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label>并发数 (Workers)</Label>
+              <span className="text-sm font-medium">{workerCount}</span>
+            </div>
+            <Slider
+              min={1}
+              max={16}
+              step={1}
+              value={[workerCount]}
+              onValueChange={handleWorkerCountChange}
+            />
+            <p className="text-xs text-muted-foreground">
+              同时进行的上传/下载任务数量。数值过大可能导致网络拥堵或系统卡顿。
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="speed-limit">全局限速 (Bytes/s)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="speed-limit"
+                placeholder="0 (无限制)"
+                value={speedLimitInput}
+                onChange={(e) => setSpeedLimitInput(e.target.value)}
+                onBlur={handleSpeedLimitBlur}
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {globalSpeedLimit > 0
+                  ? (globalSpeedLimit / 1024 / 1024).toFixed(2) + " MB/s"
+                  : "无限制"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              限制所有任务的总上传/下载速度 (0 表示不限制)。
+            </p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -436,6 +522,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        <TransferSettingsCard />
+
         <Card>
           <CardHeader>
             <CardTitle>离线缓存 / Offline Cache</CardTitle>
@@ -444,54 +532,51 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>启用离线缓存</Label>
                 <p className="text-xs text-muted-foreground">
                   自动缓存浏览过的存储桶列表和对象列表
                 </p>
               </div>
-              <Switch
-                checked={offlineCacheEnabled}
-                onCheckedChange={setOfflineCacheEnabled}
-              />
+              <Switch checked={offlineCacheEnabled} onCheckedChange={setOfflineCacheEnabled} />
             </div>
             {offlineCacheEnabled && (
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-2 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-0.5">
-                      <Label>缓存大小</Label>
-                      <p className="text-xs text-muted-foreground">限制离线缓存的最大占用</p>
-                    </div>
-                    <Select value={String(offlineCacheSize)} onValueChange={handleCacheSizeChange}>
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10 MB</SelectItem>
-                        <SelectItem value="50">50 MB</SelectItem>
-                        <SelectItem value="100">100 MB</SelectItem>
-                        <SelectItem value="500">500 MB</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-0.5">
+                    <Label>缓存大小</Label>
+                    <p className="text-xs text-muted-foreground">限制离线缓存的最大占用</p>
                   </div>
-                  <div className="rounded-lg border border-border p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                       <div className="space-y-1">
-                         <p className="text-sm font-medium">当前占用</p>
-                         <p className="text-2xl font-bold">
-                           {cacheUsage ? formatBytes(cacheUsage.usage) : "Calculating..."}
-                         </p>
-                         <p className="text-xs text-muted-foreground">
-                           (Quota: {cacheUsage ? formatBytes(cacheUsage.quota) : "-"})
-                         </p>
-                       </div>
-                       <Button variant="outline" size="sm" onClick={handleClearOfflineCache}>
-                         清除缓存
-                       </Button>
+                  <Select value={String(offlineCacheSize)} onValueChange={handleCacheSizeChange}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10 MB</SelectItem>
+                      <SelectItem value="50">50 MB</SelectItem>
+                      <SelectItem value="100">100 MB</SelectItem>
+                      <SelectItem value="500">500 MB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">当前占用</p>
+                      <p className="text-2xl font-bold">
+                        {cacheUsage ? formatBytes(cacheUsage.usage) : "Calculating..."}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        (Quota: {cacheUsage ? formatBytes(cacheUsage.quota) : "-"})
+                      </p>
                     </div>
+                    <Button variant="outline" size="sm" onClick={handleClearOfflineCache}>
+                      清除缓存
+                    </Button>
                   </div>
                 </div>
+              </div>
             )}
           </CardContent>
         </Card>

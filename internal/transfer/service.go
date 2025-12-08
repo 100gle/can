@@ -84,9 +84,10 @@ type Service struct {
 	store    Store
 
 	queue   *taskQueue
-	workers int
+	workers int // target worker count
 
 	mu            sync.RWMutex
+	activeWorkers int
 	runtimes      map[string]*taskRuntime
 	globalLimiter *RateLimiter
 }
@@ -564,6 +565,58 @@ func (s *Service) GetGlobalSpeedLimit() int64 {
 	return 0
 }
 
+// TransferConfig captures the current service configuration.
+type TransferConfig struct {
+	WorkerCount int   `json:"workerCount"`
+	SpeedLimit  int64 `json:"speedLimit"`
+}
+
+// GetTransferConfig returns the current service configuration.
+func (s *Service) GetTransferConfig() TransferConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	limit := int64(0)
+	if s.globalLimiter != nil {
+		limit = s.globalLimiter.Limit()
+	}
+
+	return TransferConfig{
+		WorkerCount: s.workers,
+		SpeedLimit:  limit,
+	}
+}
+
+// SetWorkerCount updates the target number of concurrent workers.
+func (s *Service) SetWorkerCount(count int) {
+	if count <= 0 {
+		return
+	}
+
+	s.mu.Lock()
+	s.workers = count
+	current := s.activeWorkers
+	s.mu.Unlock()
+
+	// If we need more workers, start them immediately
+	if current < count {
+		needed := count - current
+		for i := 0; i < needed; i++ {
+			go s.worker()
+		}
+	} else if current > count {
+		// If we have too many workers, wake them up so they can check the new count and exit
+		s.queue.Broadcast()
+	}
+}
+
+// GetWorkerCount returns the current target worker count.
+func (s *Service) GetWorkerCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.workers
+}
+
 // DeleteTask removes a task from the store by ID.
 // It only allows deletion of tasks that are in a terminal state (completed, failed, or canceled).
 func (s *Service) DeleteTask(ctx context.Context, taskID string) error {
@@ -614,8 +667,25 @@ func (s *Service) startWorkers() {
 }
 
 func (s *Service) worker() {
+	s.mu.Lock()
+	s.activeWorkers++
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		s.activeWorkers--
+		s.mu.Unlock()
+	}()
+
 	for {
-		taskID, ok := s.queue.Pop()
+		// Check if we should scale down before waiting for a task
+		// We pass this predicate to Pop so it can wake up if the condition changes while waiting
+		taskID, ok := s.queue.Pop(func() bool {
+			s.mu.RLock()
+			defer s.mu.RUnlock()
+			return s.activeWorkers <= s.workers
+		})
+
 		if !ok {
 			return
 		}

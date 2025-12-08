@@ -180,7 +180,13 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       set({ objects: [], error: undefined });
       return;
     }
-    set({ loading: true, error: undefined, nextMarker: undefined, truncated: false, isFromCache: false });
+    set({
+      loading: true,
+      error: undefined,
+      nextMarker: undefined,
+      truncated: false,
+      isFromCache: false,
+    });
     const useBridge = isBridgeAvailable();
     const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
@@ -235,9 +241,9 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
         nextMarker = payload.nextMarker || undefined;
         truncated = Boolean(payload.truncated);
       } else {
-        objects = FALLBACK_OBJECTS.filter(
-          (object) => !prefix || object.key.startsWith(prefix),
-        ).map((object) => normalizeObject(object));
+        objects = FALLBACK_OBJECTS.filter((object) => !prefix || object.key.startsWith(prefix)).map(
+          (object) => normalizeObject(object),
+        );
       }
 
       set({

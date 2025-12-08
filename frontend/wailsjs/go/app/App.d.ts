@@ -120,6 +120,8 @@ export function GetPublicAccessBlock(arg1:string,arg2:string):Promise<config.Pub
 
 export function GetSystemMetrics():Promise<system.SystemMetrics>;
 
+export function GetTransferConfig():Promise<transfer.TransferConfig>;
+
 export function GetTransferSpeedLimit():Promise<number>;
 
 export function HeadBucket(arg1:string,arg2:string):Promise<void>;
@@ -191,6 +193,8 @@ export function SetBucketReferer(arg1:string,arg2:string,arg3:config.BucketRefer
 export function SetBucketWebsite(arg1:string,arg2:string,arg3:config.BucketWebsite):Promise<void>;
 
 export function SetPublicAccessBlock(arg1:string,arg2:string,arg3:config.PublicAccessBlock):Promise<void>;
+
+export function SetTransferConcurrency(arg1:number):Promise<void>;
 
 export function SetTransferSpeedLimit(arg1:number):Promise<void>;
 

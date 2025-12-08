@@ -218,6 +218,10 @@ export function GetSystemMetrics() {
   return window['go']['app']['App']['GetSystemMetrics']();
 }
 
+export function GetTransferConfig() {
+  return window['go']['app']['App']['GetTransferConfig']();
+}
+
 export function GetTransferSpeedLimit() {
   return window['go']['app']['App']['GetTransferSpeedLimit']();
 }
@@ -360,6 +364,10 @@ export function SetBucketWebsite(arg1, arg2, arg3) {
 
 export function SetPublicAccessBlock(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetPublicAccessBlock'](arg1, arg2, arg3);
+}
+
+export function SetTransferConcurrency(arg1) {
+  return window['go']['app']['App']['SetTransferConcurrency'](arg1);
 }
 
 export function SetTransferSpeedLimit(arg1) {

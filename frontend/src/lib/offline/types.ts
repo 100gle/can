@@ -23,7 +23,10 @@ export type OfflineAction = {
   ttl: number;
 };
 
-export type OfflineActionInput = Omit<OfflineAction, "id" | "createdAt" | "retries" | "status" | "ttl">;
+export type OfflineActionInput = Omit<
+  OfflineAction,
+  "id" | "createdAt" | "retries" | "status" | "ttl"
+>;
 
 export type OfflineListSource = "network" | "cache";
 

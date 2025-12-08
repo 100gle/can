@@ -1,7 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { Download, Eye, Folder, Link2, Share2, Trash2 } from "lucide-react";
+import { Download, Eye, Folder, Link2, Trash2 } from "lucide-react";
 import { BaseItem } from "./base-item";
 import { deriveLabel, getFileIcon } from "./file-utils";
 
@@ -73,10 +73,6 @@ export function FileItem({
             <Link2 className="mr-2 h-4 w-4" />
             复制链接
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCopyLink(object.key)}>
-            <Share2 className="mr-2 h-4 w-4" />
-            分享
-          </ContextMenuItem>
         </>
       )}
       <ContextMenuSeparator />
@@ -91,24 +87,25 @@ export function FileItem({
   );
 
   // Checkbox overlay for grid view when selection is enabled
-  const checkbox = viewMode === "grid" && onToggleSelect ? (
-    <div
-      className="absolute left-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggleSelect(object.key);
-      }}
-    >
-      <Checkbox
-        checked={selected}
-        className={cn(
-          "h-5 w-5 border-2 bg-background/95 shadow-md backdrop-blur-sm",
-          selected && "opacity-100"
-        )}
-        aria-label="Select item"
-      />
-    </div>
-  ) : undefined;
+  const checkbox =
+    viewMode === "grid" && onToggleSelect ? (
+      <div
+        className="absolute left-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSelect(object.key);
+        }}
+      >
+        <Checkbox
+          checked={selected}
+          className={cn(
+            "h-5 w-5 border-2 bg-background/95 shadow-md backdrop-blur-sm",
+            selected && "opacity-100",
+          )}
+          aria-label="Select item"
+        />
+      </div>
+    ) : undefined;
 
   return (
     <BaseItem
@@ -131,6 +128,13 @@ export function FileItem({
             ? () => onEnterFolder(object.key)
             : undefined
       }
+      onDoubleClick={() => {
+        if (isDir) {
+          onEnterFolder(object.key);
+        } else {
+          onPreview(object.key);
+        }
+      }}
       clickable={isDir || (viewMode === "grid" && !!onToggleSelect)}
       selected={selected}
       menuItems={menuItems}

@@ -1,3 +1,4 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -17,7 +18,6 @@ import {
   Folder,
   Link2,
   Loader2,
-  Share2,
   Trash2,
 } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -29,6 +29,10 @@ export type TreeViewProps = {
   accountId: string;
   bucket: string;
   initialPrefix?: string;
+  selectedKeys: Set<string>;
+  onToggleSelect: (key: string) => void;
+  onSelectAll: (keys: string[]) => void;
+  onClearSelection: () => void;
   onPreview: (key: string) => void;
   onDownload: (key: string) => void;
   onCopyLink: (key: string) => void;
@@ -49,6 +53,10 @@ export function TreeView({
   accountId,
   bucket,
   initialPrefix = "",
+  selectedKeys,
+  onToggleSelect,
+  onSelectAll,
+  onClearSelection,
   onPreview,
   onDownload,
   onCopyLink,
@@ -58,6 +66,7 @@ export function TreeView({
   const [nodes, setNodes] = useState<TreeNodeData[]>([]);
   const [rootLoading, setRootLoading] = useState(false);
   const [rootLoaded, setRootLoaded] = useState(false);
+  const [lastSelectedKey, setLastSelectedKey] = useState<string | null>(null);
 
   // Load root level on first render
   const loadRoot = useCallback(async () => {
@@ -83,6 +92,55 @@ export function TreeView({
   if (!rootLoaded && !rootLoading) {
     void loadRoot();
   }
+
+  // Flatten all visible nodes for range selection
+  const getAllVisibleKeys = (): string[] => {
+    const keys: string[] = [];
+    const traverse = (nodeList: TreeNodeData[]) => {
+      for (const node of nodeList) {
+        keys.push(node.object.key);
+        if (node.state === "expanded" && node.children.length > 0) {
+          traverse(node.children);
+        }
+      }
+    };
+    traverse(nodes);
+    return keys;
+  };
+
+  // Handle node selection with OS-standard multi-select behavior
+  const handleNodeClick = (e: React.MouseEvent, key: string) => {
+    if (e.shiftKey && lastSelectedKey) {
+      // Shift+Click: Range selection
+      const allKeys = getAllVisibleKeys();
+      const lastIndex = allKeys.indexOf(lastSelectedKey);
+      const currentIndex = allKeys.indexOf(key);
+
+      if (lastIndex >= 0 && currentIndex >= 0) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const keysToSelect = allKeys.slice(start, end + 1);
+        onSelectAll(keysToSelect);
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd+Click: Toggle individual item
+      onToggleSelect(key);
+      setLastSelectedKey(key);
+    } else {
+      // Plain click
+      const isSelected = selectedKeys.has(key);
+      const isOnlyOne = selectedKeys.size === 1 && isSelected;
+
+      if (isOnlyOne) {
+        onClearSelection();
+        setLastSelectedKey(null);
+      } else {
+        onClearSelection();
+        onToggleSelect(key);
+        setLastSelectedKey(key);
+      }
+    }
+  };
 
   const toggleNode = async (path: number[]) => {
     const node = getNodeByPath(nodes, path);
@@ -139,7 +197,11 @@ export function TreeView({
           node={node}
           depth={0}
           path={[index]}
+          selected={selectedKeys.has(node.object.key)}
+          selectedKeys={selectedKeys}
           onToggle={toggleNode}
+          onNodeClick={handleNodeClick}
+          onToggleSelect={onToggleSelect}
           onPreview={onPreview}
           onDownload={onDownload}
           onCopyLink={onCopyLink}
@@ -155,7 +217,11 @@ type TreeNodeProps = {
   node: TreeNodeData;
   depth: number;
   path: number[];
+  selected: boolean;
+  selectedKeys: Set<string>;
   onToggle: (path: number[]) => void;
+  onNodeClick: (e: React.MouseEvent, key: string) => void;
+  onToggleSelect: (key: string) => void;
   onPreview: (key: string) => void;
   onDownload: (key: string) => void;
   onCopyLink: (key: string) => void;
@@ -167,7 +233,11 @@ function TreeNode({
   node,
   depth,
   path,
+  selected,
+  selectedKeys,
   onToggle,
+  onNodeClick,
+  onToggleSelect,
   onPreview,
   onDownload,
   onCopyLink,
@@ -176,10 +246,19 @@ function TreeNode({
 }: TreeNodeProps) {
   const { object, children, state, parentPrefix } = node;
   const isDir = object.isDir;
-  // Use parentPrefix to derive just the current node name, not full path
   const label = deriveLabel(object.key, parentPrefix);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    // If clicking the checkbox area, let it handle itself
+    if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+      return;
+    }
+    // Otherwise, handle selection
+    onNodeClick(e, object.key);
+  };
+
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isDir) {
       onToggle(path);
     }
@@ -205,10 +284,6 @@ function TreeNode({
           <ContextMenuItem onClick={() => onCopyLink(object.key)}>
             <Link2 className="mr-2 h-4 w-4" />
             复制链接
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCopyLink(object.key)}>
-            <Share2 className="mr-2 h-4 w-4" />
-            分享
           </ContextMenuItem>
         </>
       )}
@@ -245,21 +320,28 @@ function TreeNode({
     <>
       <ContextMenu>
         <ContextMenuTrigger>
-          <button
-            type="button"
+          <div
             onClick={handleClick}
             className={cn(
-              "flex items-center gap-2 w-full px-2 py-1.5 text-left rounded-md transition-colors",
+              "flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors",
               "hover:bg-accent/60",
-              isDir && "cursor-pointer",
+              selected && "bg-accent",
             )}
             style={{ paddingLeft: `${depth * 16 + 8}px` }}
           >
-            {chevron}
-            <span className="flex items-center justify-center">{icon}</span>
+            <div onClick={handleToggleClick} className="flex items-center justify-center shrink-0">
+              {chevron}
+            </div>
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(object.key)}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            />
+            <span className="flex items-center justify-center shrink-0">{icon}</span>
             <span className="truncate text-sm font-medium flex-1">{label}</span>
             {object.isSymlink && <Link2 className="h-3 w-3 text-primary shrink-0" />}
-          </button>
+          </div>
         </ContextMenuTrigger>
         <ContextMenuContent>{menuItems}</ContextMenuContent>
       </ContextMenu>
@@ -271,7 +353,11 @@ function TreeNode({
             node={child}
             depth={depth + 1}
             path={[...path, index]}
+            selected={selectedKeys.has(child.object.key)}
+            selectedKeys={selectedKeys}
             onToggle={onToggle}
+            onNodeClick={onNodeClick}
+            onToggleSelect={onToggleSelect}
             onPreview={onPreview}
             onDownload={onDownload}
             onCopyLink={onCopyLink}

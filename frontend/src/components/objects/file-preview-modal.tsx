@@ -204,7 +204,8 @@ export function FilePreviewModal({
     const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
       const headers = { "content-disposition": "inline" };
-      const supportsOfflineText = offlineEnabled && (previewKind === "text" || previewKind === "markdown");
+      const supportsOfflineText =
+        offlineEnabled && (previewKind === "text" || previewKind === "markdown");
 
       if (supportsOfflineText) {
         let latestUrl: string | null = null;
@@ -221,7 +222,8 @@ export function FilePreviewModal({
               throw new Error("加载文本内容失败");
             }
             const text = await response.text();
-            const contentTypeValue = attrs.object.contentType || contentTypeFromExtension(extension);
+            const contentTypeValue =
+              attrs.object.contentType || contentTypeFromExtension(extension);
             setAttributesLoaded(true);
             return {
               content: text,
@@ -356,6 +358,16 @@ export function FilePreviewModal({
         </div>
       );
     }
+    if (!previewUrl && !error) {
+      // Placeholder state when waiting for URL generation or before loading starts
+      return (
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground bg-muted/10 rounded-md border border-border/40">
+          <div className="h-10 w-10 animate-pulse rounded-full bg-muted/20" />
+          <p className="text-sm animate-pulse">准备预览中...</p>
+        </div>
+      );
+    }
+
     if (!previewUrl) {
       return (
         <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
@@ -370,7 +382,7 @@ export function FilePreviewModal({
           <div
             className={cn(
               "relative flex items-center justify-center rounded-md border border-border/60 bg-muted/20 p-4 overflow-hidden group",
-              isFullscreen ? "h-[calc(100vh-180px)]" : "max-h-[50vh]"
+              isFullscreen ? "h-[calc(100vh-180px)]" : "max-h-[50vh]",
             )}
           >
             <img
@@ -378,7 +390,7 @@ export function FilePreviewModal({
               alt={fileName}
               className={cn(
                 "rounded-md object-contain",
-                isFullscreen ? "max-h-full max-w-full" : "max-h-[45vh] max-w-full"
+                isFullscreen ? "max-h-full max-w-full" : "max-h-[45vh] max-w-full",
               )}
             />
             <Button
@@ -388,11 +400,7 @@ export function FilePreviewModal({
               onClick={() => setIsFullscreen(!isFullscreen)}
               title={isFullscreen ? "退出全屏" : "全屏预览"}
             >
-              {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
           </div>
         );
@@ -489,10 +497,12 @@ export function FilePreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(
-        "gap-4 flex flex-col",
-        isFullscreen ? "max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh]" : "max-w-4xl max-h-[90vh]"
-      )}>
+      <DialogContent
+        className={cn(
+          "gap-4 flex flex-col",
+          isFullscreen ? "max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh]" : "max-w-4xl max-h-[90vh]",
+        )}
+      >
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center justify-between text-base">
             <span className="truncate">{fileName}</span>
@@ -511,11 +521,11 @@ export function FilePreviewModal({
             {renderPreviewPane()}
 
             <div className="grid gap-4 rounded-md border border-border/60 p-4 text-sm relative">
-               {isFromCache && (
-                  <Badge variant="default" className="absolute right-2 top-2">
-                    离线副本
-                  </Badge>
-               )}
+              {isFromCache && (
+                <Badge variant="default" className="absolute right-2 top-2">
+                  离线副本
+                </Badge>
+              )}
               <div className="grid gap-2 md:grid-cols-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">存储桶</Label>

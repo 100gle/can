@@ -91,25 +91,33 @@ func (tq *taskQueue) Push(taskID string, priority Priority) {
 	tq.cond.Signal()
 }
 
-func (tq *taskQueue) Pop() (string, bool) {
+// Pop returns the next task from the queue.
+// It accepts a 'shouldWait' predicate. If the queue is empty, it waits on the condition variable
+// as long as shouldWait() returns true and the queue is not closed.
+// If shouldWait() returns false, it returns "", false immediately (acting as if woken up with no work).
+func (tq *taskQueue) Pop(shouldWait func() bool) (string, bool) {
 	tq.mu.Lock()
 	defer tq.mu.Unlock()
 
 	for len(tq.pq) == 0 && !tq.closed {
+		if shouldWait != nil && !shouldWait() {
+			return "", false
+		}
 		tq.cond.Wait()
 	}
 
-	if len(tq.pq) == 0 && tq.closed {
-		return "", false
-	}
-
-	// Double check to be safe
 	if len(tq.pq) == 0 {
 		return "", false
 	}
 
 	item := heap.Pop(&tq.pq).(*item)
 	return item.value, true
+}
+
+func (tq *taskQueue) Broadcast() {
+	tq.mu.Lock()
+	defer tq.mu.Unlock()
+	tq.cond.Broadcast()
 }
 
 func (tq *taskQueue) Close() {

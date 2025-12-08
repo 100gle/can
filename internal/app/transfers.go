@@ -41,6 +41,16 @@ func (a *App) GetTransferSpeedLimit() int64 {
 	return a.transfers.GetGlobalSpeedLimit()
 }
 
+// SetTransferConcurrency sets the target number of concurrent transfer workers.
+func (a *App) SetTransferConcurrency(count int) {
+	a.transfers.SetWorkerCount(count)
+}
+
+// GetTransferConfig returns the full transfer service configuration.
+func (a *App) GetTransferConfig() transfer.TransferConfig {
+	return a.transfers.GetTransferConfig()
+}
+
 // DeleteTransferTask removes a specific task from the transfer queue.
 // Only completed, failed, or canceled tasks can be deleted.
 func (a *App) DeleteTransferTask(taskID string) error {
