@@ -5,31 +5,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { offlineCache } from "@/lib/offline";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
-    DEFAULT_ADVANCED_OPTIONS,
-    usePreferencesStore,
-    type AdvancedOptions,
-    type CacheSize,
-    type DatabaseDriver,
-    type LogLevel,
-    type ThemePreference,
+  DEFAULT_ADVANCED_OPTIONS,
+  usePreferencesStore,
+  type AdvancedOptions,
+  type CacheSize,
+  type DatabaseDriver,
+  type LogLevel,
+  type ThemePreference,
 } from "@/state/preferences";
 import { useSessionStore } from "@/state/session";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
-import {
-    CheckForUpdates,
-    GetSystemMetrics
-} from "@wailsjs/go/app/App";
+import { CheckForUpdates, GetSystemMetrics } from "@wailsjs/go/app/App";
 import { system } from "@wailsjs/go/models";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -203,7 +200,7 @@ export default function SettingsPage() {
   const setOfflineCacheEnabled = usePreferencesStore((state) => state.setOfflineCacheEnabled);
   const offlineCacheSize = usePreferencesStore((state) => state.offlineCacheSize);
   const setOfflineCacheSize = usePreferencesStore((state) => state.setOfflineCacheSize);
-  
+
   // Backup encryption state
   const [enableBackupEncryption, setEnableBackupEncryption] = useState(false);
   const [showBackupPasswordDialog, setShowBackupPasswordDialog] = useState(false);

@@ -1,6 +1,6 @@
 /**
  * Transfer Service
- * 
+ *
  * Handles transfer-related operations including access link history management.
  */
 
@@ -28,19 +28,13 @@ class TransferService extends BaseService {
   /**
    * Delete an access link history entry
    */
-  async deleteAccessLinkHistory(
-    accountId: string,
-    id: string,
-  ): Promise<ServiceResult<void>> {
+  async deleteAccessLinkHistory(accountId: string, id: string): Promise<ServiceResult<void>> {
     this.validateRequired({ accountId, id });
 
-    return this.callWithToast(
-      () => DeleteAccessLinkHistory(accountId, id),
-      {
-        success: "历史记录已删除",
-        error: "删除历史记录失败",
-      },
-    );
+    return this.callWithToast(() => DeleteAccessLinkHistory(accountId, id), {
+      success: "历史记录已删除",
+      error: "删除历史记录失败",
+    });
   }
 }
 

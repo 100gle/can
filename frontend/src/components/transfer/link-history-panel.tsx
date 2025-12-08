@@ -20,14 +20,16 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
   const loadHistory = async () => {
     if (!accountId) return;
     setLoading(true);
-    
+
     const result = await transferService.listAccessLinkHistory(accountId, 100);
     setLoading(false);
-    
+
     if (result.success) {
       // Sort by creation time desc if not already
       setLinks(
-        result.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        result.data.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
       );
     } else {
       setLinks([]);
@@ -42,9 +44,9 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
 
   const handleDelete = async (id: string) => {
     if (!accountId) return;
-    
+
     const result = await transferService.deleteAccessLinkHistory(accountId, id);
-    
+
     if (result.success) {
       setLinks((prev) => prev.filter((l) => l.id !== id));
     }

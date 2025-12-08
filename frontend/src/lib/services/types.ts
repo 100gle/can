@@ -1,6 +1,6 @@
 /**
  * Service Layer Type Definitions
- * 
+ *
  * Provides unified types for service responses, error handling, and toast notifications.
  */
 

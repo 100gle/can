@@ -1,23 +1,23 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { bucketService } from "@/lib/services";
 import { useParams } from "@tanstack/react-router";
@@ -44,7 +44,7 @@ export function SnapshotPanel() {
     setListLoading(true);
     const result = await bucketService.listSnapshots(accountId, bucketId);
     setListLoading(false);
-    
+
     if (result.success) {
       setSnapshots(result.data || []);
     } else {
@@ -56,10 +56,10 @@ export function SnapshotPanel() {
     if (!accountId || !bucketId) return;
     setLoading(true);
     setError(null);
-    
+
     const result = await bucketService.createSnapshot(accountId, bucketId);
     setLoading(false);
-    
+
     if (result.success) {
       await loadSnapshots();
     } else {
@@ -69,15 +69,15 @@ export function SnapshotPanel() {
 
   const confirmDelete = async () => {
     if (!deleteId) return;
-    
+
     const result = await bucketService.deleteSnapshot(deleteId);
-    
+
     if (result.success) {
       await loadSnapshots();
     } else {
       setError(result.error);
     }
-    
+
     setDeleteId(null);
   };
 

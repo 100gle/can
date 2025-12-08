@@ -1,6 +1,6 @@
 /**
  * Unified Toast Helper Functions
- * 
+ *
  * Provides consistent toast notifications across the application using sonner.
  */
 
@@ -31,7 +31,7 @@ export const showLoading = (message: string) => toast.loading(message);
 /**
  * Promise-based toast with loading state
  */
-export const showPromise = <T,>(
+export const showPromise = <T>(
   promise: Promise<T>,
   messages: {
     loading: string;
