@@ -17,8 +17,8 @@ type DashboardLayoutProps = {
 export const DashboardLayout = ({
   sidebar,
   children,
-  accountName,
-  accountMeta,
+  accountName: _accountName,
+  accountMeta: _accountMeta,
   showSettingsShortcut = true,
 }: DashboardLayoutProps) => {
   const navigate = useNavigate();

@@ -1,6 +1,7 @@
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { QueuedAction } from "@/lib/offline-queue";
+import type { OfflineAction } from "@/lib/offline/types";
 import { offlineQueueStore, useOfflineQueueStore } from "@/state/offlineQueue";
 import { AlertCircle, CheckCircle2, Clock, Loader2, RotateCw, X } from "lucide-react";
 import { useEffect } from "react";
@@ -66,7 +67,7 @@ const formatTime = (timestamp: number) => {
 };
 
 type ActionRowProps = {
-  action: QueuedAction;
+  action: OfflineAction;
 };
 
 const ActionRow = ({ action }: ActionRowProps) => {
@@ -120,7 +121,7 @@ const ActionRow = ({ action }: ActionRowProps) => {
               </>
             )}
           </div>
-          {action.error && <div className="mt-1 text-xs text-red-600">错误: {action.error}</div>}
+          {action.lastError && <div className="mt-1 text-xs text-red-600">错误: {action.lastError}</div>}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -144,9 +145,11 @@ const ActionRow = ({ action }: ActionRowProps) => {
 export const OfflineQueuePanel = () => {
   const actions = useOfflineQueueStore((s) => s.actions);
   const syncing = useOfflineQueueStore((s) => s.syncing);
-
   useEffect(() => {
-    void offlineQueueStore.loadQueue();
+    offlineQueueStore.startSyncWorker();
+    return () => {
+      offlineQueueStore.stopSyncWorker();
+    };
   }, []);
 
   const handleClearCompleted = async () => {
@@ -159,10 +162,26 @@ export const OfflineQueuePanel = () => {
 
   const pendingCount = actions.filter((a) => a.status === "pending").length;
   const completedCount = actions.filter((a) => a.status === "completed").length;
+  const failedCount = actions.filter((a) => a.status === "failed").length;
+
+  // Queue capacity warning thresholds
+  const MAX_QUEUE_SIZE = 500; // Should match the config in offline/queue.ts
+  const WARNING_THRESHOLD = 0.8;
+  const showCapacityWarning = actions.length >= MAX_QUEUE_SIZE * WARNING_THRESHOLD;
 
   return (
     <div className="p-4">
       <Card className="p-6">
+        {showCapacityWarning && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              队列接近容量上限 ({actions.length}/{MAX_QUEUE_SIZE})，
+              {failedCount > 0 && `其中 ${failedCount} 个失败。`}
+              请及时处理或清理已完成项。
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">离线待办队列</h2>

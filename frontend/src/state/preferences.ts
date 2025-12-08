@@ -1,3 +1,4 @@
+import { offlineManager } from "@/lib/offline";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
@@ -146,4 +147,13 @@ const hydrateFromLegacyKeys = () => {
 
 if (typeof window !== "undefined") {
   hydrateFromLegacyKeys();
+  
+  // Subscribe to offlineCacheSize changes
+  let previousSize = usePreferencesStore.getState().offlineCacheSize;
+  usePreferencesStore.subscribe((state) => {
+    if (state.offlineCacheSize !== previousSize) {
+      previousSize = state.offlineCacheSize;
+      offlineManager.configure({ cacheSizeMB: state.offlineCacheSize });
+    }
+  });
 }

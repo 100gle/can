@@ -1,21 +1,19 @@
 import { isBridgeAvailable } from "@/lib/bridge";
+import { offlineManager } from "@/lib/offline";
+import { usePreferencesStore } from "@/state/preferences";
 import { transfersStore } from "@/state/transfers";
 import {
   BatchUpdateObjectAttributes,
   CopyObject,
-  CreateFolder,
-  DeleteObject,
   DownloadBatch,
   DownloadObject,
   GetObjectAttributes,
   ListObjects,
-  MoveObjects,
-  RenameObject,
   UpdateObjectAttributes,
-  UploadObject,
 } from "@wailsjs/go/app/App";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { create } from "zustand";
+import { toast } from "sonner";
 
 export type ObjectModel = ObjectModels.ObjectInfo;
 
@@ -35,6 +33,8 @@ export type ObjectsState = {
   // Selection state
   selectedKeys: Set<string>;
   selecting: boolean;
+  isFromCache: boolean;
+  lastSync?: number;
 };
 
 export type ObjectsActions = {
@@ -57,7 +57,7 @@ export type ObjectsActions = {
   renameObject: (oldKey: string, newKey: string) => Promise<void>;
   moveObjects: (
     requests: ObjectModels.MoveObjectRequest[],
-  ) => Promise<ObjectModels.MoveObjectsResult>;
+  ) => Promise<ObjectModels.MoveObjectsResult | undefined>;
   createFolder: (folderName: string) => Promise<void>;
   // Attributes
   getObjectAttributes: (key: string) => Promise<ObjectModels.ObjectAttributes>;
@@ -86,6 +86,7 @@ const createInitialState = (): ObjectsState => ({
   pendingKeys: {},
   selectedKeys: new Set<string>(),
   selecting: false,
+  isFromCache: false,
 });
 
 const FALLBACK_OBJECTS: ObjectModel[] = [
@@ -152,6 +153,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       nextMarker: undefined,
       truncated: false,
       error: undefined,
+      isFromCache: false,
     });
     await get().refresh();
   },
@@ -178,33 +180,74 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       set({ objects: [], error: undefined });
       return;
     }
-    set({ loading: true, error: undefined, nextMarker: undefined, truncated: false });
+    set({ loading: true, error: undefined, nextMarker: undefined, truncated: false, isFromCache: false });
     const useBridge = isBridgeAvailable();
+    const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
-      if (useBridge) {
-        const result = await ListObjects(accountId, {
+      let objects: ObjectModel[] = [];
+      let nextMarker: string | undefined;
+      let truncated = false;
+      let isFromCache = false;
+      let lastSync = Date.now();
+
+      if (offlineEnabled) {
+        const result = await offlineManager.listObjects(
+          { accountId, bucket, prefix, delimiter },
+          async () => {
+            if (useBridge) {
+              const payload = await ListObjects(accountId, {
+                bucket,
+                prefix,
+                delimiter,
+                limit: 500,
+                marker: "",
+              });
+              return {
+                items: payload.objects.map((object) => normalizeObject(object)),
+                truncated: Boolean(payload.truncated),
+                nextMarker: payload.nextMarker || undefined,
+              };
+            }
+            const fallback = FALLBACK_OBJECTS.filter((object) =>
+              !prefix ? true : object.key.startsWith(prefix),
+            ).map((object) => normalizeObject(object));
+            return {
+              items: fallback,
+              truncated: false,
+              nextMarker: undefined,
+            };
+          },
+        );
+        objects = result.items;
+        nextMarker = result.nextMarker;
+        truncated = Boolean(result.truncated);
+        isFromCache = result.source === "cache";
+        lastSync = result.lastSyncedAt ?? Date.now();
+      } else if (useBridge) {
+        const payload = await ListObjects(accountId, {
           bucket,
           prefix,
           delimiter,
           limit: 500,
           marker: "",
         });
-        set({
-          objects: result.objects.map((object) => normalizeObject(object)),
-          loading: false,
-          nextMarker: result.nextMarker || undefined,
-          truncated: Boolean(result.truncated),
-        });
+        objects = payload.objects.map((object) => normalizeObject(object));
+        nextMarker = payload.nextMarker || undefined;
+        truncated = Boolean(payload.truncated);
       } else {
-        set({
-          objects: FALLBACK_OBJECTS.filter(
-            (object) => !prefix || object.key.startsWith(prefix),
-          ).map((object) => normalizeObject(object)),
-          loading: false,
-          nextMarker: undefined,
-          truncated: false,
-        });
+        objects = FALLBACK_OBJECTS.filter(
+          (object) => !prefix || object.key.startsWith(prefix),
+        ).map((object) => normalizeObject(object));
       }
+
+      set({
+        objects,
+        loading: false,
+        nextMarker,
+        truncated,
+        isFromCache,
+        lastSync,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "加载对象失败";
       set({ loading: false, error: message });
@@ -262,9 +305,18 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     const useBridge = isBridgeAvailable();
     try {
       if (useBridge) {
-        const task = await UploadObject(accountId, bucket, finalKey, filePath);
-        if (task?.id) {
+        const result = await offlineManager.uploadObject({
+          accountId,
+          bucket,
+          key: finalKey,
+          filePath,
+        });
+        if (result.status === "executed") {
           transfersStore.syncBackendTasks();
+        } else {
+          toast.info("已加入离线队列", {
+            description: `上传 ${finalKey} 将在网络恢复后执行`,
+          });
         }
       } else {
         const mock: ObjectModel = {
@@ -331,13 +383,32 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     }));
     const useBridge = isBridgeAvailable();
     try {
+      let shouldRemove = false;
+      const target = get().objects.find((object) => object.key === key);
+      const versionToken = target?.etag || target?.lastModified || undefined;
       if (useBridge) {
-        await DeleteObject(accountId, bucket, key);
+        const result = await offlineManager.deleteObject({
+          accountId,
+          bucket,
+          key,
+          versionToken,
+        });
+        if (result.status === "executed") {
+          shouldRemove = true;
+        } else {
+          toast.info("删除已排队", {
+            description: `对象 ${key} 将在网络恢复后删除`,
+          });
+        }
+      } else {
+        shouldRemove = true;
       }
-      set((state) => {
-        const filtered = state.objects.filter((object) => object.key !== key);
-        return { objects: filtered };
-      });
+      if (shouldRemove) {
+        set((state) => {
+          const filtered = state.objects.filter((object) => object.key !== key);
+          return { objects: filtered };
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "删除失败";
       set({ error: message });
@@ -391,17 +462,40 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     const { accountId, bucket } = get();
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
     if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
-    await RenameObject(accountId, bucket, oldKey, newKey);
-    await get().refresh();
+    const target = get().objects.find((object) => object.key === oldKey);
+    const versionToken = target?.etag || target?.lastModified || undefined;
+    const result = await offlineManager.renameObject({
+      accountId,
+      bucket,
+      oldKey,
+      newKey,
+      versionToken,
+    });
+    if (result.status === "executed") {
+      await get().refresh();
+    } else {
+      toast.info("重命名已排队", {
+        description: `${oldKey} → ${newKey} 将在网络恢复后执行`,
+      });
+    }
   },
 
   moveObjects: async (requests: ObjectModels.MoveObjectRequest[]) => {
     const { accountId } = get();
     if (!accountId) throw new Error("请选择账户");
     if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
-    const result = await MoveObjects(accountId, requests);
-    await get().refresh();
-    return result;
+    const execution = await offlineManager.moveObjects({
+      accountId,
+      requests,
+    });
+    if (execution.status === "executed") {
+      await get().refresh();
+      return execution.result;
+    }
+    toast.info("移动已排队", {
+      description: `共 ${requests.length} 个操作将在恢复网络后执行`,
+    });
+    return undefined;
   },
 
   createFolder: async (folderName: string) => {
@@ -409,8 +503,18 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
     if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
     const folderPrefix = prefix + folderName.replace(/\/$/, "") + "/";
-    await CreateFolder(accountId, bucket, folderPrefix);
-    await get().refresh();
+    const result = await offlineManager.createFolder({
+      accountId,
+      bucket,
+      key: folderPrefix,
+    });
+    if (result.status === "executed") {
+      await get().refresh();
+    } else {
+      toast.info("创建文件夹已排队", {
+        description: `${folderPrefix} 将在网络恢复后创建`,
+      });
+    }
   },
 
   // Attributes
@@ -459,9 +563,20 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
 
     set({ selecting: true, error: undefined });
     const errors: string[] = [];
+    const queued: string[] = [];
     for (const key of selectedKeys) {
       try {
-        await DeleteObject(accountId, bucket, key);
+        const target = get().objects.find((object) => object.key === key);
+        const versionToken = target?.etag || target?.lastModified || undefined;
+        const execution = await offlineManager.deleteObject({
+          accountId,
+          bucket,
+          key,
+          versionToken,
+        });
+        if (execution.status === "queued") {
+          queued.push(key);
+        }
       } catch (e) {
         errors.push(`${key}: ${e instanceof Error ? e.message : "失败"}`);
       }
@@ -469,6 +584,11 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     set({ selecting: false, selectedKeys: new Set<string>() });
     if (errors.length > 0) {
       set({ error: `部分删除失败: ${errors.join(", ")}` });
+    }
+    if (queued.length > 0) {
+      toast.info("部分删除已排队", {
+        description: `${queued.length} 个对象将在网络恢复后删除`,
+      });
     }
     await get().refresh();
   },

@@ -1,31 +1,32 @@
 import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { SearchPanel } from "@/components/search/search-panel";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuTrigger,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -37,19 +38,22 @@ import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects
 import { transfersStore } from "@/state/transfers";
 import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
 import {
-    Folder,
-    FolderPlus,
-    FolderTree,
-    LayoutGrid,
-    Link2,
-    List,
-    Loader2,
-    Plus,
-    RefreshCcw,
-    Search,
-    SlidersHorizontal,
-    Upload,
-    X
+  Download,
+  Folder,
+  FolderPlus,
+  FolderTree,
+  LayoutGrid,
+  Link2,
+  List,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  Upload,
+  WifiOff,
+  X
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -57,6 +61,7 @@ import { useCopyToClipboard } from "usehooks-ts";
 import { BucketItem } from "./bucket-item";
 import { CreateBucketDialog } from "./create-bucket-dialog";
 import { FileItem } from "./file-item";
+import { FileTable } from "./file-table";
 import { SymlinkDialog } from "./symlink-dialog";
 import { TreeView } from "./tree-view";
 
@@ -72,7 +77,6 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
   // Bucket state - use individual selectors for React 19 compatibility
   const buckets = useBucketsStore((state) => state.buckets);
   const bucketsLoading = useBucketsStore((state) => state.loading);
-  const creating = useBucketsStore((state) => state.creating);
   const bucketsError = useBucketsStore((state) => state.error);
 
   // Object state - use individual selectors for React 19 compatibility
@@ -83,6 +87,13 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
   const objectsError = useObjectsStore((state) => state.error);
   const prefix = useObjectsStore((state) => state.prefix);
   const truncated = useObjectsStore((state) => state.truncated);
+  const objectsIsFromCache = useObjectsStore((state) => state.isFromCache);
+  const objectsLastSync = useObjectsStore((state) => state.lastSync);
+  const selectedKeys = useObjectsStore((state) => state.selectedKeys);
+
+  // Bucket cache state
+  const bucketsIsFromCache = useBucketsStore((state) => state.isFromCache);
+  const bucketsLastSync = useBucketsStore((state) => state.lastSync);
 
   // Use individual selectors to avoid new object reference issue with React 19
   const accounts = useAccountsStore((state) => state.accounts);
@@ -239,6 +250,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     const delimiter = viewMode === "list" ? "" : "/";
     await objectsStore.setDelimiter(delimiter);
     void objectsStore.setContext(accountId, bucketName);
+    objectsStore.clearSelection();
   };
 
   const handleEnterFolder = (key: string) => {
@@ -381,43 +393,121 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     }
   };
 
-  // Render item
-  const renderItem = (item: any) => {
-    // list mode uses list layout, grid uses grid layout
-    const effectiveViewMode: "list" | "grid" = viewMode === "grid" ? "grid" : "list";
-    // In list mode (flat), pass empty prefix to show full key path
-    const effectivePrefix = viewMode === "list" ? "" : prefix;
+  // Render content based on view mode
+  const renderContent = () => {
+    if (loading && filteredItems.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          加载中...
+        </div>
+      );
+    }
+    
+    if (filteredItems.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Folder className="h-12 w-12 text-muted-foreground/40" />
+          <p className="mt-4 text-muted-foreground">
+            {hasActiveFilters
+              ? "没有匹配的项目"
+              : level === "buckets"
+                ? "暂无存储桶"
+                : "文件夹为空"}
+          </p>
+          {hasActiveFilters && (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => {
+                setSearchTerm("");
+                setTypeFilter("all");
+              }}
+            >
+              清除过滤
+            </Button>
+          )}
+        </div>
+      );
+    }
 
     if (level === "buckets") {
       return (
-        <BucketItem
-          key={item.name}
-          bucket={item}
-          viewMode={effectiveViewMode}
-          onEnter={handleGoToBucket}
-          onSettings={onOpenBucketSettings}
-          onDelete={(name) => setPendingDeleteBucket(name)}
-        />
-      );
-    } else {
-      return (
-        <FileItem
-          key={item.key}
-          object={item}
-          prefix={effectivePrefix}
-          viewMode={effectiveViewMode}
-          onEnterFolder={handleEnterFolder}
-          onPreview={handlePreview}
-          onDownload={handleDownload}
-          onCopyLink={handleCopyLink}
-          onDelete={(key) => setPendingDeleteObject(key)}
-        />
+         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 120px))" }}>
+            {filteredItems.map((item) => (
+                <BucketItem
+                  key={(item as any).name}
+                  bucket={item as any}
+                  viewMode="grid"
+                  onEnter={handleGoToBucket}
+                  onSettings={onOpenBucketSettings}
+                  onDelete={(name) => setPendingDeleteBucket(name)}
+                />
+            ))}
+         </div>
       );
     }
+
+    // Objects view
+    if (viewMode === "list") {
+        return (
+            <FileTable
+                data={filteredItems as ObjectModel[]} // Type safe because level is objects
+                prefix={prefix}
+                selectedKeys={selectedKeys}
+                onToggleSelect={objectsStore.toggleSelect}
+                onSelectAll={objectsStore.selectAll}
+                onClearSelection={objectsStore.clearSelection}
+                onEnterFolder={handleEnterFolder}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+                onCopyLink={handleCopyLink}
+                onDelete={(key) => setPendingDeleteObject(key)}
+            />
+        );
+    }
+
+    if (viewMode === "tree") {
+         return (
+             <TreeView
+                accountId={accountId!}
+                bucket={currentBucket!}
+                initialPrefix={prefix}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+                onCopyLink={handleCopyLink}
+                onDelete={(key) => setPendingDeleteObject(key)}
+                onEnterFolder={handleEnterFolder}
+             />
+         );
+    }
+
+    // Grid view (old renderItem loop)
+    return (
+        <div
+          className="grid gap-2"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 120px))" }}
+        >
+          {filteredItems.map((item) => (
+             <FileItem
+               key={(item as any).key}
+               object={item as any}
+               prefix={prefix}
+               viewMode="grid"
+               onEnterFolder={handleEnterFolder}
+               onPreview={handlePreview}
+               onDownload={handleDownload}
+               onCopyLink={handleCopyLink}
+               onDelete={(key) => setPendingDeleteObject(key)}
+             />
+          ))}
+        </div>
+    );
   };
 
   return (
-    <>
+    <TooltipProvider>
+      <>
       <input
         ref={fileInputRef}
         type="file"
@@ -477,9 +567,9 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           </div>
 
           {/* Right Actions Area - 1/3 Width */}
-          <div className="w-1/3 h-full pl-4 grid grid-cols-4 gap-2 items-center">
+          <div className="w-1/3 h-full pl-4 flex items-center gap-2">
             {level === "search" ? (
-              <div className="col-span-4 flex justify-end">
+              <div className="w-full flex justify-end">
                 <Button variant="ghost" size="sm" className="gap-1" onClick={handleGoToRoot}>
                   <X className="h-4 w-4" />
                   关闭搜索
@@ -487,8 +577,8 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
               </div>
             ) : (
               <>
-                {/* Search + View - 3/4 */}
-                <div className="col-span-3 flex items-center gap-2">
+                {/* Search + View */}
+                <div className="flex-1 flex items-center gap-2 min-w-0">
                   {/* Search Bar - Flex to fill */}
                   <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -508,7 +598,6 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                           <X className="h-3 w-3" />
                         </button>
                       ) : (
-                        <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
@@ -525,10 +614,26 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                             </TooltipTrigger>
                             <TooltipContent>高级搜索</TooltipContent>
                           </Tooltip>
-                        </TooltipProvider>
                       )}
                     </div>
                   </div>
+
+                  {/* Offline Indicator */}
+                  {(level === "buckets" ? bucketsIsFromCache : objectsIsFromCache) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="default" className="h-8 gap-1 px-2 whitespace-nowrap shrink-0">
+                             <WifiOff className="h-3.5 w-3.5" />
+                             <span className="hidden xl:inline">离线缓存</span>
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          数据来自离线缓存 · 上次同步: {
+                            new Date((level === "buckets" ? bucketsLastSync : objectsLastSync) || 0).toLocaleString()
+                          }
+                        </TooltipContent>
+                      </Tooltip>
+                  )}
 
                   {/* View Mode */}
                   <div className="flex items-center rounded-md border border-border/40 bg-background shrink-0">
@@ -562,8 +667,8 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                   </div>
                 </div>
 
-                {/* Actions - 1/4 */}
-                <div className="col-span-1 flex justify-end gap-2">
+                {/* Actions */}
+                <div className="flex justify-end gap-2 shrink-0">
                   {level === "objects" && canCreateSymlink && (
                     <Button
                       variant="outline"
@@ -591,11 +696,71 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                       <span className="truncate">上传</span>
                     </Button>
                   )}
+                  {selectedKeys.size > 0 && level === "objects" ? (
+                    <>
+                      <div className="flex items-center gap-2 mr-2 border-r border-border/40 pr-2">
+                        <span className="text-sm text-muted-foreground">已选 {selectedKeys.size} 项</span>
+                        <Button
+                           variant="outline"
+                           size="sm"
+                           className="h-8 gap-1"
+                           onClick={() => void objectsStore.deleteSelected()}
+                        >
+                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                           <span className="text-destructive">删除</span>
+                        </Button>
+                        <Button
+                           variant="outline"
+                           size="sm"
+                           className="h-8 gap-1"
+                           onClick={() => {
+                              // Batch download logic - creating a batch input
+                             const targets = objects.filter(o => selectedKeys.has(o.key) && !o.isDir);
+                             if (targets.length === 0) return;
+                             // Just download one by one or support batch?
+                             // store.downloadBatch takes Input.
+                             // For now we can use simple loop or the store batch function if applicable.
+                             // But browser mode batch download is tricky (multiple popups).
+                             // Bridge mode supports it.
+                             if (isBridgeAvailable()) {
+                                 // We need a path dialog... 
+                                 // Actually downloadBatch might ask for directory?
+                                 // Store implementation of downloadBatch:
+                                 /*
+                                  downloadBatch: async (input: ObjectModels.DownloadBatchInput) => {
+                                    ... DownloadBatch(accountId, input);
+                                  }
+                                 */
+                                 // We need to implement a folder picker for batch download.
+                                 // For now let's just toast "Batch download not fully implemented in UI" or
+                                 // triggers individual downloads if small count.
+                                 // Or better: Let's loop downloadToPath for now if desktop, or show error if web.
+                                 
+                                 if (targets.length > 5 && !confirm(`Confirm download ${targets.length} files?`)) return;
+                                 
+                                 // This is a Placeholder for robust batch support.
+                                 // Proper way: "Download All to..." -> Pick Folder -> Batch Download Task.
+                                 // I will leave it as TODO or simple loop. 
+                                 // The user requirement says "Ensure SDK supports it". 
+                                 // SDK `DownloadBatch` exists.
+                                 // We need UI to pick destination.
+                                 toast.info("批量下载将在后续支持完善，暂不支持");
+                             } else {
+                                toast.error("Web端暂不支持批量下载");
+                             }
+                           }}
+                        >
+                           <Download className="h-3.5 w-3.5" />
+                           <span>下载</span>
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
                   {level === "buckets" && (
                     <Button
                       variant="default"
                       size="sm"
-                      className="gap-1 h-8 w-full"
+                      className="gap-1 h-8"
                       onClick={() => setCreateBucketOpen(true)}
                     >
                       <Plus className="h-3.5 w-3.5" />
@@ -638,57 +803,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                     </div>
                   )}
 
-                  {loading && filteredItems.length === 0 ? (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      加载中...
-                    </div>
-                  ) : filteredItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <Folder className="h-12 w-12 text-muted-foreground/40" />
-                      <p className="mt-4 text-muted-foreground">
-                        {hasActiveFilters
-                          ? "没有匹配的项目"
-                          : level === "buckets"
-                            ? "暂无存储桶"
-                            : "文件夹为空"}
-                      </p>
-                      {hasActiveFilters && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={() => {
-                            setSearchTerm("");
-                            setTypeFilter("all");
-                          }}
-                        >
-                          清除过滤
-                        </Button>
-                      )}
-                    </div>
-                  ) : viewMode === "tree" && level === "objects" && accountId && currentBucket ? (
-                    <TreeView
-                      accountId={accountId}
-                      bucket={currentBucket}
-                      initialPrefix={prefix}
-                      onPreview={handlePreview}
-                      onDownload={handleDownload}
-                      onCopyLink={handleCopyLink}
-                      onDelete={(key) => setPendingDeleteObject(key)}
-                      onEnterFolder={handleEnterFolder}
-                    />
-                  ) : (
-                    <div
-                      className={cn(viewMode === "grid" ? "grid gap-2" : "flex flex-col gap-2")}
-                      style={
-                        viewMode === "grid"
-                          ? { gridTemplateColumns: "repeat(auto-fill, minmax(120px, 120px))" }
-                          : undefined
-                      }
-                    >
-                      {filteredItems.map((item) => renderItem(item))}
-                    </div>
-                  )}
+                  {renderContent()}
 
                   {level === "objects" && truncated && (
                     <div className="mt-4 text-center">
@@ -823,6 +938,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+      </>
+    </TooltipProvider>
   );
 }

@@ -10,11 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { offlineCache } from "@/lib/offline";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
   DEFAULT_ADVANCED_OPTIONS,
   usePreferencesStore,
   type AdvancedOptions,
+  type CacheSize,
   type DatabaseDriver,
   type LogLevel,
   type ThemePreference,
@@ -111,6 +114,15 @@ export default function SettingsPage() {
   const [updateInfo, setUpdateInfo] = useState<system.UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [cacheUsage, setCacheUsage] = useState<{ usage: number; quota: number } | null>(null);
+  const offlineCacheEnabled = usePreferencesStore((state) => state.offlineCacheEnabled);
+  const setOfflineCacheEnabled = usePreferencesStore((state) => state.setOfflineCacheEnabled);
+  const offlineCacheSize = usePreferencesStore((state) => state.offlineCacheSize);
+  const setOfflineCacheSize = usePreferencesStore((state) => state.setOfflineCacheSize);
+
+  useEffect(() => {
+    offlineCache.getUsage().then(setCacheUsage);
+  }, []);
 
   const handleThemeSelection = (value: ThemePreference) => {
     setThemePreference(value);
@@ -189,6 +201,26 @@ export default function SettingsPage() {
 
   const handleLockStrategyChange = (value: "lock" | "logout") => {
     setLockStrategy(value);
+  };
+
+  const handleClearOfflineCache = async () => {
+    await offlineCache.clear();
+    const usage = await offlineCache.getUsage();
+    setCacheUsage(usage);
+    window.alert?.("缓存已清除");
+  };
+
+  const handleCacheSizeChange = (value: string) => {
+    const numeric = Number(value) as CacheSize;
+    setOfflineCacheSize(numeric);
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const idleTimeoutLabel = idleTimeoutMinutes === 0 ? "从不" : `${idleTimeoutMinutes} 分钟`;
@@ -401,6 +433,66 @@ export default function SettingsPage() {
                 恢复默认设置
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>离线缓存 / Offline Cache</CardTitle>
+            <CardDescription>
+              管理离线数据缓存。开启后，将缓存最近浏览的列表和文件，以便在无网络时访问。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>启用离线缓存</Label>
+                <p className="text-xs text-muted-foreground">
+                  自动缓存浏览过的存储桶列表和对象列表
+                </p>
+              </div>
+              <Switch
+                checked={offlineCacheEnabled}
+                onCheckedChange={setOfflineCacheEnabled}
+              />
+            </div>
+            {offlineCacheEnabled && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-0.5">
+                      <Label>缓存大小</Label>
+                      <p className="text-xs text-muted-foreground">限制离线缓存的最大占用</p>
+                    </div>
+                    <Select value={String(offlineCacheSize)} onValueChange={handleCacheSizeChange}>
+                      <SelectTrigger className="w-[160px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 MB</SelectItem>
+                        <SelectItem value="50">50 MB</SelectItem>
+                        <SelectItem value="100">100 MB</SelectItem>
+                        <SelectItem value="500">500 MB</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="rounded-lg border border-border p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                       <div className="space-y-1">
+                         <p className="text-sm font-medium">当前占用</p>
+                         <p className="text-2xl font-bold">
+                           {cacheUsage ? formatBytes(cacheUsage.usage) : "Calculating..."}
+                         </p>
+                         <p className="text-xs text-muted-foreground">
+                           (Quota: {cacheUsage ? formatBytes(cacheUsage.quota) : "-"})
+                         </p>
+                       </div>
+                       <Button variant="outline" size="sm" onClick={handleClearOfflineCache}>
+                         清除缓存
+                       </Button>
+                    </div>
+                  </div>
+                </div>
+            )}
           </CardContent>
         </Card>
 

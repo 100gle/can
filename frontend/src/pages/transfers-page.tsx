@@ -115,7 +115,6 @@ export const TransfersPage = () => {
   useEffect(() => {
     transfersStore.startPolling();
     offlineQueueStore.startSyncWorker();
-    offlineQueueStore.loadQueue();
 
     return () => {
       transfersStore.stopPolling();
