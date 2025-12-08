@@ -39,7 +39,7 @@ func (a *App) CreateAppBackup(encrypted bool, password string) (*backup.BackupHe
 }
 
 // RestoreAppBackup imports application configuration from a backup file.
-func (a *App) RestoreAppBackup() error {
+func (a *App) RestoreAppBackup(password string) error {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 
@@ -60,9 +60,7 @@ func (a *App) RestoreAppBackup() error {
 		return err
 	}
 
-	// Password support not fully implemented in frontend yet, so passing empty for now
-	// or we prompt via Wails dialog? For MVP assume no password or default.
-	return a.backup.RestoreAppBackup(ctx, data, "")
+	return a.backup.RestoreAppBackup(ctx, data, password)
 }
 
 // CreateBucketSnapshot creates a metadata snapshot of the bucket.
@@ -83,9 +81,5 @@ func (a *App) ListBucketSnapshots(accountID, bucket string) ([]*backup.BackupHea
 func (a *App) DeleteBucketSnapshot(snapshotID string) error {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	// Type assert to access DeleteSnapshot method
-	if impl, ok := a.backup.(*backup.ServiceImpl); ok {
-		return impl.DeleteSnapshot(ctx, snapshotID)
-	}
-	return nil
+	return a.backup.DeleteSnapshot(ctx, snapshotID)
 }

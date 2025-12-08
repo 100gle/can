@@ -306,8 +306,8 @@ export function RenameObjectWithOptions(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['RenameObjectWithOptions'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function RestoreAppBackup() {
-  return window['go']['app']['App']['RestoreAppBackup']();
+export function RestoreAppBackup(arg1) {
+  return window['go']['app']['App']['RestoreAppBackup'](arg1);
 }
 
 export function ResumeTransferTask(arg1) {

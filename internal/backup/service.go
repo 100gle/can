@@ -21,4 +21,7 @@ type Service interface {
 	// RestoreSnapshot restores missing files from a snapshot (or just reports diff).
 	// For MVP, maybe just diff.
 	RestoreSnapshot(ctx context.Context, snapshotID string) error
+
+	// DeleteSnapshot removes a snapshot from the store.
+	DeleteSnapshot(ctx context.Context, snapshotID string) error
 }

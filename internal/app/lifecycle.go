@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -40,7 +41,11 @@ func (a *App) Shutdown(ctx context.Context) {
 	// Close transfer queue and wait for workers to finish
 	if a.transfers != nil {
 		runtime.LogInfo(ctx, "Closing transfer service...")
-		a.transfers.Close()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := a.transfers.Shutdown(shutdownCtx); err != nil {
+			runtime.LogWarning(ctx, fmt.Sprintf("Transfer service shutdown timed out: %v", err))
+		}
 	}
 
 	runtime.LogInfo(ctx, "Shutdown complete")

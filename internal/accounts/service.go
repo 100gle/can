@@ -266,6 +266,25 @@ func (s *Service) ConnectionCredentials(ctx context.Context, id string) (provide
 	return s.credentialsFromRecord(ctx, record)
 }
 
+// GetStorageClient retrieves a storage client for the given account using the provided pool.
+func (s *Service) GetStorageClient(ctx context.Context, pool providers.ClientPool, accountID string) (providers.StorageClient, providers.ConnectionCredentials, error) {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
+		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
+	}
+	if pool == nil {
+		pool = s.clients // Fallback to internal pool if available
+	}
+	if pool == nil {
+		return nil, providers.ConnectionCredentials{}, errors.New("storage client pool not configured")
+	}
+
+	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+		return s.ConnectionCredentials(ctx, accountID)
+	}
+	return pool.Get(ctx, accountID, supplier)
+}
+
 func validateCreateInput(input CreateAccountInput) error {
 	if strings.TrimSpace(input.Name) == "" {
 		return errors.New("name is required")

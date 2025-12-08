@@ -5,32 +5,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { offlineCache } from "@/lib/offline";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
-  DEFAULT_ADVANCED_OPTIONS,
-  usePreferencesStore,
-  type AdvancedOptions,
-  type CacheSize,
-  type DatabaseDriver,
-  type LogLevel,
-  type ThemePreference,
+    DEFAULT_ADVANCED_OPTIONS,
+    usePreferencesStore,
+    type AdvancedOptions,
+    type CacheSize,
+    type DatabaseDriver,
+    type LogLevel,
+    type ThemePreference,
 } from "@/state/preferences";
 import { useSessionStore } from "@/state/session";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
 import {
-  CheckForUpdates,
-  CreateAppBackup,
-  GetSystemMetrics,
-  RestoreAppBackup,
+    CheckForUpdates,
+    GetSystemMetrics
 } from "@wailsjs/go/app/App";
 import { system } from "@wailsjs/go/models";
 import { ExternalLink, Loader2 } from "lucide-react";
@@ -205,6 +203,11 @@ export default function SettingsPage() {
   const setOfflineCacheEnabled = usePreferencesStore((state) => state.setOfflineCacheEnabled);
   const offlineCacheSize = usePreferencesStore((state) => state.offlineCacheSize);
   const setOfflineCacheSize = usePreferencesStore((state) => state.setOfflineCacheSize);
+  
+  // Backup encryption state
+  const [enableBackupEncryption, setEnableBackupEncryption] = useState(false);
+  const [showBackupPasswordDialog, setShowBackupPasswordDialog] = useState(false);
+  const [showRestorePasswordDialog, setShowRestorePasswordDialog] = useState(false);
 
   useEffect(() => {
     offlineCache.getUsage().then(setCacheUsage);
@@ -232,6 +235,56 @@ export default function SettingsPage() {
         setUpdateError(message);
       })
       .finally(() => setCheckingUpdate(false));
+  };
+
+  const handleCreateBackup = () => {
+    if (enableBackupEncryption) {
+      setShowBackupPasswordDialog(true);
+    } else {
+      void CreateAppBackup(false, "")
+        .then(() => window.alert("备份创建成功"))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          window.alert(`备份失败: ${message}`);
+        });
+    }
+  };
+
+  const handleCreateEncryptedBackup = (password: string) => {
+    void CreateAppBackup(true, password)
+      .then(() => window.alert("加密备份创建成功，请妥善保管密码"))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        window.alert(`备份失败: ${message}`);
+      });
+  };
+
+  const handleRestoreBackup = () => {
+    // Try to restore without password first (might be unencrypted)
+    void RestoreAppBackup("")
+      .then(() => window.alert("恢复成功"))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        // Check if it's an encryption-related error
+        if (message.includes("encrypted") || message.includes("password")) {
+          setShowRestorePasswordDialog(true);
+        } else {
+          window.alert(`恢复失败: ${message}`);
+        }
+      });
+  };
+
+  const handleRestoreWithPassword = (password: string) => {
+    void RestoreAppBackup(password)
+      .then(() => window.alert("恢复成功"))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("decrypt") || message.includes("wrong password")) {
+          window.alert("密码错误，请重试");
+        } else {
+          window.alert(`恢复失败: ${message}`);
+        }
+      });
   };
 
   const isDefaultAdvanced =
@@ -431,28 +484,30 @@ export default function SettingsPage() {
             <CardTitle>系统备份</CardTitle>
             <CardDescription>创建包含应用设置、账户配置和偏好设置的完整备份。</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4 sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() =>
-                RestoreAppBackup()
-                  .then(() => window.alert("Restore Completed"))
-                  .catch((e) => window.alert(e))
-              }
-              className="w-full sm:w-auto"
-            >
-              从文件恢复
-            </Button>
-            <Button
-              onClick={() =>
-                CreateAppBackup(false, "")
-                  .then(() => window.alert("Backup Created"))
-                  .catch((e) => window.alert(e))
-              }
-              className="w-full sm:w-auto"
-            >
-              创建完整备份
-            </Button>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="backup-encryption"
+                checked={enableBackupEncryption}
+                onCheckedChange={setEnableBackupEncryption}
+              />
+              <Label htmlFor="backup-encryption" className="cursor-pointer">
+                启用备份加密 (AES-256-GCM)
+              </Label>
+            </div>
+            {enableBackupEncryption && (
+              <p className="text-xs text-muted-foreground border-l-2 border-amber-500 pl-3">
+                启用加密后，备份文件将使用密码保护。请务必牢记密码，丢失密码将无法恢复数据。
+              </p>
+            )}
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Button variant="outline" onClick={handleRestoreBackup} className="w-full sm:w-auto">
+                从文件恢复
+              </Button>
+              <Button onClick={handleCreateBackup} className="w-full sm:w-auto">
+                创建完整备份
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -699,6 +754,26 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <PasswordDialog
+        open={showBackupPasswordDialog}
+        onOpenChange={setShowBackupPasswordDialog}
+        title="设置备份密码"
+        description="请输入一个强密码来加密备份文件。请牢记此密码，丢失后将无法恢复。"
+        onConfirm={handleCreateEncryptedBackup}
+        confirmText="创建加密备份"
+        requireConfirmation={true}
+      />
+
+      <PasswordDialog
+        open={showRestorePasswordDialog}
+        onOpenChange={setShowRestorePasswordDialog}
+        title="输入备份密码"
+        description="此备份文件已加密，请输入创建时设置的密码。"
+        onConfirm={handleRestoreWithPassword}
+        confirmText="恢复"
+        requireConfirmation={false}
+      />
     </div>
   );
 }

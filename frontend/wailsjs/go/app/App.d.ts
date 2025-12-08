@@ -164,7 +164,7 @@ export function RenameObject(arg1:string,arg2:string,arg3:string,arg4:string):Pr
 
 export function RenameObjectWithOptions(arg1:string,arg2:string,arg3:string,arg4:string,arg5:objects.MutationOptions):Promise<void>;
 
-export function RestoreAppBackup():Promise<void>;
+export function RestoreAppBackup(arg1:string):Promise<void>;
 
 export function ResumeTransferTask(arg1:string):Promise<void>;
 

@@ -840,17 +840,7 @@ func (s *Service) logMutation(ctx context.Context, action, resource, accountID s
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
-	accountID = strings.TrimSpace(accountID)
-	if accountID == "" {
-		return nil, errors.New("account id is required")
-	}
-	if s.pool == nil {
-		return nil, errors.New("storage client pool not configured")
-	}
-	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
-		return s.accounts.ConnectionCredentials(ctx, accountID)
-	}
-	client, _, err := s.pool.Get(ctx, accountID, supplier)
+	client, _, err := s.accounts.GetStorageClient(ctx, s.pool, accountID)
 	if err != nil {
 		return nil, err
 	}

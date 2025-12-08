@@ -86,6 +86,7 @@ type Service struct {
 	queue   *taskQueue
 	workers int // target worker count
 
+	wg            sync.WaitGroup
 	mu            sync.RWMutex
 	activeWorkers int
 	runtimes      map[string]*taskRuntime
@@ -654,19 +655,40 @@ func (s *Service) ClearCompletedTasks(ctx context.Context) (int, error) {
 
 // Close gracefully shuts down the transfer service.
 // It closes the task queue which causes workers to exit after finishing their current task.
+// Deprecated: Use Shutdown instead.
 func (s *Service) Close() {
 	if s.queue != nil {
 		s.queue.Close()
 	}
 }
 
+// Shutdown gracefully stops the service, waiting for active workers to finish.
+func (s *Service) Shutdown(ctx context.Context) error {
+	s.Close() // Signal workers to stop picking up new tasks
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (s *Service) startWorkers() {
 	for i := 0; i < s.workers; i++ {
+		s.wg.Add(1)
 		go s.worker()
 	}
 }
 
 func (s *Service) worker() {
+	defer s.wg.Done()
 	s.mu.Lock()
 	s.activeWorkers++
 	s.mu.Unlock()

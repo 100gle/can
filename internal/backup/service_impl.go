@@ -2,14 +2,20 @@ package backup
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"can/internal/accounts"
 	"can/internal/objects"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/argon2"
 )
 
 type ServiceImpl struct {
@@ -28,6 +34,21 @@ func NewService(accounts *accounts.Service, objects *objects.Service, dataDir st
 	}
 }
 
+// BackupContainer represents the structure of the backup file on disk.
+// It supports both legacy (plaintext) and secure (encrypted) formats.
+type BackupContainer struct {
+	Header  *BackupHeader     `json:"header"`
+	Content *AppBackupContent `json:"content,omitempty"` // cleartext content (legacy/unencrypted)
+	Data    []byte            `json:"data,omitempty"`    // encrypted content
+	Salt    []byte            `json:"salt,omitempty"`    // salt for KDF
+	Nonce   []byte            `json:"nonce,omitempty"`   // nonce for AES-GCM
+}
+
+const (
+	keyLen  = 32
+	saltLen = 16
+)
+
 func (s *ServiceImpl) CreateAppBackup(ctx context.Context, encrypted bool, password string) (*BackupHeader, []byte, error) {
 	// 1. Export Accounts
 	accData, err := s.accounts.ExportData(ctx)
@@ -37,16 +58,10 @@ func (s *ServiceImpl) CreateAppBackup(ctx context.Context, encrypted bool, passw
 
 	// 2. Prepare Backup Content
 	content := AppBackupContent{
-		Accounts: accData.Blob, // This blob is already encrypted if ExportData handles it, OR we encrypt the whole backup.
-		// settings.json and favorites.json would be read from s.dataDir/settings.json
+		Accounts: accData.Blob,
 	}
-	// For MVP, handling just accounts is fine if settings are trivial.
 
-	// 3. Encrypt if requested
-	// If password provided, encrypt jsonData.
-	// (Skipping actual encryption implementation for brevity, assuming MVP or relying on accounts encryption)
-
-	// 4. Create Header
+	// 3. Create Header
 	header := &BackupHeader{
 		ID:        uuid.New().String(),
 		Type:      BackupTypeAppConfig,
@@ -55,38 +70,91 @@ func (s *ServiceImpl) CreateAppBackup(ctx context.Context, encrypted bool, passw
 		Encrypted: encrypted,
 	}
 
-	// 5. Package (e.g. Zip or just JSON)
-	// We can simply return the JSON bytes for now or wrap in a structured format.
-	// Let's return JSON of a wrapper struct containing Header + Content
-
-	// Re-wrapping for simple export
-	type FullBackup struct {
-		Header  *BackupHeader    `json:"header"`
-		Content AppBackupContent `json:"content"`
+	container := BackupContainer{
+		Header: header,
 	}
 
-	full := FullBackup{Header: header, Content: content}
-	finalBytes, err := json.Marshal(full)
+	// 4. Encrypt or Embed
+	if encrypted {
+		if password == "" {
+			return nil, nil, errors.New("password is required for encrypted backup")
+		}
 
-	return header, finalBytes, err
+		// Marshal content to bytes first
+		plaintext, err := json.Marshal(content)
+		if err != nil {
+			return nil, nil, fmt.Errorf("marshal content: %w", err)
+		}
+
+		// Encrypt
+		salt, nonce, ciphertext, err := encrypt(plaintext, password)
+		if err != nil {
+			return nil, nil, fmt.Errorf("encrypt: %w", err)
+		}
+
+		container.Data = ciphertext
+		container.Salt = salt
+		container.Nonce = nonce
+	} else {
+		container.Content = &content
+	}
+
+	// 5. Serialize Final Container
+	finalBytes, err := json.Marshal(container)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal container: %w", err)
+	}
+
+	return header, finalBytes, nil
 }
 
 func (s *ServiceImpl) RestoreAppBackup(ctx context.Context, data []byte, password string) error {
-	type FullBackup struct {
-		Header  *BackupHeader    `json:"header"`
-		Content AppBackupContent `json:"content"`
+	var container BackupContainer
+	if err := json.Unmarshal(data, &container); err != nil {
+		return fmt.Errorf("unmarshal backup: %w", err)
 	}
-	var full FullBackup
-	if err := json.Unmarshal(data, &full); err != nil {
-		return err
+
+	if container.Header == nil {
+		return errors.New("invalid backup: missing header")
+	}
+
+	var content *AppBackupContent
+
+	if container.Header.Encrypted {
+		if len(container.Data) == 0 {
+			return errors.New("invalid backup: encrypted but no data found")
+		}
+		if password == "" {
+			return errors.New("backup is encrypted, password required")
+		}
+
+		plaintext, err := decrypt(container.Data, container.Salt, container.Nonce, password)
+		if err != nil {
+			return fmt.Errorf("decrypt failed (wrong password?): %w", err)
+		}
+
+		content = &AppBackupContent{}
+		if err := json.Unmarshal(plaintext, content); err != nil {
+			return fmt.Errorf("unmarshal decrypted content: %w", err)
+		}
+	} else {
+		// Plaintext mode
+		if container.Content == nil {
+			// Fallback: check if 'Data' exists (maybe user messed up manual editing?)
+			// OR support old format where root object WAS the FullBackup struct.
+			// The old code had: type FullBackup struct { Header, Content }
+			// The new BackupContainer is compatible with that JSON structure!
+			// If Content is nil, maybe it really is empty or invalid.
+			return errors.New("invalid backup: no content found")
+		}
+		content = container.Content
 	}
 
 	// Restore Accounts
-	// ImportData expects the inner blob.
-	if len(full.Content.Accounts) > 0 {
-		_, err := s.accounts.ImportData(ctx, full.Content.Accounts)
+	if len(content.Accounts) > 0 {
+		_, err := s.accounts.ImportData(ctx, content.Accounts)
 		if err != nil {
-			return err
+			return fmt.Errorf("import accounts: %w", err)
 		}
 	}
 
@@ -162,19 +230,90 @@ func (s *ServiceImpl) RestoreSnapshot(ctx context.Context, snapshotID string) er
 		return fmt.Errorf("failed to read snapshot content: %w", err)
 	}
 
-	// For MVP: just report what would be restored (print to console)
-	// In a full implementation, we would compare current bucket state with snapshot
-	// and re-upload any missing objects
-	fmt.Printf("Restore snapshot %s for bucket %s/%s\n", snapshotID, header.AccountID, header.BucketName)
-	fmt.Printf("Snapshot contains %d objects\n", len(content.Objects))
+	// Validate bucket exists or at least log what we are doing
+	fmt.Printf("Starting restore analysis for snapshot %s (Bucket: %s)\n", snapshotID, header.BucketName)
 
-	// TODO: Compare with current bucket state and identify missing objects
-	// For now, just return success as we've validated the snapshot exists
+	// In a real implementation, we would now list the live bucket and compare.
+	// For now, we return a designated error to indicate we are not performing changes yet,
+	// or we just log the diff planning.
+	// Code review suggestion: "return not implemented error or minimal diff logic"
 
-	return nil
+	// Let's implement a minimal dry-run diff log
+	// We need to list the CURRENT objects to know what is missing.
+	// NOTE: This could be slow for large buckets.
+	// For validation purposes, we will just proceed with a "Dry Run" success message
+	// but strictly log it so user knows nothing happened.
+
+	// Refactoring request: "Return 'not implemented' error or落地 diff"
+	// Let's return a wrapping error that the frontend can handle, or just success + logs.
+	// Given the context of "logic missing", returning success is misleading.
+	// Let's return a "DryRunOnly" error or similar if we strictly follow advice,
+	// but standard Go doesn't have that.
+	// I will return nil but change the print to be very explicit, OR actually implement a check.
+
+	// Let's TRY to do a quick check of the first few objects to see if they exist?
+	// No, that's partial.
+	// I'll stick to the "Not Implemented" error to be safe as per expert advice.
+	return fmt.Errorf("restore logic not fully implemented: snapshot %s is valid containing %d objects, but auto-restore is disabled", snapshotID, len(content.Objects))
 }
 
 // DeleteSnapshot removes a snapshot by ID.
 func (s *ServiceImpl) DeleteSnapshot(ctx context.Context, snapshotID string) error {
 	return s.snapshotStore.DeleteSnapshot(snapshotID)
+}
+
+// Helpers
+
+func encrypt(plaintext []byte, password string) (salt, nonce, ciphertext []byte, err error) {
+	salt = make([]byte, saltLen)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return nil, nil, nil, err
+	}
+
+	key := deriveKey(password, salt)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	nonce = make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, nil, nil, err
+	}
+
+	ciphertext = gcm.Seal(nil, nonce, plaintext, nil)
+	return salt, nonce, ciphertext, nil
+}
+
+func decrypt(ciphertext, salt, nonce []byte, password string) ([]byte, error) {
+	key := deriveKey(password, salt)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
+}
+
+func deriveKey(password string, salt []byte) []byte {
+	// Argon2id
+	// Memory: 64MB, Iterations: 1, Parallelism: 4, TagLen: 32
+	return argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, keyLen)
 }

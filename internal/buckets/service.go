@@ -114,17 +114,7 @@ func (s *Service) BucketLocation(ctx context.Context, accountID, name string) (s
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, providers.ConnectionCredentials, error) {
-	accountID = strings.TrimSpace(accountID)
-	if accountID == "" {
-		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
-	}
-	if s.pool == nil {
-		return nil, providers.ConnectionCredentials{}, errors.New("storage client pool not configured")
-	}
-	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
-		return s.accounts.ConnectionCredentials(ctx, accountID)
-	}
-	client, creds, err := s.pool.Get(ctx, accountID, supplier)
+	client, creds, err := s.accounts.GetStorageClient(ctx, s.pool, accountID)
 	if err != nil {
 		return nil, providers.ConnectionCredentials{}, err
 	}
