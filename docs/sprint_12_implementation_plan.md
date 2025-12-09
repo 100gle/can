@@ -7,7 +7,7 @@
 | Phase | 内容 | 状态 |
 |-------|------|------|
 | **1** | 建立统一的 API 服务层 | ✅ 已完成 |
-| **2** | 重构 FileExplorer 组件 | 🔲 待完成 |
+| **2** | 重构 FileExplorer 组件 | ✅ 已完成 |
 | **3** | 重构直接调用 Wails API 的组件 | ✅ 已完成 |
 | **4** | 集中化状态初始化与路由管理 | ✅ 已完成 |
 | **5** | 移除 window.alert | ✅ 已完成 |
@@ -236,6 +236,17 @@ export function BrowserToolbar({
   return <div>...</div>;
 }
 ```
+
+#### [MODIFY] [tree-view.tsx](file:///Users/macbookpro/Repos/can/frontend/src/components/browser/tree-view.tsx)
+
+- 建立基于 `objectsStore.listChildren` 的统一数据访问,移除直接调用 `ListObjects`
+- 通过 offline manager 复用缓存/降级逻辑,支持离线与浏览器模式
+- 所有加载失败路径统一由 toast 告警,避免静默空白
+
+#### [MODIFY] [objects.ts](file:///Users/macbookpro/Repos/can/frontend/src/state/objects.ts)
+
+- 新增 `listChildren({ accountId, bucket, prefix, delimiter })` 行为,供树形视图按需拉取层级数据
+- 该方法自动复用 offline cache/queue,并在 desktop/web 模式下提供一致的 fallback
 
 ---
 

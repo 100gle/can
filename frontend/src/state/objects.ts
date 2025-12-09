@@ -44,6 +44,12 @@ export type ObjectsActions = {
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
   setDelimiter: (delimiter: string) => Promise<void>;
+  listChildren: (params: {
+    accountId: string;
+    bucket: string;
+    prefix: string;
+    delimiter?: string;
+  }) => Promise<ObjectModel[]>;
   uploadFromPath: (filePath: string, key: string) => Promise<void>;
   downloadToPath: (key: string, savePath: string) => Promise<void>;
   deleteObject: (key: string) => Promise<void>;
@@ -435,6 +441,56 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       await get().refresh();
     }
   },
+  listChildren: async ({ accountId, bucket, prefix, delimiter = "/" }) => {
+    if (!accountId || !bucket) {
+      return [];
+    }
+    const useBridge = isBridgeAvailable();
+    const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
+    if (offlineEnabled) {
+      const result = await offlineManager.listObjects(
+        { accountId, bucket, prefix, delimiter },
+        async () => {
+          if (useBridge) {
+            const payload = await ListObjects(accountId, {
+              bucket,
+              prefix,
+              delimiter,
+              limit: 500,
+              marker: "",
+            });
+            return {
+              items: payload.objects.map((object) => normalizeObject(object)),
+              truncated: Boolean(payload.truncated),
+              nextMarker: payload.nextMarker || undefined,
+            };
+          }
+          const fallback = FALLBACK_OBJECTS.filter((object) =>
+            !prefix ? true : object.key.startsWith(prefix),
+          ).map((object) => normalizeObject(object));
+          return {
+            items: fallback,
+            truncated: false,
+            nextMarker: undefined,
+          };
+        },
+      );
+      return result.items;
+    }
+    if (useBridge) {
+      const payload = await ListObjects(accountId, {
+        bucket,
+        prefix,
+        delimiter,
+        limit: 500,
+        marker: "",
+      });
+      return payload.objects.map((object) => normalizeObject(object));
+    }
+    return FALLBACK_OBJECTS.filter((object) => !prefix || object.key.startsWith(prefix)).map(
+      (object) => normalizeObject(object),
+    );
+  },
 
   // Selection actions
   toggleSelect: (key: string) => {
@@ -619,11 +675,12 @@ export const objectsStore = {
   goUp: relay((store) => store.goUp),
   refresh: relay((store) => store.refresh),
   loadMore: relay((store) => store.loadMore),
+  setDelimiter: relay((store) => store.setDelimiter),
+  listChildren: relay((store) => store.listChildren),
   uploadFromPath: relay((store) => store.uploadFromPath),
   downloadToPath: relay((store) => store.downloadToPath),
   deleteObject: relay((store) => store.deleteObject),
   reset: relay((store) => store.reset),
-  setDelimiter: relay((store) => store.setDelimiter),
   // Selection
   toggleSelect: relay((store) => store.toggleSelect),
   selectAll: relay((store) => store.selectAll),

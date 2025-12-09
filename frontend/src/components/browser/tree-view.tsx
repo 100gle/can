@@ -6,9 +6,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { isBridgeAvailable } from "@/lib/bridge";
 import { cn } from "@/lib/utils";
-import { ListObjects } from "@wailsjs/go/app/App";
+import { objectsStore } from "@/state/objects";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import {
   ChevronDown,
@@ -21,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { deriveLabel, getFileIcon } from "./file-utils";
 
 export type TreeObject = ObjectModels.ObjectInfo;
@@ -370,22 +370,20 @@ function TreeNode({
 }
 
 // Helper functions
-async function loadPrefix(
-  accountId: string,
-  bucket: string,
-  prefix: string,
-): Promise<TreeObject[]> {
-  if (!isBridgeAvailable()) {
+async function loadPrefix(accountId: string, bucket: string, prefix: string): Promise<TreeObject[]> {
+  try {
+    const items = await objectsStore.listChildren({
+      accountId,
+      bucket,
+      prefix,
+      delimiter: "/",
+    });
+    return items.filter((obj) => obj.key !== prefix);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "加载失败";
+    toast.error(msg);
     return [];
   }
-  const result = await ListObjects(accountId, {
-    bucket,
-    prefix,
-    delimiter: "/",
-    limit: 1000,
-    marker: "",
-  });
-  return result.objects.filter((obj) => obj.key !== prefix);
 }
 
 function getNodeByPath(nodes: TreeNodeData[], path: number[]): TreeNodeData | null {

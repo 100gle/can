@@ -1,3 +1,10 @@
+/**
+ * FileExplorer
+ *
+ * Main file browser component for navigating buckets and objects.
+ * Refactored to use hooks for state management and actions.
+ */
+
 import { DownloadOptionsDialog } from "@/components/objects/download-options-dialog";
 import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
@@ -12,15 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -30,39 +28,17 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { isBridgeAvailable, saveFileDialog } from "@/lib/bridge";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useFileBrowserActions } from "@/hooks/useFileBrowserActions";
+import { useFileBrowserController } from "@/hooks/useFileBrowserController";
 import { cn } from "@/lib/utils";
-import { useAccountsStore } from "@/state/accounts";
-import { bucketsStore, useBucketsStore } from "@/state/buckets";
-import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
-import { transfersStore } from "@/state/transfers";
-import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
-import {
-  Download,
-  Folder,
-  FolderPlus,
-  FolderTree,
-  LayoutGrid,
-  Link2,
-  List,
-  Loader2,
-  MoreHorizontal,
-  Move,
-  Plus,
-  RefreshCcw,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  Upload,
-  WifiOff,
-  X,
-} from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { bucketsStore } from "@/state/buckets";
+import { objectsStore, type ObjectModel } from "@/state/objects";
+import { searchStore } from "@/state/search";
+import { Folder, FolderPlus, Loader2, RefreshCcw, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useCopyToClipboard } from "usehooks-ts";
+import { BrowserToolbar } from "./browser-toolbar";
 import { BucketItem } from "./bucket-item";
 import { CreateBucketDialog } from "./create-bucket-dialog";
 import { FileItem } from "./file-item";
@@ -76,335 +52,35 @@ type FileExplorerProps = {
   className?: string;
 };
 
-type BrowseLevel = "buckets" | "objects" | "search";
-
 export function FileExplorer({ accountId, onOpenBucketSettings, className }: FileExplorerProps) {
-  // Bucket state - use individual selectors for React 19 compatibility
-  const buckets = useBucketsStore((state) => state.buckets);
-  const bucketsLoading = useBucketsStore((state) => state.loading);
-  const bucketsError = useBucketsStore((state) => state.error);
+  // Use controller hook for state and navigation
+  const controller = useFileBrowserController(accountId);
 
-  // Object state - use individual selectors for React 19 compatibility
-  const objects = useObjectsStore((state) => state.objects);
-  const objectsLoading = useObjectsStore((state) => state.loading);
-  const loadingMore = useObjectsStore((state) => state.loadingMore);
-  const uploading = useObjectsStore((state) => state.uploading);
-  const objectsError = useObjectsStore((state) => state.error);
-  const prefix = useObjectsStore((state) => state.prefix);
-  const truncated = useObjectsStore((state) => state.truncated);
-  const objectsIsFromCache = useObjectsStore((state) => state.isFromCache);
-  const objectsLastSync = useObjectsStore((state) => state.lastSync);
-  const selectedKeys = useObjectsStore((state) => state.selectedKeys);
-
-  // Bucket cache state
-  const bucketsIsFromCache = useBucketsStore((state) => state.isFromCache);
-  const bucketsLastSync = useBucketsStore((state) => state.lastSync);
-
-  // Use individual selectors to avoid new object reference issue with React 19
-  const accounts = useAccountsStore((state) => state.accounts);
-  const capabilities = useAccountsStore((state) => state.capabilities);
-
-  const activeAccount = useMemo(
-    () => accounts.find((account) => account.id === accountId),
-    [accounts, accountId],
-  );
-  const providerId = activeAccount?.provider?.toLowerCase();
-  const isOSSProvider = providerId === "oss";
-  const isCOSProvider = providerId === "cos";
-  const canCreateSymlink = useMemo(() => {
-    if (!activeAccount) return false;
-    const capability = capabilities.find(
-      (cap) => cap.provider === activeAccount.provider && cap.featureId === "object.symlink",
-    );
-    return Boolean(capability?.supported);
-  }, [activeAccount, capabilities]);
-
-  // Browser state
-  const [level, setLevel] = useState<BrowseLevel>("buckets");
-  const [currentBucket, setCurrentBucket] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "grid" | "tree">("grid");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-
-  // View mode change handler - list uses flat mode (no hierarchy), grid uses folder hierarchy
-  const handleViewModeChange = (mode: "list" | "grid" | "tree") => {
-    setViewMode(mode);
-    if (level === "objects" && mode !== "tree") {
-      // list = flat mode (empty delimiter, all objects)
-      // grid = folder hierarchy (delimiter "/")
-      const newDelimiter = mode === "list" ? "" : "/";
-      void objectsStore.setDelimiter(newDelimiter);
-    }
-  };
-
-  // Dialog states (simplified - form state is now in extracted components)
-  const [createBucketOpen, setCreateBucketOpen] = useState(false);
-  const [symlinkDialogOpen, setSymlinkDialogOpen] = useState(false);
-  const [moveCopyDialogOpen, setMoveCopyDialogOpen] = useState(false);
-  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-  const [pendingDeleteBucket, setPendingDeleteBucket] = useState<string | null>(null);
-  const [pendingDeleteObject, setPendingDeleteObject] = useState<string | null>(null);
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewObject, setPreviewObject] = useState<ObjectModel | null>(null);
-
-  // Upload refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
-
-  // Drag state
-  const [dragActive, setDragActive] = useState(false);
-
-  // Load buckets and reset state when account changes
-  useEffect(() => {
-    if (accountId) {
-      // Reset browser state to root level when account changes
-      setLevel("buckets");
-      setCurrentBucket(null);
-      setSearchTerm("");
-      setTypeFilter("all");
-      // Clear objects store context to prevent stale data
-      objectsStore.reset();
-      // Load new account's buckets
-      void bucketsStore.loadBuckets(accountId);
-    }
-  }, [accountId]);
+  // Use actions hook for file operations
+  const actions = useFileBrowserActions({
+    accountId,
+    currentBucket: controller.currentBucket,
+    prefix: controller.prefix,
+    onDeleteBucket: async (bucket) => {
+      if (accountId) {
+        await bucketsStore.deleteBucket(accountId, bucket);
+      }
+    },
+  });
 
   // Set folder input webkitdirectory
   useEffect(() => {
-    if (folderInputRef.current) {
-      folderInputRef.current.setAttribute("webkitdirectory", "true");
+    if (actions.folderInputRef.current) {
+      actions.folderInputRef.current.setAttribute("webkitdirectory", "true");
     }
   }, []);
 
-  // Loading state
-  const loading = level === "buckets" ? bucketsLoading : objectsLoading;
-  const error = level === "buckets" ? bucketsError : objectsError;
-
-  // Build breadcrumbs
-  const breadcrumbs = useMemo(() => {
-    const crumbs: { label: string; onClick?: () => void }[] = [
-      { label: "根目录", onClick: () => handleGoToRoot() },
-    ];
-    if (currentBucket) {
-      crumbs.push({
-        label: currentBucket,
-        onClick: prefix ? () => handleGoToBucket(currentBucket) : undefined,
-      });
-    }
-    if (prefix) {
-      const segments = prefix.replace(/\/$/, "").split("/").filter(Boolean);
-      let cursor = "";
-      segments.forEach((seg, i) => {
-        cursor += `${seg}/`;
-        const isLast = i === segments.length - 1;
-        const path = cursor;
-        crumbs.push({
-          label: seg,
-          onClick: isLast ? undefined : () => objectsStore.enterPrefix(path),
-        });
-      });
-    }
-    return crumbs;
-  }, [currentBucket, prefix]);
-
-  // Filter items
-  const filteredItems = useMemo(() => {
-    if (level === "buckets") {
-      return buckets.filter((b) => {
-        if (searchTerm && !b.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-          return false;
-        }
-        return true;
-      });
-    } else {
-      return objects.filter((obj) => {
-        // In list mode (flat view), show all objects
-        // In grid mode, folder markers (ending in /) are shown as folders
-        // No need to filter by isDir or key ending in list mode
-
-        if (searchTerm && !obj.key.toLowerCase().includes(searchTerm.toLowerCase())) {
-          return false;
-        }
-        if (typeFilter !== "all") {
-          const ext = obj.key.split(".").pop()?.toLowerCase() || "";
-          if (typeFilter === "folder" && obj.isDir) return false;
-          if (typeFilter === "image" && !["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
-            return false;
-          if (typeFilter === "document" && !["pdf", "doc", "docx", "txt", "md"].includes(ext))
-            return false;
-        }
-        return true;
-      });
-    }
-  }, [level, buckets, objects, searchTerm, typeFilter, viewMode]);
-
-  const hasActiveFilters = searchTerm || typeFilter !== "all";
-
-  // Navigation
-  const handleGoToRoot = () => {
-    setLevel("buckets");
-    setCurrentBucket(null);
-    setSearchTerm("");
-    setTypeFilter("all");
-  };
-
-  const handleGoToBucket = async (bucketName: string) => {
-    if (!accountId) return;
-    setCurrentBucket(bucketName);
-    setLevel("objects");
-    setSearchTerm("");
-    setTypeFilter("all");
-    // Set delimiter based on current viewMode: list = flat mode (empty), grid = folder hierarchy
-    const delimiter = viewMode === "list" ? "" : "/";
-    await objectsStore.setContext(accountId, bucketName, delimiter);
-    objectsStore.clearSelection();
-  };
-
-  const handleEnterFolder = (key: string) => {
-    void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
-  };
-
-  const handleDeleteBucket = async () => {
-    if (!accountId || !pendingDeleteBucket) return;
-    try {
-      await bucketsStore.deleteBucket(accountId, pendingDeleteBucket);
-    } finally {
-      setPendingDeleteBucket(null);
-    }
-  };
-
-  const handleDownload = async (key: string) => {
-    console.log("[Download] Starting download for key:", key);
-
-    if (!accountId || !currentBucket) {
-      setErrorMessage("请先选择账户和存储桶");
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    try {
-      const defaultName = key.split("/").pop() || "file";
-
-      // Check if we're in desktop mode
-      if (isBridgeAvailable()) {
-        // Desktop mode: use file dialog
-        console.log("[Download] Desktop mode - opening save dialog");
-        const savePath = await saveFileDialog({ Title: "保存文件", DefaultFilename: defaultName });
-
-        if (!savePath) {
-          console.log("[Download] User cancelled save dialog");
-          return;
-        }
-
-        console.log("[Download] Calling objectsStore.downloadToPath");
-        await objectsStore.downloadToPath(key, savePath);
-        console.log("[Download] Download task created successfully");
-      } else {
-        // Web mode: use browser native download
-        console.log("[Download] Web mode - using presigned URL download");
-        const url = await GetPresignedDownloadURL(accountId, currentBucket, key, 300); // 5 min expiry
-
-        // Create temporary link and trigger download
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = defaultName;
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        console.log("[Download] Browser download initiated");
-      }
-    } catch (e) {
-      console.error("[Download] Error occurred:", e);
-      const message = e instanceof Error ? e.message : "下载失败";
-      setErrorMessage(message);
-      setErrorDialogOpen(true);
-    }
-  };
-
-  const [_copiedText, copyToClipboard] = useCopyToClipboard();
-
-  const handleCopyLink = async (key: string) => {
-    if (!accountId || !currentBucket) return;
-    try {
-      const url = await GetPresignedDownloadURL(accountId, currentBucket, key, 60);
-
-      copyToClipboard(url)
-        .then(() => {
-          // Show success toast
-          toast.success("链接已复制", {
-            description: "下载链接已复制到剪贴板",
-            duration: 2000,
-          });
-        })
-        .catch(() => {
-          setErrorMessage("复制失败，请手动复制链接");
-          setErrorDialogOpen(true);
-        });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "获取下载链接失败";
-      setErrorMessage(message);
-      setErrorDialogOpen(true);
-      console.error(e);
-    }
-  };
-
-  const handleDeleteObject = async () => {
-    if (!pendingDeleteObject) return;
-    try {
-      await objectsStore.deleteObject(pendingDeleteObject);
-    } finally {
-      setPendingDeleteObject(null);
-    }
-  };
-
-  const handlePreview = (key: string) => {
-    const target = objects.find((obj) => obj.key === key && !obj.isDir);
-    if (!target) {
-      toast.error("请选择可预览的文件");
-      return;
-    }
-    setPreviewObject(target);
-    setPreviewOpen(true);
-  };
-
-  // Upload
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { files } = e.target;
-    if (!files?.length || !accountId || !currentBucket) return;
-    await transfersStore.uploadFiles(Array.from(files), {
-      accountId,
-      bucket: currentBucket,
-      prefix,
-    });
-    e.target.value = "";
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (!accountId || !currentBucket) return;
-    const files = Array.from(e.dataTransfer?.files ?? []);
-    if (files.length) {
-      void transfersStore.uploadFiles(files, { accountId, bucket: currentBucket, prefix });
-    }
-  };
-
-  // Refresh
-  const handleRefresh = () => {
-    if (level === "buckets") {
-      void bucketsStore.refresh();
-    } else {
-      void objectsStore.refresh();
-    }
-  };
+  // Batch delete confirmation dialog state
+  const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
 
   // Render content based on view mode
   const renderContent = () => {
-    if (loading && filteredItems.length === 0) {
+    if (controller.loading && controller.filteredItems.length === 0) {
       return (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -413,24 +89,24 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       );
     }
 
-    if (filteredItems.length === 0) {
+    if (controller.filteredItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Folder className="h-12 w-12 text-muted-foreground/40" />
           <p className="mt-4 text-muted-foreground">
-            {hasActiveFilters
+            {controller.hasActiveFilters
               ? "没有匹配的项目"
-              : level === "buckets"
+              : controller.level === "buckets"
                 ? "暂无存储桶"
                 : "文件夹为空"}
           </p>
-          {hasActiveFilters && (
+          {controller.hasActiveFilters && (
             <Button
               variant="link"
               size="sm"
               onClick={() => {
-                setSearchTerm("");
-                setTypeFilter("all");
+                controller.setSearchTerm("");
+                controller.setTypeFilter("all");
               }}
             >
               清除过滤
@@ -440,20 +116,20 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       );
     }
 
-    if (level === "buckets") {
+    if (controller.level === "buckets") {
       return (
         <div
           className="grid gap-2"
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 120px))" }}
         >
-          {filteredItems.map((item) => (
+          {controller.filteredItems.map((item) => (
             <BucketItem
               key={(item as any).name}
               bucket={item as any}
               viewMode="grid"
-              onEnter={handleGoToBucket}
+              onEnter={controller.goToBucket}
               onSettings={onOpenBucketSettings}
-              onDelete={(name) => setPendingDeleteBucket(name)}
+              onDelete={(name) => actions.setPendingDeleteBucket(name)}
             />
           ))}
         </div>
@@ -461,62 +137,62 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     }
 
     // Objects view
-    if (viewMode === "list") {
+    if (controller.viewMode === "list") {
       return (
         <FileTable
-          data={filteredItems as ObjectModel[]} // Type safe because level is objects
-          prefix={prefix}
-          selectedKeys={selectedKeys}
-          onToggleSelect={objectsStore.toggleSelect}
-          onSelectAll={objectsStore.selectAll}
-          onClearSelection={objectsStore.clearSelection}
-          onEnterFolder={handleEnterFolder}
-          onPreview={handlePreview}
-          onDownload={handleDownload}
-          onCopyLink={handleCopyLink}
-          onDelete={(key) => setPendingDeleteObject(key)}
+          data={controller.filteredItems as ObjectModel[]}
+          prefix={controller.prefix}
+          selectedKeys={controller.selectedKeys}
+          onToggleSelect={controller.toggleSelect}
+          onSelectAll={controller.selectAll}
+          onClearSelection={controller.clearSelection}
+          onEnterFolder={controller.enterFolder}
+          onPreview={actions.handlePreview}
+          onDownload={actions.handleDownload}
+          onCopyLink={actions.handleCopyLink}
+          onDelete={(key) => actions.setPendingDeleteObject(key)}
         />
       );
     }
 
-    if (viewMode === "tree") {
+    if (controller.viewMode === "tree") {
       return (
         <TreeView
           accountId={accountId!}
-          bucket={currentBucket!}
-          initialPrefix={prefix}
-          selectedKeys={selectedKeys}
-          onToggleSelect={objectsStore.toggleSelect}
-          onSelectAll={objectsStore.selectAll}
-          onClearSelection={objectsStore.clearSelection}
-          onPreview={handlePreview}
-          onDownload={handleDownload}
-          onCopyLink={handleCopyLink}
-          onDelete={(key) => setPendingDeleteObject(key)}
-          onEnterFolder={handleEnterFolder}
+          bucket={controller.currentBucket!}
+          initialPrefix={controller.prefix}
+          selectedKeys={controller.selectedKeys}
+          onToggleSelect={controller.toggleSelect}
+          onSelectAll={controller.selectAll}
+          onClearSelection={controller.clearSelection}
+          onPreview={actions.handlePreview}
+          onDownload={actions.handleDownload}
+          onCopyLink={actions.handleCopyLink}
+          onDelete={(key) => actions.setPendingDeleteObject(key)}
+          onEnterFolder={controller.enterFolder}
         />
       );
     }
 
-    // Grid view (old renderItem loop)
+    // Grid view
     return (
       <div
         className="grid gap-2"
         style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 120px))" }}
       >
-        {filteredItems.map((item) => (
+        {controller.filteredItems.map((item) => (
           <FileItem
             key={(item as any).key}
             object={item as any}
-            prefix={prefix}
+            prefix={controller.prefix}
             viewMode="grid"
-            selected={selectedKeys.has((item as any).key)}
-            onToggleSelect={objectsStore.toggleSelect}
-            onEnterFolder={handleEnterFolder}
-            onPreview={handlePreview}
-            onDownload={handleDownload}
-            onCopyLink={handleCopyLink}
-            onDelete={(key) => setPendingDeleteObject(key)}
+            selected={controller.selectedKeys.has((item as any).key)}
+            onToggleSelect={controller.toggleSelect}
+            onEnterFolder={controller.enterFolder}
+            onPreview={actions.handlePreview}
+            onDownload={actions.handleDownload}
+            onCopyLink={actions.handleCopyLink}
+            onDelete={(key) => actions.setPendingDeleteObject(key)}
           />
         ))}
       </div>
@@ -527,302 +203,74 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     <TooltipProvider>
       <>
         <input
-          ref={fileInputRef}
+          ref={actions.fileInputRef}
           type="file"
           className="hidden"
           multiple
-          onChange={handleFilesSelected}
+          onChange={actions.handleFilesSelected}
         />
         <input
-          ref={folderInputRef}
+          ref={actions.folderInputRef}
           type="file"
           className="hidden"
           multiple
-          onChange={handleFilesSelected}
+          onChange={actions.handleFilesSelected}
         />
 
         <Card className={cn("flex h-full flex-col", className)}>
           {/* Unified Toolbar */}
-          <div className="flex h-14 items-center border-b border-border/40 px-4">
-            {/* Breadcrumbs - 2/3 Width */}
-            <div className="w-1/2 overflow-x-auto whitespace-nowrap scrollbar-none pr-4 border-r border-border/10">
-              <div className="flex items-center text-sm font-medium h-full">
-                {level === "search" ? (
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Search className="h-4 w-4" />
-                    高级搜索
-                  </span>
-                ) : (
-                  <Breadcrumb>
-                    <BreadcrumbList className="flex-nowrap">
-                      {breadcrumbs.map((crumb, i) => {
-                        const isLast = i === breadcrumbs.length - 1;
-                        return (
-                          <React.Fragment key={i}>
-                            <BreadcrumbItem className="whitespace-nowrap">
-                              {isLast ? (
-                                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-                              ) : (
-                                <BreadcrumbLink asChild>
-                                  <button
-                                    type="button"
-                                    onClick={crumb.onClick}
-                                    className="hover:text-foreground transition-colors"
-                                  >
-                                    {crumb.label}
-                                  </button>
-                                </BreadcrumbLink>
-                              )}
-                            </BreadcrumbItem>
-                            {!isLast && <BreadcrumbSeparator />}
-                          </React.Fragment>
-                        );
-                      })}
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                )}
-              </div>
-            </div>
+          <BrowserToolbar
+            level={controller.level}
+            breadcrumbs={controller.breadcrumbs}
+            searchTerm={controller.searchTerm}
+            onSearchTermChange={controller.setSearchTerm}
+            onOpenAdvancedSearch={() => {
+              if (accountId) {
+                searchStore.setContext(accountId, controller.currentBucket ?? undefined);
+              }
+              controller.setLevel("search");
+              controller.setSearchTerm("");
+            }}
+            onCloseSearch={controller.goToRoot}
+            viewMode={controller.viewMode}
+            onViewModeChange={controller.setViewMode}
+            isFromCache={controller.isFromCache}
+            lastSync={controller.lastSync}
+            selectedKeys={controller.selectedKeys}
+            canCreateSymlink={controller.canCreateSymlink}
+            uploading={actions.uploading}
+            onUploadClick={() => actions.fileInputRef.current?.click()}
+            onCreateBucketClick={() => actions.setCreateBucketOpen(true)}
+            onSymlinkClick={() => actions.setSymlinkDialogOpen(true)}
+            onDownloadClick={() => actions.setDownloadDialogOpen(true)}
+            onMoveCopyClick={() => actions.setMoveCopyDialogOpen(true)}
+            onDeleteSelectedClick={() => setDeleteSelectedDialogOpen(true)}
+          />
 
-            {/* Right Actions Area - 1/3 Width */}
-            <div className="w-1/2 h-full pl-4 flex items-center gap-2">
-              {level === "search" ? (
-                <div className="w-full flex justify-end">
-                  <Button variant="ghost" size="sm" className="gap-1" onClick={handleGoToRoot}>
-                    <X className="h-4 w-4" />
-                    关闭搜索
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  {/* Search + View */}
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    {/* Search Bar - Flex to fill */}
-                    <div className="relative flex-1 min-w-[180px]">
-                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder={level === "buckets" ? "搜索存储桶..." : "搜索文件..."}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-8 pl-8 pr-8 w-full"
-                      />
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-                        {searchTerm ? (
-                          <button
-                            type="button"
-                            onClick={() => setSearchTerm("")}
-                            className="p-1 text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        ) : (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => {
-                                  setLevel("search");
-                                  setSearchTerm("");
-                                }}
-                              >
-                                <SlidersHorizontal className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>高级搜索</TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Offline Indicator */}
-                    {(level === "buckets" ? bucketsIsFromCache : objectsIsFromCache) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge
-                            variant="default"
-                            className="h-8 gap-1 px-2 whitespace-nowrap shrink-0"
-                          >
-                            <WifiOff className="h-3.5 w-3.5" />
-                            <span className="hidden xl:inline">离线缓存</span>
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          数据来自离线缓存 · 上次同步:{" "}
-                          {new Date(
-                            (level === "buckets" ? bucketsLastSync : objectsLastSync) || 0,
-                          ).toLocaleString()}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-
-                    {/* View Mode */}
-                    <div className="flex items-center rounded-md border border-border/40 bg-background shrink-0">
-                      <Button
-                        variant={viewMode === "list" ? "secondary" : "ghost"}
-                        size="icon"
-                        className="h-8 w-8 rounded-r-none"
-                        onClick={() => handleViewModeChange("list")}
-                        title="平铺列表"
-                      >
-                        <List className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === "tree" ? "secondary" : "ghost"}
-                        size="icon"
-                        className="h-8 w-8 rounded-none border-x border-border/20"
-                        onClick={() => handleViewModeChange("tree")}
-                        title="树形视图"
-                      >
-                        <FolderTree className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === "grid" ? "secondary" : "ghost"}
-                        size="icon"
-                        className="h-8 w-8 rounded-l-none"
-                        onClick={() => handleViewModeChange("grid")}
-                        title="网格视图"
-                      >
-                        <LayoutGrid className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex justify-end gap-2 shrink-0">
-                    {level === "objects" && canCreateSymlink && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1"
-                        onClick={() => setSymlinkDialogOpen(true)}
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                        <span className="hidden lg:inline truncate">软链接</span>
-                      </Button>
-                    )}
-                    {level === "objects" && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-8 gap-1"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                      >
-                        {uploading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Upload className="h-3.5 w-3.5" />
-                        )}
-                        <span className="hidden lg:inline truncate">上传</span>
-                      </Button>
-                    )}
-                    {selectedKeys.size > 0 && level === "objects" ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                            <span className="text-sm">已选 {selectedKeys.size} 项</span>
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-48 p-1" align="end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-start gap-2 h-9"
-                            onClick={() => {
-                              const targets = objects.filter((o) => selectedKeys.has(o.key));
-                              if (targets.length === 0) {
-                                toast.error("请选择至少一个项目");
-                                return;
-                              }
-
-                              if (isBridgeAvailable()) {
-                                // Desktop mode: Use DownloadOptionsDialog
-                                setDownloadDialogOpen(true);
-                              } else {
-                                toast.error("Web 端暂不支持批量下载");
-                              }
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                            <span>下载</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-start gap-2 h-9"
-                            onClick={() => {
-                              setMoveCopyDialogOpen(true);
-                            }}
-                          >
-                            <Move className="h-4 w-4" />
-                            <span>移动</span>
-                          </Button>
-                          <div className="h-px bg-border my-1" />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-start gap-2 h-9 text-destructive hover:text-destructive"
-                            onClick={() => {
-                              const count = selectedKeys.size;
-                              if (count === 0) return;
-
-                              const confirmed = confirm(
-                                `确认要删除选中的 ${count} 个项目吗？\n\n此操作不可撤销！`,
-                              );
-
-                              if (confirmed) {
-                                void objectsStore.deleteSelected();
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span>删除</span>
-                          </Button>
-                        </PopoverContent>
-                      </Popover>
-                    ) : null}
-                    {level === "buckets" && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="gap-1 h-8"
-                        onClick={() => setCreateBucketOpen(true)}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span className="truncate">新建桶</span>
-                      </Button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {level === "search" ? (
+          {controller.level === "search" ? (
             <div className="flex-1 overflow-y-auto p-4">
-              <SearchPanel buckets={buckets.map((b) => b.name)} />
+              <SearchPanel buckets={controller.buckets.map((b) => b.name)} />
             </div>
           ) : (
             <>
               {/* Error */}
-              {error && <p className="px-4 pt-2 text-sm text-destructive">{error}</p>}
+              {controller.error && (
+                <p className="px-4 pt-2 text-sm text-destructive">{controller.error}</p>
+              )}
 
-              {/* Content with context menu on background */}
+              {/* Content with context menu */}
               <ContextMenu>
                 <ContextMenuTrigger asChild>
                   <div
                     className="relative flex-1 overflow-auto"
                     onDragOver={(e) => {
                       e.preventDefault();
-                      if (level === "objects") setDragActive(true);
+                      if (controller.level === "objects") actions.setDragActive(true);
                     }}
-                    onDragLeave={() => setDragActive(false)}
-                    onDrop={handleDrop}
+                    onDragLeave={() => actions.setDragActive(false)}
+                    onDrop={actions.handleDrop}
                   >
-                    {dragActive && (
+                    {actions.dragActive && (
                       <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/90">
                         <div className="text-center">
                           <Upload className="mx-auto h-10 w-10 text-primary" />
@@ -833,14 +281,16 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
 
                     {renderContent()}
 
-                    {level === "objects" && truncated && (
+                    {controller.level === "objects" && controller.truncated && (
                       <div className="mt-4 text-center">
                         <Button
                           variant="outline"
                           onClick={() => objectsStore.loadMore()}
-                          disabled={loadingMore}
+                          disabled={controller.loadingMore}
                         >
-                          {loadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {controller.loadingMore ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
                           加载更多
                         </Button>
                       </div>
@@ -848,25 +298,25 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  {level === "buckets" ? (
-                    <ContextMenuItem onClick={() => setCreateBucketOpen(true)}>
+                  {controller.level === "buckets" ? (
+                    <ContextMenuItem onClick={() => actions.setCreateBucketOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" />
                       新建存储桶
                     </ContextMenuItem>
                   ) : (
                     <>
-                      <ContextMenuItem onClick={() => fileInputRef.current?.click()}>
+                      <ContextMenuItem onClick={() => actions.fileInputRef.current?.click()}>
                         <Upload className="mr-2 h-4 w-4" />
                         上传文件
                       </ContextMenuItem>
-                      <ContextMenuItem onClick={() => folderInputRef.current?.click()}>
+                      <ContextMenuItem onClick={() => actions.folderInputRef.current?.click()}>
                         <FolderPlus className="mr-2 h-4 w-4" />
                         上传文件夹
                       </ContextMenuItem>
                     </>
                   )}
                   <ContextMenuSeparator />
-                  <ContextMenuItem onClick={handleRefresh}>
+                  <ContextMenuItem onClick={controller.refresh}>
                     <RefreshCcw className="mr-2 h-4 w-4" />
                     刷新
                   </ContextMenuItem>
@@ -877,106 +327,132 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         </Card>
 
         <FilePreviewModal
-          open={previewOpen}
+          open={actions.previewOpen}
           onOpenChange={(openState) => {
-            setPreviewOpen(openState);
-            if (!openState) {
-              setPreviewObject(null);
-            }
+            actions.setPreviewOpen(openState);
           }}
           accountId={accountId}
-          bucket={currentBucket ?? undefined}
-          object={previewObject ?? undefined}
+          bucket={controller.currentBucket ?? undefined}
+          object={actions.previewObject ?? undefined}
         />
 
         {/* Create Bucket Dialog */}
         <CreateBucketDialog
-          open={createBucketOpen}
-          onOpenChange={setCreateBucketOpen}
+          open={actions.createBucketOpen}
+          onOpenChange={actions.setCreateBucketOpen}
           accountId={accountId}
-          defaultRegion={activeAccount?.region || "us-east-1"}
-          isOSSProvider={isOSSProvider}
-          isCOSProvider={isCOSProvider}
-          onError={(msg) => {
-            setErrorMessage(msg);
-            setErrorDialogOpen(true);
+          defaultRegion={controller.activeAccount?.region || "us-east-1"}
+          isOSSProvider={controller.activeAccount?.provider?.toLowerCase() === "oss"}
+          isCOSProvider={controller.activeAccount?.provider?.toLowerCase() === "cos"}
+          onError={(_message) => {
+            actions.setErrorDialogOpen(true);
           }}
         />
 
         {/* Delete Bucket Dialog */}
         <AlertDialog
-          open={!!pendingDeleteBucket}
-          onOpenChange={(o) => !o && setPendingDeleteBucket(null)}
+          open={!!actions.pendingDeleteBucket}
+          onOpenChange={(o) => !o && actions.setPendingDeleteBucket(null)}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>删除存储桶</AlertDialogTitle>
               <AlertDialogDescription>
-                确定删除 "{pendingDeleteBucket}"？此操作不可恢复。
+                确定删除 "{actions.pendingDeleteBucket}"？此操作不可恢复。
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteBucket}>删除</AlertDialogAction>
+              <AlertDialogAction onClick={actions.handleDeleteBucket}>删除</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
         {/* Delete Object Dialog */}
         <AlertDialog
-          open={!!pendingDeleteObject}
-          onOpenChange={(o) => !o && setPendingDeleteObject(null)}
+          open={!!actions.pendingDeleteObject}
+          onOpenChange={(o) => !o && actions.setPendingDeleteObject(null)}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>删除文件</AlertDialogTitle>
               <AlertDialogDescription>
-                确定删除 "{pendingDeleteObject}"？此操作不可恢复。
+                确定删除 "{actions.pendingDeleteObject}"？此操作不可恢复。
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteObject}>删除</AlertDialogAction>
+              <AlertDialogAction onClick={actions.handleDeleteObject}>删除</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
         {/* Symlink Dialog */}
         <SymlinkDialog
-          open={symlinkDialogOpen}
-          onOpenChange={setSymlinkDialogOpen}
+          open={actions.symlinkDialogOpen}
+          onOpenChange={actions.setSymlinkDialogOpen}
           accountId={accountId}
-          bucket={currentBucket ?? undefined}
-          prefix={prefix}
-          onError={(msg) => {
-            setErrorMessage(msg);
-          }}
+          bucket={controller.currentBucket ?? undefined}
+          prefix={controller.prefix}
+          onError={() => {}}
         />
 
         {/* Download Options Dialog */}
         <DownloadOptionsDialog
-          open={downloadDialogOpen}
-          onOpenChange={setDownloadDialogOpen}
-          objects={objects.filter((o) => selectedKeys.has(o.key))}
-          prefix={prefix}
+          open={actions.downloadDialogOpen}
+          onOpenChange={actions.setDownloadDialogOpen}
+          objects={controller.objects.filter((o) => controller.selectedKeys.has(o.key))}
+          prefix={controller.prefix}
         />
 
         {/* Move/Copy Dialog */}
         <MoveCopyDialog
-          open={moveCopyDialogOpen}
-          onOpenChange={setMoveCopyDialogOpen}
+          open={actions.moveCopyDialogOpen}
+          onOpenChange={actions.setMoveCopyDialogOpen}
           defaultMode="move"
         />
 
         {/* Error Dialog */}
-        <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <AlertDialog open={actions.errorDialogOpen} onOpenChange={actions.setErrorDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>操作失败</AlertDialogTitle>
-              <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+              <AlertDialogDescription>{actions.errorMessage}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setErrorDialogOpen(false)}>确定</AlertDialogAction>
+              <AlertDialogAction onClick={() => actions.setErrorDialogOpen(false)}>
+                确定
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Batch Delete Confirmation Dialog */}
+        <AlertDialog open={deleteSelectedDialogOpen} onOpenChange={setDeleteSelectedDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>批量删除</AlertDialogTitle>
+              <AlertDialogDescription>
+                确定要删除选中的 {controller.selectedKeys.size} 个项目吗？此操作不可恢复。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  try {
+                    await objectsStore.deleteSelected();
+                    toast.success(`已删除 ${controller.selectedKeys.size} 个项目`);
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : "删除失败";
+                    toast.error(message);
+                  } finally {
+                    setDeleteSelectedDialogOpen(false);
+                  }
+                }}
+              >
+                删除
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -173,7 +173,7 @@ export function FileTable({
                       className={cn(
                         "absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none",
                         "hover:bg-primary/30",
-                        header.column.getIsResizing() && "bg-primary/50"
+                        header.column.getIsResizing() && "bg-primary/50",
                       )}
                     />
                   )}
@@ -226,7 +226,9 @@ export function FileTable({
                               key={cell.id}
                               className="py-2 px-2 truncate"
                               style={{
-                                flex: isActionsColumn ? "1 0 auto" : `0 0 ${cell.column.getSize()}px`,
+                                flex: isActionsColumn
+                                  ? "1 0 auto"
+                                  : `0 0 ${cell.column.getSize()}px`,
                                 minWidth: cell.column.columnDef.minSize ?? 50,
                               }}
                             >
