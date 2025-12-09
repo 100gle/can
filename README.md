@@ -46,3 +46,66 @@ pnpm --dir frontend build && wails build
 - **[Implementation Guide](docs/Implementation_Guide.md)** - 代码结构、关键接口和实现指南
 - **[Features](docs/features.md)** - 完整的功能规划文档
 - **[Specifications](docs/spec/)** - 各功能模块的详细规格
+
+
+## Architecture
+
+![Architecture Diagram](docs/architecture.png)
+
+```mermaid
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ User["User"]
+ subgraph Frontend["Frontend Layer<br>"]
+        Desktop["Desktop Application<br>(Powered by Wails)"]
+  end
+ subgraph Backend["Backend Controller"]
+        Config["App Config<br>(Module)"]
+        Logic["App Data or<br>Other Business Logic<br>(Module)"]
+        S3Service["S3 Service<br>(Module)"]
+  end
+ subgraph UnifiedInterface["Unified Interface Layer"]
+        AWSSDK["AWS S3 SDK<br>(Standard Interface)"]
+        VendorSDK["Vendor Specific Features<br>(Custom SDK Powered)"]
+  end
+ subgraph Providers["Cloud Storage Providers"]
+        CF["Cloudflare R2"]
+        AliOSS["阿里云 OSS"]
+        QiNiu["七牛云"]
+        TencentCOS["腾讯云 COS"]
+        AWSS3["AWS S3"]
+        Minio["Minio"]
+        Other["Other S3 Compatible<br>Services"]
+  end
+    User <-- Interact --> Desktop
+    Desktop <-- API Calls --> Backend
+    %% Config -. Configuration .- S3Service
+    %% Logic -. Business Logic .-> S3Service
+    S3Service -- Uses --> UnifiedInterface
+    AWSSDK -- S3 Compatible API --> CF & AliOSS & QiNiu & TencentCOS & Minio & Other
+    AWSSDK -- Native API --> AWSS3
+    VendorSDK -. Vendor Specific Features .-> CF & AliOSS & QiNiu & TencentCOS & Other
+
+     User:::userStyle
+     Desktop:::frontendStyle
+     Config:::backendStyle
+     Logic:::backendStyle
+     S3Service:::backendStyle
+     AWSSDK:::interfaceStyle
+     VendorSDK:::interfaceStyle
+     CF:::providerStyle
+     AliOSS:::providerStyle
+     QiNiu:::providerStyle
+     TencentCOS:::providerStyle
+     AWSS3:::providerStyle
+     Minio:::providerStyle
+     Other:::providerStyle
+    classDef userStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    classDef frontendStyle fill:#fff9c4,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef backendStyle fill:#f5f5f5,stroke:#616161,stroke-width:2px,color:#000
+    classDef interfaceStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef providerStyle fill:#ffe0b2,stroke:#e64a19,stroke-width:2px,color:#000
+```
