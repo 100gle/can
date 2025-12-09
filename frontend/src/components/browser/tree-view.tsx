@@ -370,7 +370,11 @@ function TreeNode({
 }
 
 // Helper functions
-async function loadPrefix(accountId: string, bucket: string, prefix: string): Promise<TreeObject[]> {
+async function loadPrefix(
+  accountId: string,
+  bucket: string,
+  prefix: string,
+): Promise<TreeObject[]> {
   try {
     const items = await objectsStore.listChildren({
       accountId,

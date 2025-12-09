@@ -496,6 +496,29 @@ func (s *stubObjectDriver) DeleteObject(_ context.Context, bucket, key string) e
 	return nil
 }
 
+func (s *stubObjectDriver) DeleteObjects(_ context.Context, bucket string, keys []string) (providers.DeleteObjectsResult, error) {
+	var result providers.DeleteObjectsResult
+	for _, key := range keys {
+		s.deleteCalls = append(s.deleteCalls, deleteCall{bucket: bucket, key: key})
+		if err, ok := s.deleteErrMap[key]; ok {
+			result.Errors = append(result.Errors, providers.DeleteObjectError{
+				Key:     key,
+				Code:    "DeleteError",
+				Message: err.Error(),
+			})
+		} else if s.deleteErr != nil {
+			result.Errors = append(result.Errors, providers.DeleteObjectError{
+				Key:     key,
+				Code:    "DeleteError",
+				Message: s.deleteErr.Error(),
+			})
+		} else {
+			result.Deleted = append(result.Deleted, key)
+		}
+	}
+	return result, nil
+}
+
 func (s *stubObjectDriver) CopyObject(_ context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error {
 	s.copyCalls = append(s.copyCalls, copyCall{
 		sourceBucket: sourceBucket,

@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { EventsEmit } from "@wailsjs/runtime/runtime";
 import { create } from "zustand";
 
@@ -64,7 +64,7 @@ export const useAppStatusStore = create<AppStatusStore>((set, get) => ({
     }));
 
     // Notify backend via Wails EventsEmit only if status changed
-    if (previous !== online && isBridgeAvailable()) {
+    if (previous !== online && isDesktopMode()) {
       try {
         EventsEmit("app:network", {
           isOnline: online,

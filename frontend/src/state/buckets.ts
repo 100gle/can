@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { offlineManager } from "@/lib/offline";
 import { usePreferencesStore } from "@/state/preferences";
 import { CreateBucket, DeleteBucket, ListBuckets } from "@wailsjs/go/app/App";
@@ -78,7 +78,7 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
       selectedBucket: switchingAccount ? undefined : get().selectedBucket,
       isFromCache: false,
     });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
       let buckets: BucketModel[] = [];
@@ -142,7 +142,7 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
       cosMultiAz: Boolean(payload.cosMultiAz),
     };
     set({ creating: true, error: undefined });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         await CreateBucket(targetAccount, sanitized);
@@ -172,7 +172,7 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
     const targetAccount = accountId || get().accountId;
     if (!targetAccount || !name) return;
     set((state) => ({ deleting: { ...state.deleting, [name]: true }, error: undefined }));
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         await DeleteBucket(targetAccount, name);

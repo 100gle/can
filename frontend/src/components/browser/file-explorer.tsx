@@ -10,23 +10,23 @@ import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
 import { SearchPanel } from "@/components/search/search-panel";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFileBrowserActions } from "@/hooks/useFileBrowserActions";
@@ -36,7 +36,7 @@ import { bucketsStore } from "@/state/buckets";
 import { objectsStore, type ObjectModel } from "@/state/objects";
 import { searchStore } from "@/state/search";
 import { Folder, FolderPlus, Loader2, RefreshCcw, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { BrowserToolbar } from "./browser-toolbar";
 import { BucketItem } from "./bucket-item";
@@ -67,13 +67,6 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       }
     },
   });
-
-  // Set folder input webkitdirectory
-  useEffect(() => {
-    if (actions.folderInputRef.current) {
-      actions.folderInputRef.current.setAttribute("webkitdirectory", "true");
-    }
-  }, []);
 
   // Batch delete confirmation dialog state
   const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
@@ -202,21 +195,6 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
   return (
     <TooltipProvider>
       <>
-        <input
-          ref={actions.fileInputRef}
-          type="file"
-          className="hidden"
-          multiple
-          onChange={actions.handleFilesSelected}
-        />
-        <input
-          ref={actions.folderInputRef}
-          type="file"
-          className="hidden"
-          multiple
-          onChange={actions.handleFilesSelected}
-        />
-
         <Card className={cn("flex h-full flex-col", className)}>
           {/* Unified Toolbar */}
           <BrowserToolbar
@@ -239,7 +217,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             selectedKeys={controller.selectedKeys}
             canCreateSymlink={controller.canCreateSymlink}
             uploading={actions.uploading}
-            onUploadClick={() => actions.fileInputRef.current?.click()}
+            onUploadClick={actions.handleUploadClick}
             onCreateBucketClick={() => actions.setCreateBucketOpen(true)}
             onSymlinkClick={() => actions.setSymlinkDialogOpen(true)}
             onDownloadClick={() => actions.setDownloadDialogOpen(true)}
@@ -261,24 +239,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
               {/* Content with context menu */}
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <div
-                    className="relative flex-1 overflow-auto"
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      if (controller.level === "objects") actions.setDragActive(true);
-                    }}
-                    onDragLeave={() => actions.setDragActive(false)}
-                    onDrop={actions.handleDrop}
-                  >
-                    {actions.dragActive && (
-                      <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/90">
-                        <div className="text-center">
-                          <Upload className="mx-auto h-10 w-10 text-primary" />
-                          <p className="mt-2 font-medium">释放以上传</p>
-                        </div>
-                      </div>
-                    )}
-
+                  <div className="relative flex-1 overflow-auto">
                     {renderContent()}
 
                     {controller.level === "objects" && controller.truncated && (
@@ -305,11 +266,11 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                     </ContextMenuItem>
                   ) : (
                     <>
-                      <ContextMenuItem onClick={() => actions.fileInputRef.current?.click()}>
+                      <ContextMenuItem onClick={actions.handleUploadClick}>
                         <Upload className="mr-2 h-4 w-4" />
                         上传文件
                       </ContextMenuItem>
-                      <ContextMenuItem onClick={() => actions.folderInputRef.current?.click()}>
+                      <ContextMenuItem onClick={actions.handleUploadFolder}>
                         <FolderPlus className="mr-2 h-4 w-4" />
                         上传文件夹
                       </ContextMenuItem>

@@ -172,25 +172,49 @@ func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket stri
 	}
 	result.Total = len(keys)
 	driver := client.Objects()
-	// TODO: Check if driver supports DeleteObjects (batch)
-	for _, key := range keys {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
+
+	// Use the batch DeleteObjects API for better performance
+	driverResult, err := driver.DeleteObjects(ctx, bucket, keys)
+	if err != nil {
+		// Fallback to individual delete on error
+		for _, key := range keys {
+			key = strings.TrimSpace(key)
+			if key == "" {
+				continue
+			}
+			resource := fmt.Sprintf("%s/%s", bucket, key)
+			if err := driver.DeleteObject(ctx, bucket, key); err != nil {
+				result.Failed = append(result.Failed, BatchOperationFailure{
+					Bucket: bucket,
+					Key:    key,
+					Error:  err.Error(),
+				})
+				s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, err, mutationContext{})
+			} else {
+				result.Succeeded++
+				s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, nil, mutationContext{})
+			}
 		}
-		resource := fmt.Sprintf("%s/%s", bucket, key)
-		if err := driver.DeleteObject(ctx, bucket, key); err != nil {
-			result.Failed = append(result.Failed, BatchOperationFailure{
-				Bucket: bucket,
-				Key:    key,
-				Error:  err.Error(),
-			})
-			s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, err, mutationContext{})
-		} else {
-			result.Succeeded++
-			s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, nil, mutationContext{})
-		}
+		return result, nil
 	}
+
+	// Collect results from batch operation
+	result.Succeeded = len(driverResult.Deleted)
+	for _, delErr := range driverResult.Errors {
+		result.Failed = append(result.Failed, BatchOperationFailure{
+			Bucket: bucket,
+			Key:    delErr.Key,
+			Error:  delErr.Message,
+		})
+	}
+
+	// Log the batch operation
+	if len(result.Failed) > 0 {
+		s.logMutation(ctx, "BatchDeleteObjects", fmt.Sprintf("%s: %d/%d failed", bucket, len(result.Failed), result.Total), accountID, fmt.Errorf("%d deletions failed", len(result.Failed)), mutationContext{})
+	} else {
+		s.logMutation(ctx, "BatchDeleteObjects", fmt.Sprintf("%s: %d objects", bucket, result.Succeeded), accountID, nil, mutationContext{})
+	}
+
 	return result, nil
 }
 

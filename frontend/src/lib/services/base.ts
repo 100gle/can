@@ -7,7 +7,7 @@
  * - Toast notification integration
  */
 
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { showError, showLoading, showSuccess } from "@/lib/toast";
 import { toast } from "sonner";
 import { ServiceError, ServiceErrorCode, type ServiceResult, type ToastConfig } from "./types";
@@ -19,8 +19,8 @@ export abstract class BaseService {
   /**
    * Check if Wails bridge is available (desktop mode)
    */
-  protected isBridgeAvailable(): boolean {
-    return isBridgeAvailable();
+  protected isDesktopMode(): boolean {
+    return isDesktopMode();
   }
 
   /**
@@ -31,7 +31,7 @@ export abstract class BaseService {
     config: ToastConfig = {},
   ): Promise<ServiceResult<T>> {
     // Check bridge availability
-    if (!this.isBridgeAvailable()) {
+    if (!this.isDesktopMode()) {
       const errorMsg = "此功能仅在桌面应用中可用";
       if (config.error !== false) {
         showError(errorMsg);
@@ -91,7 +91,7 @@ export abstract class BaseService {
    */
   protected async callSilent<T>(apiCall: () => Promise<T>): Promise<ServiceResult<T>> {
     // Check bridge availability
-    if (!this.isBridgeAvailable()) {
+    if (!this.isDesktopMode()) {
       return {
         success: false,
         error: "此功能仅在桌面应用中可用",

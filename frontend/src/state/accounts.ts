@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { accountService } from "@/lib/services";
 import {
   ActiveAccount,
@@ -183,7 +183,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
   },
   refresh: async () => {
     set({ loading: true, error: undefined });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       let accounts: AccountModel[] = [];
       let providers: ProviderMetadata[] = [];
@@ -231,7 +231,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
   },
   setActiveAccount: async (accountId: string) => {
     if (get().activeAccountId === accountId) return;
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       set({ loading: true, error: undefined });
       if (useBridge) {
@@ -252,7 +252,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     }
   },
   createAccount: async (input: AccountFormInput) => {
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     const accessKey = input.accessKeyId?.trim();
     const secret = input.secretAccessKey?.trim();
     const tag = input.tag?.trim() ?? "";
@@ -306,7 +306,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     }
   },
   testConnection: async (accountId: string) => {
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     set((state) => ({
       connectionTests: {
         ...state.connectionTests,
@@ -356,7 +356,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
       useSSL: typeof input.useSSL === "boolean" ? input.useSSL : true,
       port: input.port || 443,
     };
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     if (!useBridge) {
       return {
         accountId: "",
@@ -369,7 +369,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     return TestAccountConnectionPreview(payload);
   },
   updateAccount: async (accountId: string, input: AccountFormInput) => {
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     set({ loading: true, error: undefined });
     try {
       let updated: AccountModel | null = null;
@@ -431,7 +431,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     }
   },
   deleteAccount: async (accountId: string) => {
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     set({ loading: true, error: undefined });
     try {
       if (useBridge) {

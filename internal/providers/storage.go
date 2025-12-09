@@ -95,6 +95,7 @@ type ObjectDriver interface {
 	UploadObject(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error
 	DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error)
 	DeleteObject(ctx context.Context, bucket, key string) error
+	DeleteObjects(ctx context.Context, bucket string, keys []string) (DeleteObjectsResult, error)
 	CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error
 	HeadObject(ctx context.Context, bucket, key string) (ObjectDescriptor, error)
 	PresignURL(ctx context.Context, input PresignRequest) (string, error)
@@ -113,6 +114,19 @@ type ObjectDriver interface {
 	PutObjectRetention(ctx context.Context, input PutObjectRetentionInput) error
 	GetObjectLegalHold(ctx context.Context, bucket, key, versionID string) (ObjectLegalHoldState, error)
 	PutObjectLegalHold(ctx context.Context, input PutObjectLegalHoldInput) error
+}
+
+// DeleteObjectsResult summarises a batch delete operation.
+type DeleteObjectsResult struct {
+	Deleted []string            `json:"deleted"`
+	Errors  []DeleteObjectError `json:"errors"`
+}
+
+// DeleteObjectError represents a single failed deletion in a batch.
+type DeleteObjectError struct {
+	Key     string `json:"key"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // ObjectMetadataUpdate describes metadata/content type/storage class changes.

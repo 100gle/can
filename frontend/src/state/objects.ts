@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { offlineManager } from "@/lib/offline";
 import { usePreferencesStore } from "@/state/preferences";
 import { transfersStore } from "@/state/transfers";
@@ -193,7 +193,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       truncated: false,
       isFromCache: false,
     });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
       let objects: ObjectModel[] = [];
@@ -270,7 +270,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     const { accountId, bucket, prefix, nextMarker, truncated } = get();
     if (!accountId || !bucket || !truncated || !nextMarker) return;
     set({ loadingMore: true, error: undefined });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const { delimiter } = get();
@@ -314,7 +314,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       throw new Error("对象 Key 不能为空");
     }
     set({ uploading: true, error: undefined });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const result = await offlineManager.uploadObject({
@@ -363,7 +363,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       pendingKeys: { ...state.pendingKeys, [key]: "downloading" },
       error: undefined,
     }));
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const task = await DownloadObject(accountId, bucket, key, savePath);
@@ -393,7 +393,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       pendingKeys: { ...state.pendingKeys, [key]: "deleting" },
       error: undefined,
     }));
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       let shouldRemove = false;
       const target = get().objects.find((object) => object.key === key);
@@ -445,7 +445,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     if (!accountId || !bucket) {
       return [];
     }
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     if (offlineEnabled) {
       const result = await offlineManager.listObjects(
@@ -519,7 +519,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   copyObject: async (sourceKey: string, targetBucket: string, targetKey: string) => {
     const { accountId, bucket } = get();
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     await CopyObject(accountId, bucket, sourceKey, targetBucket, targetKey);
     await get().refresh();
   },
@@ -527,7 +527,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   renameObject: async (oldKey: string, newKey: string) => {
     const { accountId, bucket } = get();
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     const target = get().objects.find((object) => object.key === oldKey);
     const versionToken = target?.etag || target?.lastModified || undefined;
     const result = await offlineManager.renameObject({
@@ -549,7 +549,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   moveObjects: async (requests: ObjectModels.MoveObjectRequest[]) => {
     const { accountId } = get();
     if (!accountId) throw new Error("请选择账户");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     const execution = await offlineManager.moveObjects({
       accountId,
       requests,
@@ -567,7 +567,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   createFolder: async (folderName: string) => {
     const { accountId, bucket, prefix } = get();
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     const folderPrefix = prefix + folderName.replace(/\/$/, "") + "/";
     const result = await offlineManager.createFolder({
       accountId,
@@ -587,14 +587,14 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   getObjectAttributes: async (key: string) => {
     const { accountId, bucket } = get();
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     return await GetObjectAttributes(accountId, bucket, key);
   },
 
   updateObjectAttributes: async (patch: ObjectModels.ObjectAttributesPatch) => {
     const { accountId } = get();
     if (!accountId) throw new Error("请选择账户");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     const result = await UpdateObjectAttributes(accountId, patch);
     await get().refresh();
     return result;
@@ -603,7 +603,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   batchUpdateAttributes: async (patches: ObjectModels.ObjectAttributesPatch[]) => {
     const { accountId } = get();
     if (!accountId) throw new Error("请选择账户");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     const result = await BatchUpdateObjectAttributes(accountId, patches);
     await get().refresh();
     return result;
@@ -613,10 +613,16 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   downloadBatch: async (input: ObjectModels.DownloadBatchInput) => {
     const { accountId } = get();
     if (!accountId) throw new Error("请选择账户");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
-    const task = await DownloadBatch(accountId, input);
-    if (task?.id) {
-      await transfersStore.syncBackendTasks();
+    if (isDesktopMode()) {
+      // Desktop mode: use backend batch download
+      const task = await DownloadBatch(accountId, input);
+      if (task?.id) {
+        await transfersStore.syncBackendTasks();
+      }
+    } else {
+      // Browser mode: fallback to presigned URL downloads
+      const keys = input.entries?.map((e) => e.key) ?? [];
+      await transfersStore.downloadFiles(keys, { accountId, bucket: input.bucket });
     }
   },
 
@@ -624,7 +630,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   deleteSelected: async () => {
     const { accountId, bucket, selectedKeys } = get();
     if (!accountId || !bucket) throw new Error("请选择 Bucket");
-    if (!isBridgeAvailable()) throw new Error("Bridge 未就绪");
+    if (!isDesktopMode()) throw new Error("Bridge 未就绪");
     if (selectedKeys.size === 0) return;
 
     set({ selecting: true, error: undefined });

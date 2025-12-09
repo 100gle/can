@@ -11,7 +11,8 @@ import { SnapshotPanel } from "@/components/buckets/snapshot-panel";
 import { VersioningPanel } from "@/components/buckets/versioning-panel";
 import { WebsitePanel } from "@/components/buckets/website-panel";
 import { Button } from "@/components/ui/button";
-import { accountsStore, useAccountsStore, type ProviderCapability } from "@/state/accounts";
+import { useCapabilities, type ProviderCapability } from "@/hooks/useCapabilities";
+import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { bucketConfigStore, type BucketFeature } from "@/state/bucketConfig";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -31,19 +32,19 @@ const FEATURE_CAPABILITY_IDS: Record<BucketFeature, string> = {
 export const BucketSettingsPage = () => {
   const navigate = useNavigate();
   const params = useParams({ from: "/accounts/$accountId/buckets/$bucketId/settings" });
-  const { accounts, activeAccountId, loading, capabilities } = useAccountsStore((state) => state);
+  const { accounts, activeAccountId, loading } = useAccountsStore((state) => state);
   const [section, setSection] = useState("versioning");
+
+  // Use dynamic capabilities hook instead of static global state
+  const { capabilities: providerCapabilities, loading: capsLoading } = useCapabilities(
+    params.accountId,
+  );
 
   const account = useMemo(() => {
     return accounts.find((item) => item.id === params.accountId);
   }, [accounts, params.accountId]);
 
-  const providerCapabilities = useMemo(() => {
-    if (!account) return [] as ProviderCapability[];
-    return capabilities.filter((capability) => capability.provider === account.provider);
-  }, [account, capabilities]);
-
-  const capabilitiesReady = providerCapabilities.length > 0;
+  const capabilitiesReady = providerCapabilities.length > 0 && !capsLoading;
 
   const featureMatrix = useMemo(() => {
     const matrix: Partial<Record<BucketFeature, ProviderCapability>> = {};

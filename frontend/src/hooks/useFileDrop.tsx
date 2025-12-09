@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { OnFileDrop, OnFileDropOff } from "@wailsjs/runtime/runtime";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -40,7 +40,7 @@ export function useFileDrop(): FileDropState {
 
   useEffect(() => {
     // Only register if Wails bridge is available
-    if (!isBridgeAvailable()) {
+    if (!isDesktopMode()) {
       return;
     }
 

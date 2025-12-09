@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BrowseLevel, ViewMode } from "@/hooks/useFileBrowserController";
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import {
   Download,
   FolderTree,
@@ -276,7 +276,7 @@ export function BrowserToolbar({
                           toast.error("请选择至少一个项目");
                           return;
                         }
-                        if (isBridgeAvailable()) {
+                        if (isDesktopMode()) {
                           onDownloadClick();
                         } else {
                           toast.error("Web 端暂不支持批量下载");

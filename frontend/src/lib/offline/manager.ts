@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { offlineCache } from "@/lib/offline/cache";
 import {
   addAction,
@@ -94,7 +94,7 @@ export class OfflineManager {
 
   private isOnline() {
     const { isOnline } = useAppStatusStore.getState();
-    return isOnline && isBridgeAvailable();
+    return isOnline && isDesktopMode();
   }
 
   async listBuckets(accountId: string, loader: ListBucketsLoader) {

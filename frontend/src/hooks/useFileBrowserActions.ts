@@ -3,13 +3,18 @@
  *
  * File operation actions for the file browser.
  * Handles downloads, uploads, deletions, previews, and link copying.
+ * Desktop-only: all uploads go through backend queue via file paths.
  */
 
-import { isBridgeAvailable, saveFileDialog } from "@/lib/bridge";
+import { isDesktopMode, saveFileDialog } from "@/lib/bridge";
 import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
-import { GetPresignedDownloadURL } from "@wailsjs/go/app/App";
-import { useCallback, useRef, useState } from "react";
+import {
+  GetPresignedDownloadURL,
+  OpenDirectoryDialogWithFiles,
+  OpenMultipleFilesDialog,
+} from "@wailsjs/go/app/App";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useCopyToClipboard } from "usehooks-ts";
 
@@ -28,11 +33,6 @@ export interface FileActionState {
 
   // Upload states
   uploading: boolean;
-  dragActive: boolean;
-
-  // Refs
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  folderInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export interface FileActionHandlers {
@@ -50,10 +50,9 @@ export interface FileActionHandlers {
   handlePreview: (key: string) => void;
   setPreviewOpen: (open: boolean) => void;
 
-  // Upload
-  handleFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  handleDrop: (e: React.DragEvent) => void;
-  setDragActive: (active: boolean) => void;
+  // Upload (Desktop only - uses Wails dialogs + backend queue)
+  handleUploadClick: () => Promise<void>;
+  handleUploadFolder: () => Promise<void>;
 
   // Dialogs
   setDownloadDialogOpen: (open: boolean) => void;
@@ -92,13 +91,6 @@ export function useFileBrowserActions({
   const [symlinkDialogOpen, setSymlinkDialogOpen] = useState(false);
   const [createBucketOpen, setCreateBucketOpen] = useState(false);
 
-  // Drag state
-  const [dragActive, setDragActive] = useState(false);
-
-  // Upload refs
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const folderInputRef = useRef<HTMLInputElement | null>(null);
-
   // Clipboard
   const [, copyToClipboard] = useCopyToClipboard();
 
@@ -114,7 +106,7 @@ export function useFileBrowserActions({
       try {
         const defaultName = key.split("/").pop() || "file";
 
-        if (isBridgeAvailable()) {
+        if (isDesktopMode()) {
           const savePath = await saveFileDialog({
             Title: "保存文件",
             DefaultFilename: defaultName,
@@ -203,33 +195,65 @@ export function useFileBrowserActions({
     [objects],
   );
 
-  // Upload handlers
-  const handleFilesSelected = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { files } = e.target;
-      if (!files?.length || !accountId || !currentBucket) return;
-      await transfersStore.uploadFiles(Array.from(files), {
-        accountId,
-        bucket: currentBucket,
-        prefix,
-      });
-      e.target.value = "";
-    },
-    [accountId, currentBucket, prefix],
-  );
+  // Upload handlers - Desktop only, uses Wails dialogs + backend queue
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragActive(false);
-      if (!accountId || !currentBucket) return;
-      const files = Array.from(e.dataTransfer?.files ?? []);
-      if (files.length) {
-        void transfersStore.uploadFiles(files, { accountId, bucket: currentBucket, prefix });
+  // Upload files via Wails file dialog
+  const handleUploadClick = useCallback(async () => {
+    if (!accountId || !currentBucket) {
+      toast.error("请先选择账户和存储桶");
+      return;
+    }
+
+    if (!isDesktopMode()) {
+      toast.error("上传功能仅在桌面模式下可用");
+      return;
+    }
+
+    try {
+      const paths = await OpenMultipleFilesDialog("选择要上传的文件", []);
+      if (paths && paths.length > 0) {
+        await transfersStore.uploadFilesFromPaths(paths, {
+          accountId,
+          bucket: currentBucket,
+          prefix,
+        });
+        await transfersStore.syncBackendTasks();
       }
-    },
-    [accountId, currentBucket, prefix],
-  );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "选择文件失败";
+      toast.error(message);
+    }
+  }, [accountId, currentBucket, prefix]);
+
+  // Upload folder via Wails directory dialog with file scanning
+  const handleUploadFolder = useCallback(async () => {
+    if (!accountId || !currentBucket) {
+      toast.error("请先选择账户和存储桶");
+      return;
+    }
+
+    if (!isDesktopMode()) {
+      toast.error("上传功能仅在桌面模式下可用");
+      return;
+    }
+
+    try {
+      const result = await OpenDirectoryDialogWithFiles("选择要上传的文件夹");
+      if (result && result.files && result.files.length > 0) {
+        await transfersStore.uploadFilesFromPaths(result.files, {
+          accountId,
+          bucket: currentBucket,
+          prefix,
+          basePath: result.basePath, // Preserve directory structure
+        });
+        await transfersStore.syncBackendTasks();
+        toast.success(`已添加 ${result.files.length} 个文件到上传队列`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "选择文件夹失败";
+      toast.error(message);
+    }
+  }, [accountId, currentBucket, prefix]);
 
   return {
     // State
@@ -244,9 +268,6 @@ export function useFileBrowserActions({
     symlinkDialogOpen,
     createBucketOpen,
     uploading,
-    dragActive,
-    fileInputRef,
-    folderInputRef,
 
     // Handlers
     handleDownload,
@@ -257,9 +278,8 @@ export function useFileBrowserActions({
     setPendingDeleteObject,
     handlePreview,
     setPreviewOpen,
-    handleFilesSelected,
-    handleDrop,
-    setDragActive,
+    handleUploadClick,
+    handleUploadFolder,
     setDownloadDialogOpen,
     setMoveCopyDialogOpen,
     setSymlinkDialogOpen,

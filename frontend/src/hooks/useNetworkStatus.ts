@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { useAppStatusStore } from "@/state/appStatus";
 import { PingEndpoint } from "@wailsjs/go/app/App";
 import { useCallback, useEffect, useRef } from "react";
@@ -28,7 +28,7 @@ export const useNetworkStatus = (): NetworkStatus & {
   const checkConnectivity = useCallback(async () => {
     const setNetworkStatus = useAppStatusStore.getState().setNetworkStatus;
 
-    if (!isBridgeAvailable()) {
+    if (!isDesktopMode()) {
       // In browser mode, rely solely on navigator.onLine
       setNetworkStatus(navigator.onLine, navigator.onLine ? "browser-online" : "browser-offline");
       return;
@@ -85,7 +85,7 @@ export const useNetworkStatus = (): NetworkStatus & {
   const checkNow = useCallback(async () => {
     const setNetworkStatus = useAppStatusStore.getState().setNetworkStatus;
 
-    if (!isBridgeAvailable()) {
+    if (!isDesktopMode()) {
       setNetworkStatus(navigator.onLine, navigator.onLine ? "manual-check" : "browser-offline");
       return;
     }

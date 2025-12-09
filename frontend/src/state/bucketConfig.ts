@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import type { ProviderCapability } from "@/state/accounts";
 import {
   DeleteBucketCORS,
@@ -333,7 +333,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
       featureSupport,
     });
 
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const [versioning, encryption, lifecycle, cors, policy, acl, publicAccess, referer] =
@@ -504,7 +504,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
         throw new Error("Invalid JSON format");
       }
 
-      const useBridge = isBridgeAvailable();
+      const useBridge = isDesktopMode();
       if (useBridge) {
         await SetBucketPolicy(accountId, bucket, policyStruct);
       }
@@ -527,7 +527,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     if (!accountId || !bucket) return;
     set((state) => ({ saving: { ...state.saving, policy: true }, error: undefined }));
     try {
-      const useBridge = isBridgeAvailable();
+      const useBridge = isDesktopMode();
       if (useBridge) {
         await DeleteBucketPolicy(accountId, bucket);
       }
@@ -548,7 +548,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     if (!accountId || !bucket) return;
     set((state) => ({ saving: { ...state.saving, acl: true }, error: undefined }));
     try {
-      if (isBridgeAvailable()) {
+      if (isDesktopMode()) {
         await SetBucketACL(accountId, bucket, payload as any);
       }
       set({ acl: { ...payload, updated: new Date().toISOString() as any } });
@@ -565,7 +565,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     if (!accountId || !bucket) return;
     set((state) => ({ saving: { ...state.saving, publicAccess: true }, error: undefined }));
     try {
-      if (isBridgeAvailable()) {
+      if (isDesktopMode()) {
         await SetPublicAccessBlock(accountId, bucket, payload as any);
       }
       set({ publicAccessBlock: { ...payload, updated: new Date().toISOString() as any } });
@@ -582,7 +582,7 @@ const useBucketConfigStoreBase = create<BucketConfigStore>((set, get) => ({
     if (!accountId || !bucket) return;
     set((state) => ({ saving: { ...state.saving, referer: true }, error: undefined }));
     try {
-      if (isBridgeAvailable()) {
+      if (isDesktopMode()) {
         await SetBucketReferer(accountId, bucket, payload as any);
       }
       set({ referer: { ...payload, updated: new Date().toISOString() as any } });

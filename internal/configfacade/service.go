@@ -2,6 +2,7 @@ package configfacade
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"can/internal/accounts"
@@ -28,7 +29,7 @@ func (s *Service) ensureCapability(ctx context.Context, accountID string, featur
 	if types.HasCapability(provider, feature) {
 		return nil
 	}
-	return fmt.Errorf(capabilityError(provider, feature))
+	return errors.New(capabilityError(provider, feature))
 }
 
 func capabilityError(provider types.Provider, feature types.FeatureID) string {

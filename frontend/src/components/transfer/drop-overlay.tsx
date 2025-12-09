@@ -1,46 +1,92 @@
+/**
+ * DropOverlay
+ *
+ * Fullscreen overlay for native file drops from OS.
+ * Uses Wails OnFileDrop API to capture files and upload via backend queue.
+ */
+
 import { useFileDrop } from "@/hooks/useFileDrop";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { useCallback, useEffect } from "react";
+import { useObjectsStore } from "@/state/objects";
+import { transfersStore } from "@/state/transfers";
+import { useParams } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import "./drop-overlay.css";
 
-interface DropOverlayProps {
-  /** Callback when files are dropped, receives array of absolute file paths */
-  onFilesDropped?: (paths: string[]) => void;
+/**
+ * Compute the common base path for a list of file paths.
+ * Used to preserve directory structure when uploading multiple files.
+ */
+function computeCommonBasePath(paths: string[]): string {
+  if (paths.length === 0) return "";
+  if (paths.length === 1) {
+    // Single file: use parent directory
+    const lastSlash = paths[0].lastIndexOf("/");
+    const lastBackslash = paths[0].lastIndexOf("\\");
+    const idx = Math.max(lastSlash, lastBackslash);
+    return idx > 0 ? paths[0].substring(0, idx) : "";
+  }
+
+  // Find common prefix of all paths
+  const separator = paths[0].includes("\\") ? "\\" : "/";
+  const splitPaths = paths.map((p) => p.split(/[/\\]/));
+  const minLength = Math.min(...splitPaths.map((p) => p.length));
+
+  let commonParts: string[] = [];
+  for (let i = 0; i < minLength - 1; i++) {
+    const part = splitPaths[0][i];
+    if (splitPaths.every((sp) => sp[i] === part)) {
+      commonParts.push(part);
+    } else {
+      break;
+    }
+  }
+
+  return commonParts.join(separator);
 }
 
 /**
- * Fullscreen overlay that appears when files are dragged over the window.
- * Uses the useFileDrop hook to capture Wails native file drops.
+ * DropOverlay component
+ *
+ * Renders a fullscreen overlay when files are dragged over the window.
+ * Automatically uploads dropped files to the current bucket/prefix.
  */
-export function DropOverlay({ onFilesDropped }: DropOverlayProps) {
+export function DropOverlay() {
   const { droppedPaths, clearDroppedPaths, isActive } = useFileDrop();
   const { accountId } = useParams({ strict: false });
-  const navigate = useNavigate();
 
-  const handleDropComplete = useCallback(() => {
-    if (droppedPaths.length > 0 && onFilesDropped) {
-      onFilesDropped(droppedPaths);
-      clearDroppedPaths();
-    } else if (droppedPaths.length > 0) {
-      // Default behavior: navigate to transfers page with the dropped files
-      // Store dropped paths in sessionStorage for the uploads page to pick up
-      sessionStorage.setItem("pendingUploads", JSON.stringify(droppedPaths));
-      clearDroppedPaths();
+  // Get current bucket and prefix from objects store
+  const bucket = useObjectsStore((s) => s.bucket);
+  const prefix = useObjectsStore((s) => s.prefix);
 
-      // Navigate to transfers page if we have an account context
-      if (accountId) {
-        navigate({ to: "/accounts/$accountId/transfers", params: { accountId } });
-      }
-    }
-  }, [droppedPaths, onFilesDropped, clearDroppedPaths, accountId, navigate]);
+  // Compute base path for directory structure preservation
+  const basePath = useMemo(() => computeCommonBasePath(droppedPaths), [droppedPaths]);
 
+  // Handle file drops
   useEffect(() => {
-    if (droppedPaths.length > 0) {
-      handleDropComplete();
-    }
-  }, [droppedPaths, handleDropComplete]);
+    if (droppedPaths.length === 0) return;
 
-  // Only show overlay briefly when files are actively being dropped
+    // Need account and bucket context
+    if (!accountId || !bucket) {
+      toast.error("请先选择账户和存储桶后再拖拽上传");
+      clearDroppedPaths();
+      return;
+    }
+
+    // Upload via backend queue
+    transfersStore.uploadFilesFromPaths(droppedPaths, {
+      accountId,
+      bucket,
+      prefix,
+      basePath,
+    });
+    transfersStore.syncBackendTasks();
+
+    toast.success(`已添加 ${droppedPaths.length} 个文件到上传队列`);
+    clearDroppedPaths();
+  }, [droppedPaths, accountId, bucket, prefix, basePath, clearDroppedPaths]);
+
+  // Only show overlay when files are being dragged
   if (!isActive) {
     return null;
   }
@@ -64,8 +110,8 @@ export function DropOverlay({ onFilesDropped }: DropOverlayProps) {
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
         </div>
-        <h2 className="drop-overlay-title">Drop to Upload</h2>
-        <p className="drop-overlay-subtitle">Release files to add them to the upload queue</p>
+        <h2 className="drop-overlay-title">拖拽上传</h2>
+        <p className="drop-overlay-subtitle">释放文件以添加到上传队列</p>
       </div>
     </div>
   );

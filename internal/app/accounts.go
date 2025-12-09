@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"can/internal/accounts"
+	"can/internal/types"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -143,4 +144,26 @@ func (a *App) ImportAccounts() (accounts.ImportSummary, error) {
 	summary.Failed = result.Failed
 	summary.Issues = result.Issues
 	return summary, nil
+}
+
+// GetProviderCapabilities returns the capability list for a specific account's provider.
+func (a *App) GetProviderCapabilities(accountID string) ([]types.ProviderCapability, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	creds, err := a.accounts.ConnectionCredentials(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	return types.ProviderCapabilities(creds.Provider), nil
+}
+
+// HasProviderCapability checks if an account's provider supports a specific feature.
+func (a *App) HasProviderCapability(accountID string, featureID string) (bool, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	creds, err := a.accounts.ConnectionCredentials(ctx, accountID)
+	if err != nil {
+		return false, err
+	}
+	return types.HasCapability(creds.Provider, types.FeatureID(featureID)), nil
 }

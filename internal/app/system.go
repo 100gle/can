@@ -2,6 +2,8 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"can/internal/system"
@@ -78,6 +80,25 @@ func (a *App) OpenFileDialog(title string, filters []FileFilter) (string, error)
 	return path, err
 }
 
+// OpenMultipleFilesDialog prompts the user to select multiple files.
+// Returns a slice of selected file paths or empty slice if cancelled.
+func (a *App) OpenMultipleFilesDialog(title string, filters []FileFilter) ([]string, error) {
+	var runtimeFilters []runtime.FileFilter
+	for _, f := range filters {
+		runtimeFilters = append(runtimeFilters, runtime.FileFilter{
+			DisplayName: f.DisplayName,
+			Pattern:     f.Pattern,
+		})
+	}
+
+	paths, err := runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   title,
+		Filters: runtimeFilters,
+	})
+
+	return paths, err
+}
+
 // FileFilter represents a file type filter for dialogs
 type FileFilter struct {
 	DisplayName string `json:"displayName"`
@@ -104,3 +125,43 @@ func (a *App) PingEndpoint(target string, timeoutMs int) system.PingResult {
 	}
 	return a.system.PingEndpoint(ctx, target, timeout)
 }
+
+// DirectoryFilesResult contains the base path and all file paths found in a directory.
+type DirectoryFilesResult struct {
+	BasePath string   `json:"basePath"`
+	Files    []string `json:"files"`
+}
+
+// OpenDirectoryDialogWithFiles prompts the user to select a directory,
+// then recursively scans it to return all file paths along with the base path.
+// This is used for folder uploads to preserve directory structure.
+func (a *App) OpenDirectoryDialogWithFiles(title string) (*DirectoryFilesResult, error) {
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if dir == "" {
+		// User cancelled
+		return nil, nil
+	}
+
+	var files []string
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			// Skip files/dirs we can't access
+			return nil
+		}
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan directory: %w", err)
+	}
+
+	return &DirectoryFilesResult{BasePath: dir, Files: files}, nil
+}
+

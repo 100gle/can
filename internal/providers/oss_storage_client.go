@@ -426,6 +426,60 @@ func (d *ossObjectDriver) DeleteObject(ctx context.Context, bucketName, key stri
 	return nil
 }
 
+// DeleteObjects batch-deletes up to 1000 objects using the OSS DeleteObjects API.
+func (d *ossObjectDriver) DeleteObjects(ctx context.Context, bucketName string, keys []string) (DeleteObjectsResult, error) {
+	var result DeleteObjectsResult
+	if len(keys) == 0 {
+		return result, nil
+	}
+	bucket, err := d.bucket(ctx, bucketName)
+	if err != nil {
+		return result, err
+	}
+
+	// OSS DeleteObjects supports up to 1000 keys per request
+	const batchSize = 1000
+	for i := 0; i < len(keys); i += batchSize {
+		end := i + batchSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		batch := keys[i:end]
+
+		cleanKeys := make([]string, 0, len(batch))
+		for _, key := range batch {
+			key = strings.TrimSpace(key)
+			if key != "" {
+				cleanKeys = append(cleanKeys, key)
+			}
+		}
+		if len(cleanKeys) == 0 {
+			continue
+		}
+
+		delResult, err := bucket.DeleteObjects(cleanKeys, oss.WithContext(ctx))
+		if err != nil {
+			// If the entire batch fails, record all keys as errors
+			for _, key := range cleanKeys {
+				result.Errors = append(result.Errors, DeleteObjectError{
+					Key:     key,
+					Code:    "BatchFailed",
+					Message: err.Error(),
+				})
+			}
+			continue
+		}
+
+		// Collect successful deletions
+		for _, deleted := range delResult.DeletedObjects {
+			result.Deleted = append(result.Deleted, deleted)
+		}
+	}
+
+	return result, nil
+}
+
+
 func (d *ossObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error {
 	if strings.TrimSpace(sourceKey) == "" || strings.TrimSpace(targetKey) == "" {
 		return errors.New("source/target key is required")

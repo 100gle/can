@@ -515,6 +515,10 @@ func (d *fakeObjectDriver) DeleteObject(context.Context, string, string) error {
 	return nil
 }
 
+func (d *fakeObjectDriver) DeleteObjects(_ context.Context, _ string, keys []string) (providers.DeleteObjectsResult, error) {
+	return providers.DeleteObjectsResult{Deleted: keys}, nil
+}
+
 func (d *fakeObjectDriver) CopyObject(context.Context, string, string, string, string) error {
 	return nil
 }

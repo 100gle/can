@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { cn, formatBytes } from "@/lib/utils";
 import MonacoEditor from "@monaco-editor/react";
 import {
@@ -159,7 +159,7 @@ export function FilePreviewModal({
       resetState();
       return;
     }
-    if (!isBridgeAvailable()) {
+    if (!isDesktopMode()) {
       setError("Bridge 未就绪，无法生成预览链接");
       return;
     }
@@ -512,7 +512,7 @@ export function FilePreviewModal({
           </DialogTitle>
         </DialogHeader>
 
-        {!isBridgeAvailable() ? (
+        {!isDesktopMode() ? (
           <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border/70 p-6 text-sm text-muted-foreground">
             桌面 Bridge 未就绪，无法生成预览。请启动核心应用或在桌面模式下使用。
           </div>

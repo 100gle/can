@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { EventsOn } from "@wailsjs/runtime/runtime";
 import { toast } from "sonner";
 
@@ -9,7 +9,7 @@ export function AppEventsBridge() {
   const hasShownHint = useRef(false);
 
   useEffect(() => {
-    if (!isBridgeAvailable()) {
+    if (!isDesktopMode()) {
       return;
     }
     const off = EventsOn(WINDOW_VISIBILITY_EVENT, (visible?: boolean) => {

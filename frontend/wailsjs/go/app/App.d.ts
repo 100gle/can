@@ -8,9 +8,9 @@ import {buckets} from '../models';
 import {transfer} from '../models';
 import {search} from '../models';
 import {config} from '../models';
+import {types} from '../models';
 import {options} from '../models';
 import {app} from '../models';
-import {types} from '../models';
 
 export function AbortMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
@@ -116,6 +116,8 @@ export function GetPresignedDownloadURLWithHeaders(arg1:string,arg2:string,arg3:
 
 export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:number):Promise<string>;
 
+export function GetProviderCapabilities(arg1:string):Promise<Array<types.ProviderCapability>>;
+
 export function GetPublicAccessBlock(arg1:string,arg2:string):Promise<config.PublicAccessBlock>;
 
 export function GetSystemMetrics():Promise<system.SystemMetrics>;
@@ -123,6 +125,8 @@ export function GetSystemMetrics():Promise<system.SystemMetrics>;
 export function GetTransferConfig():Promise<transfer.TransferConfig>;
 
 export function GetTransferSpeedLimit():Promise<number>;
+
+export function HasProviderCapability(arg1:string,arg2:string):Promise<boolean>;
 
 export function HeadBucket(arg1:string,arg2:string):Promise<void>;
 
@@ -152,7 +156,11 @@ export function MoveObjectsWithOptions(arg1:string,arg2:Array<objects.MoveObject
 
 export function OnSecondInstance(arg1:options.SecondInstanceData):Promise<void>;
 
+export function OpenDirectoryDialogWithFiles(arg1:string):Promise<app.DirectoryFilesResult>;
+
 export function OpenFileDialog(arg1:string,arg2:Array<app.FileFilter>):Promise<string>;
+
+export function OpenMultipleFilesDialog(arg1:string,arg2:Array<app.FileFilter>):Promise<Array<string>>;
 
 export function PauseTransferTask(arg1:string):Promise<void>;
 
@@ -215,6 +223,8 @@ export function UpdateObjectLegalHold(arg1:string,arg2:objects.UpdateObjectLegal
 export function UpdateObjectRetention(arg1:string,arg2:objects.UpdateObjectRetentionInput):Promise<objects.ObjectRetentionState>;
 
 export function UpdateSavedSearchQuery(arg1:string,arg2:string,arg3:search.SearchQuery):Promise<search.SavedQuery>;
+
+export function UploadFilesFromPaths(arg1:app.UploadFilesInput):Promise<app.UploadFilesResult>;
 
 export function UploadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 

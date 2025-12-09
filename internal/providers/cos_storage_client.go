@@ -552,6 +552,73 @@ func (d *cosObjectDriver) DeleteObject(ctx context.Context, bucket, key string) 
 	return nil
 }
 
+// DeleteObjects batch-deletes up to 1000 objects using the COS DeleteMultiple API.
+func (d *cosObjectDriver) DeleteObjects(ctx context.Context, bucket string, keys []string) (DeleteObjectsResult, error) {
+	var result DeleteObjectsResult
+	if len(keys) == 0 {
+		return result, nil
+	}
+	client, err := d.clientFor(bucket)
+	if err != nil {
+		return result, err
+	}
+
+	// COS DeleteMultiple supports up to 1000 keys per request
+	const batchSize = 1000
+	for i := 0; i < len(keys); i += batchSize {
+		end := i + batchSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		batch := keys[i:end]
+
+		objects := make([]cos.Object, 0, len(batch))
+		for _, key := range batch {
+			key = strings.TrimSpace(key)
+			if key != "" {
+				objects = append(objects, cos.Object{Key: key})
+			}
+		}
+		if len(objects) == 0 {
+			continue
+		}
+
+		opt := &cos.ObjectDeleteMultiOptions{
+			Objects: objects,
+			Quiet:   false,
+		}
+		out, _, err := client.Object.DeleteMulti(ctx, opt)
+		if err != nil {
+			// If the entire batch fails, record all keys as errors
+			for _, key := range batch {
+				result.Errors = append(result.Errors, DeleteObjectError{
+					Key:     key,
+					Code:    "BatchFailed",
+					Message: err.Error(),
+				})
+			}
+			continue
+		}
+
+		// Collect successful deletions
+		for _, deleted := range out.DeletedObjects {
+			result.Deleted = append(result.Deleted, deleted.Key)
+		}
+
+		// Collect errors
+		for _, delErr := range out.Errors {
+			result.Errors = append(result.Errors, DeleteObjectError{
+				Key:     delErr.Key,
+				Code:    delErr.Code,
+				Message: delErr.Message,
+			})
+		}
+	}
+
+	return result, nil
+}
+
+
 func (d *cosObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error {
 	if strings.TrimSpace(sourceKey) == "" || strings.TrimSpace(targetKey) == "" {
 		return errors.New("source/target key is required")

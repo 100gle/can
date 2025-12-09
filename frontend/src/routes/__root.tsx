@@ -1,4 +1,5 @@
 import { AppEventsBridge } from "@/components/providers/app-events-bridge";
+import { DropOverlay } from "@/components/transfer/drop-overlay";
 import { Toaster } from "@/components/ui/sonner";
 import { accountsStore } from "@/state/accounts";
 import { Outlet, createRootRoute } from "@tanstack/react-router";
@@ -12,6 +13,7 @@ export const Route = createRootRoute({
   component: () => (
     <>
       <AppEventsBridge />
+      <DropOverlay />
       <Outlet />
       <Toaster position="top-right" />
       {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-right" />}

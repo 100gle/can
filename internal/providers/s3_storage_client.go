@@ -519,6 +519,73 @@ func (d *s3ObjectDriver) DeleteObject(ctx context.Context, bucket, key string) e
 	return nil
 }
 
+// DeleteObjects batch-deletes up to 1000 objects using the S3 DeleteObjects API.
+func (d *s3ObjectDriver) DeleteObjects(ctx context.Context, bucket string, keys []string) (DeleteObjectsResult, error) {
+	var result DeleteObjectsResult
+	if strings.TrimSpace(bucket) == "" {
+		return result, errors.New("bucket is required")
+	}
+	if len(keys) == 0 {
+		return result, nil
+	}
+
+	// S3 DeleteObjects supports up to 1000 keys per request
+	const batchSize = 1000
+	for i := 0; i < len(keys); i += batchSize {
+		end := i + batchSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		batch := keys[i:end]
+
+		objects := make([]s3types.ObjectIdentifier, 0, len(batch))
+		for _, key := range batch {
+			key = strings.TrimSpace(key)
+			if key != "" {
+				objects = append(objects, s3types.ObjectIdentifier{Key: aws.String(key)})
+			}
+		}
+		if len(objects) == 0 {
+			continue
+		}
+
+		out, err := d.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: aws.String(bucket),
+			Delete: &s3types.Delete{
+				Objects: objects,
+				Quiet:   aws.Bool(false),
+			},
+		})
+		if err != nil {
+			// If the entire batch fails, record all keys as errors
+			for _, key := range batch {
+				result.Errors = append(result.Errors, DeleteObjectError{
+					Key:     key,
+					Code:    "BatchFailed",
+					Message: err.Error(),
+				})
+			}
+			continue
+		}
+
+		// Collect successful deletions
+		for _, deleted := range out.Deleted {
+			result.Deleted = append(result.Deleted, aws.ToString(deleted.Key))
+		}
+
+		// Collect errors
+		for _, delErr := range out.Errors {
+			result.Errors = append(result.Errors, DeleteObjectError{
+				Key:     aws.ToString(delErr.Key),
+				Code:    aws.ToString(delErr.Code),
+				Message: aws.ToString(delErr.Message),
+			})
+		}
+	}
+
+	return result, nil
+}
+
 func (d *s3ObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error {
 	if strings.TrimSpace(sourceBucket) == "" || strings.TrimSpace(sourceKey) == "" {
 		return errors.New("source bucket/key is required")

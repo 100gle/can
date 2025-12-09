@@ -161,6 +161,20 @@ export namespace accounts {
 
 export namespace app {
 	
+	export class DirectoryFilesResult {
+	    basePath: string;
+	    files: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DirectoryFilesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.basePath = source["basePath"];
+	        this.files = source["files"];
+	    }
+	}
 	export class FileFilter {
 	    displayName: string;
 	    pattern: string;
@@ -174,6 +188,72 @@ export namespace app {
 	        this.displayName = source["displayName"];
 	        this.pattern = source["pattern"];
 	    }
+	}
+	export class UploadFileError {
+	    filePath: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UploadFileError(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filePath = source["filePath"];
+	        this.error = source["error"];
+	    }
+	}
+	export class UploadFilesInput {
+	    accountId: string;
+	    bucket: string;
+	    prefix: string;
+	    filePaths: string[];
+	    basePath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UploadFilesInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.accountId = source["accountId"];
+	        this.bucket = source["bucket"];
+	        this.prefix = source["prefix"];
+	        this.filePaths = source["filePaths"];
+	        this.basePath = source["basePath"];
+	    }
+	}
+	export class UploadFilesResult {
+	    tasks: transfer.TransferTask[];
+	    failed: UploadFileError[];
+	
+	    static createFrom(source: any = {}) {
+	        return new UploadFilesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tasks = this.convertValues(source["tasks"], transfer.TransferTask);
+	        this.failed = this.convertValues(source["failed"], UploadFileError);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

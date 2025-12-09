@@ -210,6 +210,10 @@ export function GetPresignedUploadURL(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetPresignedUploadURL'](arg1, arg2, arg3, arg4);
 }
 
+export function GetProviderCapabilities(arg1) {
+  return window['go']['app']['App']['GetProviderCapabilities'](arg1);
+}
+
 export function GetPublicAccessBlock(arg1, arg2) {
   return window['go']['app']['App']['GetPublicAccessBlock'](arg1, arg2);
 }
@@ -224,6 +228,10 @@ export function GetTransferConfig() {
 
 export function GetTransferSpeedLimit() {
   return window['go']['app']['App']['GetTransferSpeedLimit']();
+}
+
+export function HasProviderCapability(arg1, arg2) {
+  return window['go']['app']['App']['HasProviderCapability'](arg1, arg2);
 }
 
 export function HeadBucket(arg1, arg2) {
@@ -282,8 +290,16 @@ export function OnSecondInstance(arg1) {
   return window['go']['app']['App']['OnSecondInstance'](arg1);
 }
 
+export function OpenDirectoryDialogWithFiles(arg1) {
+  return window['go']['app']['App']['OpenDirectoryDialogWithFiles'](arg1);
+}
+
 export function OpenFileDialog(arg1, arg2) {
   return window['go']['app']['App']['OpenFileDialog'](arg1, arg2);
+}
+
+export function OpenMultipleFilesDialog(arg1, arg2) {
+  return window['go']['app']['App']['OpenMultipleFilesDialog'](arg1, arg2);
 }
 
 export function PauseTransferTask(arg1) {
@@ -408,6 +424,10 @@ export function UpdateObjectRetention(arg1, arg2) {
 
 export function UpdateSavedSearchQuery(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateSavedSearchQuery'](arg1, arg2, arg3);
+}
+
+export function UploadFilesFromPaths(arg1) {
+  return window['go']['app']['App']['UploadFilesFromPaths'](arg1);
 }
 
 export function UploadObject(arg1, arg2, arg3, arg4) {

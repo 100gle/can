@@ -27,12 +27,12 @@ type SecurityWarning struct {
 // LinkSecurityAnalysis provides security assessment for a share link.
 type LinkSecurityAnalysis struct {
 	Bucket          string            `json:"bucket"`
-	Key             string            `json:\"key\"`
-	ExpiresIn       time.Duration     `json:\"expiresIn\" ts_type:\"string\"`
-	Methods         []string          `json:\"methods\"`
-	Warnings        []SecurityWarning `json:\"warnings\"`
-	Recommendations []string          `json:\"recommendations\"`
-	OverallRisk     string            `json:\"overallRisk\"` // "low", "medium", "high"
+	Key             string            `json:"key"`
+	ExpiresIn       time.Duration     `json:"expiresIn" ts_type:"string"`
+	Methods         []string          `json:"methods"`
+	Warnings        []SecurityWarning `json:"warnings"`
+	Recommendations []string          `json:"recommendations"`
+	OverallRisk     string            `json:"overallRisk"` // "low", "medium", "high"
 }
 
 // AnalyzeLinkSecurity performs security analysis on link generation parameters.

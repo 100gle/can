@@ -63,7 +63,24 @@ func (s *BucketConfigService) client(ctx context.Context, accountID, bucket stri
 }
 
 func (s *BucketConfigService) supportsConfig(provider types.Provider) bool {
-	return provider == types.ProviderAWS
+	// Check if the provider supports any bucket configuration capabilities
+	bucketConfigFeatures := []types.FeatureID{
+		types.FeatureBucketACL,
+		types.FeatureBucketReferer,
+		types.FeatureBucketPublicAccess,
+		types.FeatureBucketPolicy,
+		types.FeatureBucketVersioning,
+		types.FeatureBucketEncryption,
+		types.FeatureBucketLifecycle,
+		types.FeatureBucketCORS,
+		types.FeatureBucketWebsite,
+	}
+	for _, feature := range bucketConfigFeatures {
+		if types.HasCapability(provider, feature) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *BucketConfigService) storageClient(ctx context.Context, accountID, bucket string) (providers.StorageClient, providers.ConnectionCredentials, error) {

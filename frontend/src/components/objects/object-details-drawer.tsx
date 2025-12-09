@@ -11,7 +11,7 @@ import {
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import {
   GetBucketVersioning,
@@ -145,7 +145,7 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
   }, [open, accountId, bucket]);
 
   useEffect(() => {
-    if (!open || !objectKey || !accountId || !bucket || !isBridgeAvailable()) {
+    if (!open || !objectKey || !accountId || !bucket || !isDesktopMode()) {
       setLockConfig(null);
       setRetentionState(null);
       setLegalHoldState(null);
@@ -388,7 +388,7 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                 </TabsContent>
 
                 <TabsContent value="compliance" className="space-y-4">
-                  {!isBridgeAvailable() ? (
+                  {!isDesktopMode() ? (
                     <p className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm text-muted-foreground">
                       Bridge 未就绪，无法获取对象锁信息。
                     </p>

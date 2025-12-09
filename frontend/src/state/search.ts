@@ -1,4 +1,4 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import {
   DeleteSavedSearchQuery,
   ExportSearchResults,
@@ -175,7 +175,7 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
       offset: 0,
     };
     set({ loading: true, error: undefined, query: effectiveQuery });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const response = await SearchObjects(accountId, effectiveQuery as any);
@@ -207,7 +207,7 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
       return;
     }
     set({ loadingMore: true, error: undefined });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const response = await SearchObjects(accountId, { ...query, offset: nextOffset } as any);
@@ -232,7 +232,7 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
     const { accountId, query } = get();
     if (!accountId) return;
     set({ exporting: true, error: undefined });
-    const useBridge = isBridgeAvailable();
+    const useBridge = isDesktopMode();
     try {
       if (useBridge) {
         const bytes = await ExportSearchResults(accountId, query as any, format);
@@ -264,7 +264,7 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
     });
   },
   loadSavedQueries: async () => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     try {
       const list = await ListSavedSearchQueries();
       set({ savedQueries: list as any });
@@ -274,12 +274,12 @@ const useSearchStoreBase = create<SearchStore>((set, get) => ({
   },
   saveQuery: async (name: string) => {
     const { query } = get();
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     await SaveSearchQuery(name, query as any);
     await get().loadSavedQueries();
   },
   deleteSavedQuery: async (id: string) => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     await DeleteSavedSearchQuery(id);
     await get().loadSavedQueries();
   },

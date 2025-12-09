@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { isBridgeAvailable } from "@/lib/bridge";
+import { isDesktopMode } from "@/lib/bridge";
 import { GenerateAccessLinks } from "@wailsjs/go/app/App";
 import { objects } from "@wailsjs/go/models";
 import { Clipboard, History, Loader2, QrCode, X } from "lucide-react";
@@ -67,7 +67,7 @@ export const PresignedURLDialog = ({
   const [error, setError] = useState<string>();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const bridgeReady = isBridgeAvailable();
+  const bridgeReady = isDesktopMode();
 
   useEffect(() => {
     if (!open) {

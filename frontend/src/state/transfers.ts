@@ -1,25 +1,30 @@
-import { isBridgeAvailable } from "@/lib/bridge";
+/**
+ * Transfer Queue Store
+ *
+ * Backend-only transfer management for desktop app.
+ * All uploads and downloads go through the Go backend for proper progress tracking,
+ * speed limiting, persistence, and pause/resume capabilities.
+ */
+
+import { isDesktopMode } from "@/lib/bridge";
 import { showInfo, showWarning } from "@/lib/toast";
 import {
-  AbortMultipartUpload,
   CancelTransferTask,
   ClearCompletedTransfers,
-  CompleteMultipartUpload,
   DeleteTransferTask,
+  DownloadBatch,
   GetTransferConfig,
   GetTransferSpeedLimit,
-  InitiateMultipartUpload,
   ListTransferTasks,
   PauseTransferTask,
   ResumeTransferTask,
   SetTransferConcurrency,
   SetTransferSpeedLimit,
-  UploadPart,
+  UploadFilesFromPaths,
 } from "@wailsjs/go/app/App";
 import type { transfer } from "@wailsjs/go/models";
 import { create } from "zustand";
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 const BACKEND_POLL_INTERVAL = 5000;
 
 type TaskStatus = "pending" | "running" | "paused" | "completed" | "failed" | "canceled";
@@ -37,15 +42,16 @@ export type TransferViewModel = {
   total: number;
   speed?: number;
   eta?: number;
-  source: "local" | "backend";
+  source: "backend";
   uploadId?: string;
   error?: string;
 };
 
-type UploadOptions = {
+export type UploadOptions = {
   accountId?: string;
   bucket?: string;
   prefix?: string;
+  basePath?: string; // For directory uploads, common base path to compute relative paths
 };
 
 type TransfersState = {
@@ -61,7 +67,7 @@ type TransfersActions = {
   startPolling: () => void;
   stopPolling: () => void;
   syncBackendTasks: () => Promise<void>;
-  uploadFiles: (files: File[], options: UploadOptions) => Promise<void>;
+  uploadFilesFromPaths: (filePaths: string[], options: UploadOptions) => Promise<void>;
   downloadFiles: (keys: string[], options: UploadOptions) => Promise<void>;
   pauseTask: (taskID: string) => Promise<void>;
   resumeTask: (taskID: string) => Promise<void>;
@@ -78,39 +84,10 @@ type TransfersActions = {
 
 type TransfersStore = TransfersState & TransfersActions;
 
-type LocalTaskRuntime = {
-  file: File;
-  accountId: string;
-  bucket: string;
-  key: string;
-  uploadId?: string;
-  completedParts: Record<number, string>;
-  controller: {
-    paused: boolean;
-    canceled: boolean;
-  };
-  startedAt: number;
-};
-
-const localRuntimes = new Map<string, LocalTaskRuntime>();
-
-const normalizePrefix = (prefix?: string) => {
-  if (!prefix) return "";
-  return prefix.replace(/^\/+/, "").replace(/\/+$/, "");
-};
-
-const buildObjectKey = (prefix: string | undefined, relativePath: string) => {
-  const cleanPrefix = normalizePrefix(prefix);
-  const cleanPath = relativePath.replace(/^\/+/, "");
-  return cleanPrefix ? `${cleanPrefix}/${cleanPath}` : cleanPath;
-};
-
 const deriveName = (key: string) => {
   const segments = key.split("/").filter(Boolean);
   return segments.pop() || key;
 };
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toViewModel = (task: transfer.TransferTask): TransferViewModel => ({
   id: task.id,
@@ -137,33 +114,11 @@ const createInitialState = (): TransfersState => ({
   workerCount: 2,
 });
 
-const waitForResume = async (runtime: LocalTaskRuntime) => {
-  while (runtime.controller.paused && !runtime.controller.canceled) {
-    await delay(250);
-  }
-  if (runtime.controller.canceled) {
-    throw new Error("transfer canceled");
-  }
-};
-
-const updateSpeedHints = (
-  runtime: LocalTaskRuntime,
-  task: TransferViewModel,
-): TransferViewModel => {
-  const elapsedSeconds = (Date.now() - runtime.startedAt) / 1000;
-  if (elapsedSeconds > 0 && task.progress > 0) {
-    const speed = Math.round(task.progress / elapsedSeconds);
-    const remaining = Math.max(task.total - task.progress, 0);
-    const eta = speed > 0 ? Math.ceil(remaining / speed) : undefined;
-    return { ...task, speed, eta };
-  }
-  return task;
-};
-
 const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
   ...createInitialState(),
+
   startPolling: () => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     const timer = get().pollTimer;
     if (timer) return;
     const handle = window.setInterval(() => {
@@ -171,8 +126,9 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     }, BACKEND_POLL_INTERVAL);
     set({ pollTimer: handle });
     void get().syncBackendTasks();
-    void get().loadConfig(); // Load initial config
+    void get().loadConfig();
   },
+
   stopPolling: () => {
     const timer = get().pollTimer;
     if (timer) {
@@ -180,188 +136,147 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       set({ pollTimer: undefined });
     }
   },
+
   syncBackendTasks: async () => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     try {
       const result = await ListTransferTasks();
-      set((state) => {
-        // Backend is the source of truth - use its data directly
-        const updates: Record<string, TransferViewModel> = {};
-
-        // Keep local tasks that are still running (not yet synced to backend)
-        Object.values(state.tasks).forEach((task) => {
-          if (task.source === "local" && (task.status === "running" || task.status === "pending")) {
-            updates[task.id] = task;
-          }
-        });
-
-        // Merge all backend tasks (backend is authoritative)
-        result.forEach((task) => {
-          updates[task.id] = toViewModel(task);
-        });
-
-        return { tasks: updates };
+      // Backend is the sole source of truth
+      const tasks: Record<string, TransferViewModel> = {};
+      result.forEach((task) => {
+        tasks[task.id] = toViewModel(task);
       });
+      set({ tasks });
     } catch (error) {
       const message = error instanceof Error ? error.message : "同步传输任务失败";
       set({ error: message });
     }
   },
-  uploadFiles: async (files, options) => {
+
+  uploadFilesFromPaths: async (filePaths: string[], options: UploadOptions) => {
     const { accountId, bucket, prefix } = options;
     if (!accountId || !bucket) {
       showWarning("请选择账户与 Bucket 后再上传文件");
       return;
     }
-    if (!files.length) return;
+    if (!filePaths.length) {
+      showWarning("请选择要上传的文件");
+      return;
+    }
+
+    if (!isDesktopMode()) {
+      showWarning("上传功能仅在桌面模式下可用");
+      return;
+    }
+
     set({ uploading: true, error: undefined });
     try {
-      for (const file of files) {
-        const relative = file.webkitRelativePath || file.name;
-        const key = buildObjectKey(prefix, relative);
-        const taskID = crypto.randomUUID();
-        const runtime: LocalTaskRuntime = {
-          file,
-          accountId,
-          bucket,
-          key,
-          completedParts: {},
-          controller: { paused: false, canceled: false },
-          startedAt: Date.now(),
-        };
-        localRuntimes.set(taskID, runtime);
-        set((state) => ({
-          tasks: {
-            ...state.tasks,
-            [taskID]: {
-              id: taskID,
-              accountId,
-              bucket,
-              key,
-              name: file.name,
-              type: "upload",
-              status: "pending",
-              progress: 0,
-              total: file.size,
-              source: "local",
-            },
-          },
-        }));
-        void processUploadTask(taskID, runtime, set);
+      const result = await UploadFilesFromPaths({
+        accountId,
+        bucket,
+        prefix: prefix || "",
+        filePaths,
+        basePath: options.basePath || "",
+      });
+
+      if (result.tasks && result.tasks.length > 0) {
+        showInfo(`已添加 ${result.tasks.length} 个文件到上传队列`);
       }
+      if (result.failed && result.failed.length > 0) {
+        for (const fail of result.failed) {
+          showWarning(`上传失败: ${fail.filePath} - ${fail.error}`);
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "上传失败";
+      showWarning(`添加上传任务失败: ${message}`);
     } finally {
       set({ uploading: false });
     }
   },
-  downloadFiles: async () => {
-    showInfo("批量下载尚未实现，敬请期待。");
-  },
-  pauseTask: async (taskID: string) => {
-    const runtime = localRuntimes.get(taskID);
-    if (runtime) {
-      runtime.controller.paused = true;
-      set((state) => ({
-        tasks: {
-          ...state.tasks,
-          [taskID]: { ...state.tasks[taskID], status: "paused" },
-        },
-      }));
+
+  downloadFiles: async (keys: string[], options: UploadOptions) => {
+    const { accountId, bucket } = options;
+    if (!accountId || !bucket) {
+      showWarning("请选择账户与 Bucket 后再下载文件");
       return;
     }
-    if (!isBridgeAvailable()) return;
+    if (!keys.length) {
+      showWarning("请选择要下载的文件");
+      return;
+    }
+
+    if (!isDesktopMode()) {
+      showWarning("下载功能仅在桌面模式下可用");
+      return;
+    }
+
+    try {
+      const entries = keys.map((key) => ({
+        bucket,
+        key,
+        relativePath: key,
+        size: 0,
+        versionId: "",
+        isDir: key.endsWith("/"),
+      }));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await DownloadBatch(accountId, {
+        bucket,
+        entries,
+        targetDirectory: "",
+        archiveName: "",
+        conflictStrategy: "rename",
+      } as any);
+      showInfo(`已添加 ${keys.length} 个文件到下载队列`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "下载失败";
+      showWarning(`添加下载任务失败: ${message}`);
+    }
+  },
+
+  pauseTask: async (taskID: string) => {
+    if (!isDesktopMode()) return;
     await PauseTransferTask(taskID);
     void get().syncBackendTasks();
   },
+
   resumeTask: async (taskID: string) => {
-    const runtime = localRuntimes.get(taskID);
-    if (runtime) {
-      runtime.controller.paused = false;
-      set((state) => ({
-        tasks: {
-          ...state.tasks,
-          [taskID]: { ...state.tasks[taskID], status: "running" },
-        },
-      }));
-      return;
-    }
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     await ResumeTransferTask(taskID);
     void get().syncBackendTasks();
   },
+
   cancelTask: async (taskID: string) => {
-    const runtime = localRuntimes.get(taskID);
-    if (runtime) {
-      runtime.controller.canceled = true;
-      try {
-        if (runtime.uploadId) {
-          await AbortMultipartUpload(
-            runtime.accountId,
-            runtime.bucket,
-            runtime.key,
-            runtime.uploadId,
-          );
-        }
-      } catch (error) {
-        console.error(error);
-      }
-      set((state) => ({
-        tasks: {
-          ...state.tasks,
-          [taskID]: { ...state.tasks[taskID], status: "canceled" },
-        },
-      }));
-      localRuntimes.delete(taskID);
-      return;
-    }
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     await CancelTransferTask(taskID);
     void get().syncBackendTasks();
   },
+
   deleteTask: async (taskID: string) => {
-    if (!isBridgeAvailable()) {
-      // Frontend only - remove immediately
-      set((state) => {
-        const { [taskID]: _deleted, ...remaining } = state.tasks;
-        return { tasks: remaining };
-      });
-      return;
-    }
-    // Backend-first: call backend API
+    if (!isDesktopMode()) return;
     try {
       await DeleteTransferTask(taskID);
-      // Sync to get updated state from backend
       void get().syncBackendTasks();
     } catch (error) {
       const message = error instanceof Error ? error.message : "删除任务失败";
       set({ error: message });
     }
   },
+
   clearCompleted: async () => {
-    if (!isBridgeAvailable()) {
-      // Frontend only - filter locally
-      set((state) => {
-        const next: Record<string, TransferViewModel> = {};
-        Object.values(state.tasks).forEach((task) => {
-          if (task.status !== "completed") {
-            next[task.id] = task;
-          }
-        });
-        return { tasks: next };
-      });
-      return;
-    }
-    // Backend-first: call backend API
+    if (!isDesktopMode()) return;
     try {
       await ClearCompletedTransfers();
-      // Sync to get updated state from backend
       void get().syncBackendTasks();
     } catch (error) {
       const message = error instanceof Error ? error.message : "清理已完成任务失败";
       set({ error: message });
     }
   },
+
   loadGlobalSpeedLimit: async () => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     try {
       const limit = await GetTransferSpeedLimit();
       set({ globalSpeedLimit: limit });
@@ -369,8 +284,9 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       // ignore
     }
   },
+
   setGlobalSpeedLimit: async (bytesPerSec: number) => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     try {
       await SetTransferSpeedLimit(bytesPerSec);
       set({ globalSpeedLimit: bytesPerSec });
@@ -379,8 +295,9 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       set({ error: message });
     }
   },
+
   loadConfig: async () => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     try {
       const config = await GetTransferConfig();
       set({
@@ -391,8 +308,9 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
       // ignore
     }
   },
+
   setWorkerCount: async (count: number) => {
-    if (!isBridgeAvailable()) return;
+    if (!isDesktopMode()) return;
     try {
       await SetTransferConcurrency(count);
       set({ workerCount: count });
@@ -402,112 +320,6 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     }
   },
 }));
-
-const processUploadTask = async (
-  taskID: string,
-  runtime: LocalTaskRuntime,
-  set: (fn: (state: TransfersState) => Partial<TransfersState>) => void,
-) => {
-  try {
-    set((state) => ({
-      tasks: {
-        ...state.tasks,
-        [taskID]: { ...state.tasks[taskID], status: "running" },
-      },
-    }));
-    const uploadId = await InitiateMultipartUpload(runtime.accountId, runtime.bucket, runtime.key);
-    runtime.uploadId = uploadId;
-    set((state) => ({
-      tasks: {
-        ...state.tasks,
-        [taskID]: { ...state.tasks[taskID], uploadId },
-      },
-    }));
-    let partNumber = 1;
-    for (let offset = 0; offset < runtime.file.size; offset += CHUNK_SIZE, partNumber += 1) {
-      await waitForResume(runtime);
-      const chunk = runtime.file.slice(offset, Math.min(offset + CHUNK_SIZE, runtime.file.size));
-      const buffer = await chunk.arrayBuffer();
-      const payload = new Uint8Array(buffer);
-
-      // Convert Uint8Array to Base64 string
-      const base64 = btoa(String.fromCharCode(...payload));
-
-      const etag = await UploadPart(
-        runtime.accountId,
-        runtime.bucket,
-        runtime.key,
-        uploadId,
-        partNumber,
-        base64,
-      );
-      runtime.completedParts[partNumber] = etag;
-      set((state) => {
-        const current = state.tasks[taskID];
-        if (!current) {
-          return {};
-        }
-        const nextProgress = Math.min(current.progress + payload.byteLength, current.total);
-        const updated = updateSpeedHints(runtime, {
-          ...current,
-          progress: nextProgress,
-        });
-        return {
-          tasks: {
-            ...state.tasks,
-            [taskID]: updated,
-          },
-        };
-      });
-    }
-    await CompleteMultipartUpload(
-      runtime.accountId,
-      runtime.bucket,
-      runtime.key,
-      uploadId,
-      runtime.completedParts,
-    );
-    set((state) => ({
-      tasks: {
-        ...state.tasks,
-        [taskID]: {
-          ...state.tasks[taskID],
-          status: "completed",
-          progress: runtime.file.size,
-          eta: 0,
-          speed: 0,
-        },
-      },
-    }));
-    localRuntimes.delete(taskID);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "上传失败";
-    const canceled = runtime.controller.canceled || message.includes("canceled");
-    if (runtime.uploadId && !canceled) {
-      try {
-        await AbortMultipartUpload(
-          runtime.accountId,
-          runtime.bucket,
-          runtime.key,
-          runtime.uploadId,
-        );
-      } catch (abortErr) {
-        console.error(abortErr);
-      }
-    }
-    set((state) => ({
-      tasks: {
-        ...state.tasks,
-        [taskID]: {
-          ...state.tasks[taskID],
-          status: canceled ? "canceled" : "failed",
-          error: canceled ? "用户已取消上传" : message,
-        },
-      },
-    }));
-    localRuntimes.delete(taskID);
-  }
-};
 
 export const useTransfersStore = <T>(selector: (state: TransfersState) => T): T =>
   useTransfersStoreBase(selector as (state: TransfersStore) => T);
@@ -531,7 +343,7 @@ export const transfersStore = {
   startPolling: relay((store) => store.startPolling),
   stopPolling: relay((store) => store.stopPolling),
   syncBackendTasks: relay((store) => store.syncBackendTasks),
-  uploadFiles: relay((store) => store.uploadFiles),
+  uploadFilesFromPaths: relay((store) => store.uploadFilesFromPaths),
   downloadFiles: relay((store) => store.downloadFiles),
   pauseTask: relay((store) => store.pauseTask),
   resumeTask: relay((store) => store.resumeTask),
