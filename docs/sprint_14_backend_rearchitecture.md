@@ -1,6 +1,6 @@
 # Sprint 14: 后端架构重构 (Backend Rearchitecture)
 
-本次 Sprint 对后端进行**简洁务实的重构**，目标是对齐 README 中的 Mermaid 架构图，同时避免过度设计。
+本次 Sprint 对后端进行**简洁务实的重构**，目标是对齐 README 中的 Mermaid 架构图，同时将 `providers` 包重构为 `storage` 包，采用清晰的子包结构。
 
 ```
 User → Desktop Application (Wails) → Backend Service → Unified Interface Layer → Cloud Storage Providers
@@ -13,7 +13,7 @@ User → Desktop Application (Wails) → Backend Service → Unified Interface L
 ## 1. 设计原则
 
 1. **`app/` 即 Controller**：不再拆分独立的 Controller 层
-2. **保留 `providers/` 包名**：平铺命名（`s3_*.go`、`oss_*.go`）
+2. **重命名为 `storage/` 包**：通用功能在根目录，Vendor 扩展在子包（`storage/oss/`, `storage/cos/`）
 3. **双层接口设计**：S3 兼容接口 + Vendor 扩展接口
 4. **参数校验使用 validator**：复杂参数使用 `go-playground/validator` 库
 5. **保留 bootstrap 包**：职责清晰，不合并
@@ -60,8 +60,8 @@ flowchart TB
 | 架构图 | 代码实现 |
 |--------|----------|
 | Backend Service | `internal/app/` (Controller) + `internal/*/` (Services) |
-| AWS S3 SDK (Standard Interface) | `Client` 直接暴露方法，内部委托 `s3Client` |
-| Vendor Specific Features | `Client.SDK` 字段，类型断言后调用 |
+| AWS S3 SDK (Standard Interface) | `storage.Client` 直接暴露方法，内部委托 `s3Client` |
+| Vendor Specific Features | `storage.Client.SDK` 字段，实现为 `oss.Adapter` 或 `cos.Adapter` |
 
 ---
 
@@ -94,10 +94,10 @@ flowchart TB
 
 ### 3.2 接口定义
 
-**`internal/providers/interface.go`**：
+**`internal/storage/interface.go`**：
 
 ```go
-package providers
+package storage
 
 import (
     "context"
@@ -110,51 +110,16 @@ import (
 
 // S3Client 定义 S3 兼容的标准操作
 type S3Client interface {
-    // Bucket 操作
-    ListBuckets(ctx context.Context) ([]BucketDescriptor, error)
-    CreateBucket(ctx context.Context, input BucketCreateInput) error
-    DeleteBucket(ctx context.Context, name string) error
-    HeadBucket(ctx context.Context, name string) error
-    BucketLocation(ctx context.Context, name string) (string, error)
-    
-    // Object 基础操作
-    ListObjects(ctx context.Context, input ListObjectsInput) (*ListObjectsResult, error)
-    GetObject(ctx context.Context, input DownloadObjectInput) (*ObjectDownload, error)
-    PutObject(ctx context.Context, input PutObjectInput) error
-    DeleteObject(ctx context.Context, bucket, key string) error
-    DeleteObjects(ctx context.Context, bucket string, keys []string) (*BatchDeleteResult, error)
-    CopyObject(ctx context.Context, input CopyObjectInput) error
-    HeadObject(ctx context.Context, bucket, key string) (*ObjectDescriptor, error)
-    
-    // 预签名 URL
-    GeneratePresignedGetURL(ctx context.Context, bucket, key string, expires int) (string, error)
-    GeneratePresignedPutURL(ctx context.Context, bucket, key, contentType string, expires int) (string, error)
-    
-    // 分片上传
-    CreateMultipartUpload(ctx context.Context, bucket, key, contentType string) (uploadID string, err error)
-    UploadPart(ctx context.Context, input UploadPartInput) (*PartInfo, error)
-    CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts []PartInfo) error
-    AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error
-    ListParts(ctx context.Context, bucket, key, uploadID string) ([]PartInfo, error)
-    
-    // Bucket 配置 (S3 标准)
-    GetBucketACL(ctx context.Context, bucket string) (*BucketACL, error)
-    PutBucketACL(ctx context.Context, bucket string, acl BucketACLInput) error
-    GetBucketCORS(ctx context.Context, bucket string) (*CORSConfiguration, error)
-    PutBucketCORS(ctx context.Context, bucket string, cors CORSConfiguration) error
-    DeleteBucketCORS(ctx context.Context, bucket string) error
-    GetBucketVersioning(ctx context.Context, bucket string) (*VersioningConfiguration, error)
-    PutBucketVersioning(ctx context.Context, bucket string, status string) error
-    GetBucketEncryption(ctx context.Context, bucket string) (*EncryptionConfiguration, error)
-    PutBucketEncryption(ctx context.Context, bucket string, enc EncryptionConfiguration) error
-    GetBucketLifecycle(ctx context.Context, bucket string) (*LifecycleConfiguration, error)
-    PutBucketLifecycle(ctx context.Context, bucket string, lc LifecycleConfiguration) error
-    GetBucketPolicy(ctx context.Context, bucket string) (string, error)
-    PutBucketPolicy(ctx context.Context, bucket string, policy string) error
-    
-    // 元信息
-    Provider() string
+	ListBuckets(ctx context.Context, params *s3.ListBucketsInput, optFns ...func(*s3.Options)) (*s3.ListBucketsOutput, error)
+	CreateBucket(ctx context.Context, params *s3.CreateBucketInput, optFns ...func(*s3.Options)) (*s3.CreateBucketOutput, error)
+	DeleteBucket(ctx context.Context, params *s3.DeleteBucketInput, optFns ...func(*s3.Options)) (*s3.DeleteBucketOutput, error)
+	HeadBucket(ctx context.Context, params *s3.HeadBucketInput, optFns ...func(*s3.Options)) (*s3.HeadBucketOutput, error)
+	GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, optFns ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error)
+	GetBucketAcl(ctx context.Context, params *s3.GetBucketAclInput, optFns ...func(*s3.Options)) (*s3.GetBucketAclOutput, error)
+	PutBucketAcl(ctx context.Context, params *s3.PutBucketAclInput, optFns ...func(*s3.Options)) (*s3.PutBucketAclOutput, error)
+	// more signature methods from aws sdk s3 package.
 }
+
 
 // ============================================
 // Vendor SDK 适配器接口
@@ -162,8 +127,8 @@ type S3Client interface {
 
 // VendorSDK Vendor 原生 SDK 适配器基础接口
 type VendorSDK interface {
-    // Provider 返回供应商类型
-    Provider() string
+    // Name 返回供应商类型
+    Name() string
 }
 
 // OSSVendorSDK 阿里云 OSS 特有功能
@@ -197,55 +162,65 @@ type COSVendorSDK interface {
 
 // Client 统一的存储客户端
 type Client struct {
-    s3       *s3Client  // 私有，S3 兼容操作
+    s3       *S3Client  // 私有，S3 兼容操作
     SDK      VendorSDK  // 公开，Vendor 特有操作（可为 nil）
-    provider string     // 私有，供应商类型
 }
 
 // Provider 返回供应商类型
 func (c *Client) Provider() string {
-    return c.provider
+    if c.SDK != nil {
+        return c.SDK.Name()
+    }
+    return "Unknown"
 }
 
 // ============================================
 // S3 标准操作直接暴露（委托给 s3Client）
 // ============================================
 
-func (c *Client) ListBuckets(ctx context.Context) ([]BucketDescriptor, error) {
-    return c.s3.ListBuckets(ctx)
+func (c *Client) ListBuckets(ctx context.Context, params *s3.ListBucketsInput, optFns ...func(*s3.Options)) ([]BucketDescriptor, error) {
+    return c.s3.ListBuckets(ctx, params, optFns...)
 }
 
-func (c *Client) ListObjects(ctx context.Context, input ListObjectsInput) (*ListObjectsResult, error) {
+func (c *Client) ListObjects(ctx context.Context, params *s3.ListObjectsInput, optFns ...func(*s3.Options)) (*ListObjectsResult, error) {
     // 可在此处添加额外逻辑、适配不同 Provider 差异
-    return c.s3.ListObjects(ctx, input)
+    return c.s3.ListObjects(ctx, params, optFns...)
 }
 
-func (c *Client) PutObject(ctx context.Context, input PutObjectInput) error {
-    return c.s3.PutObject(ctx, input)
+func (c *Client) PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) error {
+    return c.s3.PutObject(ctx, params, optFns...)
 }
 
-func (c *Client) GetObject(ctx context.Context, input DownloadObjectInput) (*ObjectDownload, error) {
-    return c.s3.GetObject(ctx, input)
+func (c *Client) GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*ObjectDownload, error) {
+    return c.s3.GetObject(ctx, params, optFns...)
 }
 
 // ... 其他 S3 标准操作同理委托
 ```
 
-### 3.3 Vendor SDK 实现
+### 3.3 Vendor SDK 实现（子包）
+
+**`internal/storage/oss/adapter.go`**：
 
 ```go
-// oss_sdk.go
+package oss
 
-// ossSDKAdapter 阿里云 OSS SDK 适配器
-type ossSDKAdapter struct {
-    client *oss.Client
+import (
+    "context"
+    "can/internal/storage"
+    ossSDK "github.com/aliyun/aliyun-oss-go-sdk/oss"
+)
+
+// Adapter 阿里云 OSS SDK 适配器
+type Adapter struct {
+    client *ossSDK.Client
 }
 
-func (a *ossSDKAdapter) Provider() string {
+func (a *Adapter) Name() string {
     return "oss"
 }
 
-func (a *ossSDKAdapter) CreateSymlink(ctx context.Context, bucket, symlink, target string) error {
+func (a *Adapter) CreateSymlink(ctx context.Context, bucket, symlink, target string) error {
     b, err := a.client.Bucket(bucket)
     if err != nil {
         return err
@@ -253,7 +228,7 @@ func (a *ossSDKAdapter) CreateSymlink(ctx context.Context, bucket, symlink, targ
     return b.PutSymlink(symlink, target)
 }
 
-func (a *ossSDKAdapter) GetSymlink(ctx context.Context, bucket, symlink string) (string, error) {
+func (a *Adapter) GetSymlink(ctx context.Context, bucket, symlink string) (string, error) {
     b, err := a.client.Bucket(bucket)
     if err != nil {
         return "", err
@@ -261,7 +236,7 @@ func (a *ossSDKAdapter) GetSymlink(ctx context.Context, bucket, symlink string) 
     return b.GetSymlink(symlink)
 }
 
-func (a *ossSDKAdapter) GetBucketReferer(ctx context.Context, bucket string) (*BucketReferer, error) {
+func (a *Adapter) GetBucketReferer(ctx context.Context, bucket string) (*storage.BucketReferer, error) {
     result, err := a.client.GetBucketReferer(bucket)
     if err != nil {
         return nil, err
@@ -269,24 +244,40 @@ func (a *ossSDKAdapter) GetBucketReferer(ctx context.Context, bucket string) (*B
     return convertOSSReferer(result), nil
 }
 
-func (a *ossSDKAdapter) PutBucketReferer(ctx context.Context, bucket string, referer BucketReferer) error {
+func (a *Adapter) PutBucketReferer(ctx context.Context, bucket string, referer storage.BucketReferer) error {
     return a.client.SetBucketReferer(bucket, referer.AllowList, referer.AllowEmpty)
+}
+
+func NewAdapter(account storage.Account) (*Adapter, error) {
+    client, err := ossSDK.New(account.Endpoint, account.AccessKey, account.SecretKey)
+    if err != nil {
+        return nil, err
+    }
+    return &Adapter{client: client}, nil
 }
 ```
 
-```go
-// cos_sdk.go
+**`internal/storage/cos/adapter.go`**：
 
-// cosSDKAdapter 腾讯云 COS SDK 适配器
-type cosSDKAdapter struct {
-    client *cos.Client
+```go
+package cos
+
+import (
+    "context"
+    "can/internal/storage"
+    cosSDK "github.com/tencentyun/cos-go-sdk-v5"
+)
+
+// Adapter 腾讯云 COS SDK 适配器
+type Adapter struct {
+    client *cosSDK.Client
 }
 
-func (a *cosSDKAdapter) Provider() string {
+func (a *Adapter) Name() string {
     return "cos"
 }
 
-func (a *cosSDKAdapter) GetBucketReferer(ctx context.Context, bucket string) (*BucketReferer, error) {
+func (a *Adapter) GetBucketReferer(ctx context.Context, bucket string) (*storage.BucketReferer, error) {
     result, err := a.client.Bucket.GetReferer(ctx)
     if err != nil {
         return nil, err
@@ -294,21 +285,30 @@ func (a *cosSDKAdapter) GetBucketReferer(ctx context.Context, bucket string) (*B
     return convertCOSReferer(result), nil
 }
 
-func (a *cosSDKAdapter) PutBucketReferer(ctx context.Context, bucket string, referer BucketReferer) error {
+func (a *Adapter) PutBucketReferer(ctx context.Context, bucket string, referer storage.BucketReferer) error {
     return a.client.Bucket.PutReferer(ctx, convertToCOSReferer(referer))
 }
 
-func (a *cosSDKAdapter) GetBucketMAZConfig(ctx context.Context, bucket string) (*MAZConfiguration, error) {
+func (a *Adapter) GetBucketMAZConfig(ctx context.Context, bucket string) (*storage.MAZConfiguration, error) {
     // COS 特有的多可用区配置
+    // ...
+}
+
+func NewAdapter(account storage.Account) (*Adapter, error) {
+    // 初始化 COS SDK
     // ...
 }
 ```
 
 ### 3.4 使用示例
 
+**业务层调用（对外 API）**：
+
 ```go
+import "can/internal/storage"
+
 // 创建 Client
-client, _ := providers.NewClient(account)
+client, _ := storage.NewClient(account)
 
 // S3 标准操作：直接调用
 buckets, _ := client.ListBuckets(ctx)
@@ -317,25 +317,30 @@ _ = client.PutObject(ctx, input)
 
 // 获取 Provider
 provider := client.Provider()  // "oss", "cos", "aws", etc.
+```
 
-// Vendor 特有操作：先检查 SDK != nil，再类型断言
+**Vendor 扩展调用（类型断言）**：
+
+```go
+import (
+    "can/internal/storage"
+    "can/internal/storage/oss"
+    "can/internal/storage/cos"
+)
+
+// 检查并使用 OSS 扩展
 if client.SDK != nil {
-    switch sdk := client.SDK.(type) {
-    case providers.OSSVendorSDK:
+    if ossSDK, ok := client.SDK.(*oss.Adapter); ok {
         // OSS 特有功能
-        _ = sdk.CreateSymlink(ctx, bucket, symlink, target)
-        referer, _ := sdk.GetBucketReferer(ctx, bucket)
-        
-    case providers.COSVendorSDK:
-        // COS 特有功能
-        referer, _ := sdk.GetBucketReferer(ctx, bucket)
-        maz, _ := sdk.GetBucketMAZConfig(ctx, bucket)
+        _ = ossSDK.CreateSymlink(ctx, bucket, symlink, target)
+        referer, _ := ossSDK.GetBucketReferer(ctx, bucket)
     }
-}
-
-// 或者直接类型断言
-if ossSDK, ok := client.SDK.(providers.OSSVendorSDK); ok {
-    _ = ossSDK.CreateSymlink(ctx, bucket, symlink, target)
+    
+    if cosSDK, ok := client.SDK.(*cos.Adapter); ok {
+        // COS 特有功能
+        referer, _ := cosSDK.GetBucketReferer(ctx, bucket)
+        maz, _ := cosSDK.GetBucketMAZConfig(ctx, bucket)
+    }
 }
 ```
 
@@ -366,27 +371,46 @@ internal/
 ├── backup/                     # 备份服务
 ├── system/                     # 系统服务
 │
-├── providers/                  # Unified Interface Layer
-│   ├── interface.go            # 【新增】统一接口定义
-│   ├── errors.go               # 【新增】统一错误类型
-│   ├── types.go                # 输入输出结构体（从 storage.go 提取）
-│   ├── factory.go              # 驱动工厂（重构 storage_factory.go）
-│   ├── pool.go                 # 客户端缓存（重命名 client_pool.go）
+├── storage/                    # 统一存储接口层（原 providers）
+│   ├─── 核心接口和类型 ─────
+│   ├── interface.go            # S3Client、VendorSDK 接口定义
+│   ├── types.go                # 通用类型（Input/Output）
+│   ├── errors.go               # 统一错误类型
 │   │
-│   │  # S3 兼容驱动 (使用 AWS SDK，覆盖所有 Vendor)
+│   ├─── S3 标准实现 ─────
+│   ├── client.go               # Client 聚合结构
 │   ├── s3_client.go            # S3 客户端初始化
-│   ├── s3_client_impl.go       # S3Client 接口实现
-│   ├── s3_multipart.go         # 分片上传实现
+│   ├── s3_impl.go              # S3Client 接口实现
+│   ├── s3_multipart.go         # 分片上传
+│   ├── s3_errors.go            # S3 错误处理
+│   ├── s3_dialer.go            # S3 连接配置
 │   │
-│   │  # Vendor 扩展驱动 (使用各厂商 SDK)
-│   ├── oss_extension.go        # OSS 扩展功能 (Symlink, Referer)
-│   └── cos_extension.go        # COS 扩展功能 (MAZ, Referer)
+│   ├─── 工厂和池 ─────
+│   ├── factory.go              # NewClient 工厂函数
+│   ├── pool.go                 # 客户端池管理
+│   │
+│   ├─── 辅助工具 ─────
+│   ├── presign_helpers.go
+│   ├── range.go
+│   ├── sts_driver.go
+│   │
+│   ├─── Vendor 子包 ─────
+│   ├── oss/                    # 阿里云 OSS 扩展
+│   │   ├── adapter.go          # OSS Adapter 实现
+│   │   ├── symlink.go          # Symlink 功能
+│   │   ├── referer.go          # 防盗链
+│   │   └── types.go            # OSS 特有类型
+│   │
+│   └── cos/                    # 腾讯云 COS 扩展
+│       ├── adapter.go          # COS Adapter 实现
+│       ├── referer.go          # 防盗链
+│       ├── maz.go              # 多可用区
+│       └── types.go            # COS 特有类型
 │
 ├── types/                      # Provider 类型与能力
 │   ├── provider.go
 │   └── capabilities.go
 │
-├── configfacade/               # 【合并至 config/】
 └── bootstrap/                  # 应用启动配置
     └── bootstrap.go
 ```
@@ -399,50 +423,35 @@ internal/
 
 **一套代码，多 Vendor 复用**：
 
-```go
-// s3_client.go
-
-// s3Client 是纯粹的 S3 兼容操作方法集合
-type s3Client struct {
-    client *s3.Client  // AWS S3 SDK 客户端
-}
-
-// 所有 S3 兼容 Vendor 共用此实现
-func (c *s3Client) ListObjects(ctx context.Context, input ListObjectsInput) (*ListObjectsResult, error) {
-    output, err := c.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-        Bucket:            aws.String(input.Bucket),
-        Prefix:            aws.String(input.Prefix),
-        Delimiter:         aws.String(input.Delimiter),
-        MaxKeys:           aws.Int32(int32(input.Limit)),
-        ContinuationToken: nilIfEmpty(input.Cursor),
-    })
-    if err != nil {
-        return nil, wrapS3Error(err)
-    }
-    return convertListResult(output), nil
-}
-```
-
 ### 5.2 Vendor 扩展驱动
 
 **仅实现该 Vendor 特有功能**：
 
 ```go
-// oss_extension.go
-type OSSExtension struct {
-    ossClient *oss.Client  // 阿里云 OSS SDK
+// internal/storage/oss/adapter.go
+
+package oss
+
+import (
+    "context"
+    "can/internal/storage"
+    ossSDK "github.com/aliyun/aliyun-oss-go-sdk/oss"
+)
+
+type Adapter struct {
+    client *ossSDK.Client  // 阿里云 OSS SDK
 }
 
-func (e *OSSExtension) CreateSymlink(ctx context.Context, bucket, symlink, target string) error {
-    b, err := e.ossClient.Bucket(bucket)
+func (a *Adapter) CreateSymlink(ctx context.Context, bucket, symlink, target string) error {
+    b, err := a.client.Bucket(bucket)
     if err != nil {
         return err
     }
     return b.PutSymlink(symlink, target)
 }
 
-func (e *OSSExtension) GetBucketReferer(ctx context.Context, bucket string) (*BucketReferer, error) {
-    b, err := e.ossClient.Bucket(bucket)
+func (a *Adapter) GetBucketReferer(ctx context.Context, bucket string) (*storage.BucketReferer, error) {
+    b, err := a.client.Bucket(bucket)
     if err != nil {
         return nil, err
     }
@@ -456,8 +465,15 @@ func (e *OSSExtension) GetBucketReferer(ctx context.Context, bucket string) (*Bu
 
 ### 5.3 工厂函数
 
+**`internal/storage/factory.go`**：
+
 ```go
-// factory.go
+package storage
+
+import (
+    "can/internal/storage/oss"
+    "can/internal/storage/cos"
+)
 
 // NewClient 创建存储客户端
 func NewClient(account Account) (*Client, error) {
@@ -466,28 +482,27 @@ func NewClient(account Account) (*Client, error) {
     if err != nil {
         return nil, err
     }
-    s3 := &s3Client{client: s3Sdk, provider: account.Provider}
+    s3Client := &s3ClientImpl{client: s3Sdk}
     
-    // 2. 根据 Provider 创建 SDK 适配器
+    // 2. 根据 Provider 创建 SDK 适配器（子包）
     var sdk VendorSDK
     switch account.Provider {
     case "oss":
-        ossClient, err := newOSSSDK(account)
+        adapter, err := oss.NewAdapter(account)
         if err == nil {
-            sdk = &ossSDKAdapter{client: ossClient}
+            sdk = adapter
         }
     case "cos":
-        cosClient, err := newCOSSDK(account)
+        adapter, err := cos.NewAdapter(account)
         if err == nil {
-            sdk = &cosSDKAdapter{client: cosClient}
+            sdk = adapter
         }
     // AWS, R2, Minio, Custom 等没有 vendor SDK，SDK 为 nil
     }
     
     return &Client{
-        s3:       s3,
+        s3:       s3Client,
         SDK:      sdk,
-        provider: account.Provider,
     }, nil
 }
 ```
@@ -499,31 +514,33 @@ func NewClient(account Account) (*Client, error) {
 ### Phase 1: 基础设施 (2 天)
 
 1. 引入 `go-playground/validator` 库
-2. 创建 `internal/providers/interface.go`
-3. 创建 `internal/providers/errors.go`
+2. 创建 `internal/storage/interface.go`
+3. 创建 `internal/storage/errors.go`
 4. 创建 `internal/app/validation.go`
 
 ### Phase 2: 重构 S3 驱动 (2 天)
 
-1. 将 `s3_storage_client.go` 重构为 `s3_standard.go`
+1. 将 `s3_storage_client.go` 重构为 `s3_impl.go`
 2. 确保实现完整的 `S3Client` 接口
 3. 统一分页参数为 `Cursor` / `NextCursor`
 
-### Phase 3: 实现扩展驱动 (2 天)
+### Phase 3: 实现 Vendor 子包 (2 天)
 
-1. 创建 `oss_extension.go` 实现 OSS 特有功能
-2. 创建 `cos_extension.go` 实现 COS 特有功能
+1. 创建 `internal/storage/oss/` 子包，实现 `oss.Adapter`
+2. 创建 `internal/storage/cos/` 子包，实现 `cos.Adapter`
+3. 实现各自的 NewAdapter 工厂函数
 
 ### Phase 4: 重构 Factory (1 天)
 
-1. 重构 `factory.go` 创建 `CompositeStorageClient`
-2. 更新 `pool.go` 使用新的客户端类型
+1. 重构 `factory.go`，集成 `oss.NewAdapter()` 和 `cos.NewAdapter()`
+2. 更新 `pool.go` 使用新的 `storage.Client` 类型
 
 ### Phase 5: App 层更新 (2 天)
 
 1. 为所有 API 方法添加 validator 校验
-2. 更新 Service 层使用新的接口
+2. 更新 Service 层引用从 `providers` 改为 `storage`
 3. ✅ ~~合并 `configfacade/` 至 `config/`~~ (已完成 - 2025-12-09)
+4. 重命名包：`providers` → `storage`
 
 ### Phase 6: 验证 (1 天)
 
