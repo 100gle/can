@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/types"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -14,6 +16,9 @@ import (
 
 // GetWebsite returns the static website configuration.
 func (s *BucketConfigService) GetWebsite(ctx context.Context, accountID, bucket string) (*BucketWebsite, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketWebsite); err != nil {
+		return nil, err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -37,6 +42,9 @@ func (s *BucketConfigService) GetWebsite(ctx context.Context, accountID, bucket 
 
 // SetWebsite configures static website hosting. Passing a nil or disabled value clears the configuration.
 func (s *BucketConfigService) SetWebsite(ctx context.Context, accountID, bucket string, website *BucketWebsite) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketWebsite); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
@@ -66,6 +74,9 @@ func (s *BucketConfigService) SetWebsite(ctx context.Context, accountID, bucket 
 
 // DeleteWebsite removes website hosting configuration.
 func (s *BucketConfigService) DeleteWebsite(ctx context.Context, accountID, bucket string) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketWebsite); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err

@@ -523,7 +523,7 @@ func NewClient(account Account) (*Client, error) {
 
 1. 为所有 API 方法添加 validator 校验
 2. 更新 Service 层使用新的接口
-3. 合并 `configfacade/` 至 `config/`
+3. ✅ ~~合并 `configfacade/` 至 `config/`~~ (已完成 - 2025-12-09)
 
 ### Phase 6: 验证 (1 天)
 

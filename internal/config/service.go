@@ -62,6 +62,44 @@ func (s *BucketConfigService) client(ctx context.Context, accountID, bucket stri
 	return client, creds, nil
 }
 
+// ensureCapability checks if the account's provider supports the specified feature.
+func (s *BucketConfigService) ensureCapability(ctx context.Context, accountID string, feature types.FeatureID) error {
+	provider, err := s.accountProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if types.HasCapability(provider, feature) {
+		return nil
+	}
+	return errors.New(capabilityError(provider, feature))
+}
+
+// capabilityError generates a user-friendly error message for unsupported capabilities.
+func capabilityError(provider types.Provider, feature types.FeatureID) string {
+	for _, capability := range types.ProviderCapabilities(provider) {
+		if capability.FeatureID == feature {
+			if capability.Message != "" {
+				return capability.Message
+			}
+			return fmt.Sprintf("%s 暂不支持 %s", provider.Label(), capability.Name)
+		}
+	}
+	return fmt.Sprintf("%s 暂不支持该配置", provider.Label())
+}
+
+// accountProvider retrieves the provider type for the given account.
+func (s *BucketConfigService) accountProvider(ctx context.Context, accountID string) (types.Provider, error) {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
+		return "", errors.New("account id is required")
+	}
+	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	return creds.Provider, nil
+}
+
 func (s *BucketConfigService) supportsConfig(provider types.Provider) bool {
 	// Check if the provider supports any bucket configuration capabilities
 	bucketConfigFeatures := []types.FeatureID{

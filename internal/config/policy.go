@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/types"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
@@ -14,6 +16,9 @@ import (
 
 // GetPolicy returns the bucket access policy if any.
 func (s *BucketConfigService) GetPolicy(ctx context.Context, accountID, bucket string) (*BucketPolicy, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPolicy); err != nil {
+		return nil, err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -42,6 +47,9 @@ func (s *BucketConfigService) GetPolicy(ctx context.Context, accountID, bucket s
 
 // SetPolicy replaces the bucket policy. Passing nil clears the policy.
 func (s *BucketConfigService) SetPolicy(ctx context.Context, accountID, bucket string, policy *BucketPolicy) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPolicy); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
@@ -73,6 +81,9 @@ func (s *BucketConfigService) SetPolicy(ctx context.Context, accountID, bucket s
 
 // DeletePolicy removes the bucket policy.
 func (s *BucketConfigService) DeletePolicy(ctx context.Context, accountID, bucket string) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPolicy); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err

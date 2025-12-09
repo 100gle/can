@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"can/internal/types"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -15,6 +17,9 @@ import (
 
 // GetEncryption fetches the bucket default encryption configuration.
 func (s *BucketConfigService) GetEncryption(ctx context.Context, accountID, bucket string) (*BucketEncryption, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketEncryption); err != nil {
+		return nil, err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -50,6 +55,9 @@ func (s *BucketConfigService) GetEncryption(ctx context.Context, accountID, buck
 
 // SetEncryption configures the bucket default encryption. Passing a nil or disabled config removes encryption.
 func (s *BucketConfigService) SetEncryption(ctx context.Context, accountID, bucket string, encryption *BucketEncryption) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketEncryption); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
@@ -100,6 +108,9 @@ func (s *BucketConfigService) SetEncryption(ctx context.Context, accountID, buck
 
 // DeleteEncryption removes any bucket default encryption rules.
 func (s *BucketConfigService) DeleteEncryption(ctx context.Context, accountID, bucket string) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketEncryption); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err

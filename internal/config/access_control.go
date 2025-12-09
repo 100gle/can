@@ -8,10 +8,14 @@ import (
 	"time"
 
 	"can/internal/providers"
+	"can/internal/types"
 )
 
 // GetBucketACL returns the normalized ACL for the given bucket.
 func (s *BucketConfigService) GetBucketACL(ctx context.Context, accountID, bucket string) (*BucketACL, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketACL); err != nil {
+		return nil, err
+	}
 	client, _, err := s.storageClient(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -25,6 +29,9 @@ func (s *BucketConfigService) GetBucketACL(ctx context.Context, accountID, bucke
 
 // SetBucketACL applies either a canned ACL or a custom grant list.
 func (s *BucketConfigService) SetBucketACL(ctx context.Context, accountID, bucket string, acl *BucketACL) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketACL); err != nil {
+		return err
+	}
 	if acl == nil {
 		return errors.New("acl payload is required")
 	}
@@ -42,6 +49,9 @@ func (s *BucketConfigService) SetBucketACL(ctx context.Context, accountID, bucke
 
 // GetPublicAccessBlock retrieves the AWS style block public access configuration.
 func (s *BucketConfigService) GetPublicAccessBlock(ctx context.Context, accountID, bucket string) (*PublicAccessBlock, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPublicAccess); err != nil {
+		return nil, err
+	}
 	client, creds, err := s.storageClient(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -58,6 +68,9 @@ func (s *BucketConfigService) GetPublicAccessBlock(ctx context.Context, accountI
 
 // SetPublicAccessBlock updates the block public access switches.
 func (s *BucketConfigService) SetPublicAccessBlock(ctx context.Context, accountID, bucket string, cfg *PublicAccessBlock) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketPublicAccess); err != nil {
+		return err
+	}
 	if cfg == nil {
 		return errors.New("configuration is required")
 	}
@@ -79,6 +92,9 @@ func (s *BucketConfigService) SetPublicAccessBlock(ctx context.Context, accountI
 
 // GetBucketReferer fetches the referer whitelist configuration.
 func (s *BucketConfigService) GetBucketReferer(ctx context.Context, accountID, bucket string) (*BucketReferer, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketReferer); err != nil {
+		return nil, err
+	}
 	client, creds, err := s.storageClient(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -95,6 +111,9 @@ func (s *BucketConfigService) GetBucketReferer(ctx context.Context, accountID, b
 
 // SetBucketReferer updates the referer whitelist configuration.
 func (s *BucketConfigService) SetBucketReferer(ctx context.Context, accountID, bucket string, referer *BucketReferer) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketReferer); err != nil {
+		return err
+	}
 	if referer == nil {
 		return errors.New("referer payload is required")
 	}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/types"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -14,6 +16,9 @@ import (
 
 // GetCORS returns the current bucket CORS rules.
 func (s *BucketConfigService) GetCORS(ctx context.Context, accountID, bucket string) (*BucketCORS, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketCORS); err != nil {
+		return nil, err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -43,6 +48,9 @@ func (s *BucketConfigService) GetCORS(ctx context.Context, accountID, bucket str
 
 // SetCORS replaces the bucket CORS configuration.
 func (s *BucketConfigService) SetCORS(ctx context.Context, accountID, bucket string, cors *BucketCORS) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketCORS); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
@@ -74,6 +82,9 @@ func (s *BucketConfigService) SetCORS(ctx context.Context, accountID, bucket str
 
 // DeleteCORS removes all bucket CORS rules.
 func (s *BucketConfigService) DeleteCORS(ctx context.Context, accountID, bucket string) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketCORS); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err

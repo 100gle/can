@@ -11,7 +11,6 @@ import (
 	"can/internal/bootstrap"
 	"can/internal/buckets"
 	"can/internal/config"
-	"can/internal/configfacade"
 	"can/internal/objects"
 	"can/internal/providers"
 	"can/internal/search"
@@ -29,7 +28,7 @@ type App struct {
 	buckets             *buckets.Service
 	objects             *objects.Service
 	transfers           *transfer.Service
-	config              *configfacade.Service
+	config              *config.BucketConfigService
 	search              *search.Service
 	system              *system.Service
 	backup              backup.Service
@@ -71,7 +70,6 @@ func New() *App {
 	linkHistoryStore := bootstrap.InitLinkHistoryStore()
 	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore, auditSvc)
 	configSvc := config.NewBucketConfigService(accountSvc, s3Factory, storageFactory)
-	configFacade := configfacade.NewService(accountSvc, configSvc)
 	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 
@@ -90,7 +88,7 @@ func New() *App {
 		buckets:        bucketSvc,
 		objects:        objectSvc,
 		transfers:      transferSvc,
-		config:         configFacade,
+		config:         configSvc,
 		search:         searchSvc,
 		system:         systemSvc,
 		backup:         backupSvc,

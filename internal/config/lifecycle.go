@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/types"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -14,6 +16,9 @@ import (
 
 // GetLifecycle loads lifecycle rules for the bucket.
 func (s *BucketConfigService) GetLifecycle(ctx context.Context, accountID, bucket string) ([]*LifecycleRule, error) {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketLifecycle); err != nil {
+		return nil, err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return nil, err
@@ -47,6 +52,9 @@ func (s *BucketConfigService) GetLifecycle(ctx context.Context, accountID, bucke
 
 // SetLifecycle replaces the bucket lifecycle configuration.
 func (s *BucketConfigService) SetLifecycle(ctx context.Context, accountID, bucket string, rules []*LifecycleRule) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketLifecycle); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
@@ -111,6 +119,9 @@ func (s *BucketConfigService) SetLifecycle(ctx context.Context, accountID, bucke
 
 // DeleteLifecycle removes all lifecycle rules for the bucket.
 func (s *BucketConfigService) DeleteLifecycle(ctx context.Context, accountID, bucket string) error {
+	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketLifecycle); err != nil {
+		return err
+	}
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
