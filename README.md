@@ -62,7 +62,7 @@ flowchart TB
  subgraph Frontend["Frontend Layer<br>"]
         Desktop["Desktop Application<br>(Powered by Wails)"]
   end
- subgraph Backend["Backend Controller"]
+ subgraph Backend["Backend Service"]
         Config["App Config<br>(Module)"]
         Logic["App Data or<br>Other Business Logic<br>(Module)"]
         S3Service["S3 Service<br>(Module)"]
