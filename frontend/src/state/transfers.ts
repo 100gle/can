@@ -1,4 +1,5 @@
 import { isBridgeAvailable } from "@/lib/bridge";
+import { showInfo, showWarning } from "@/lib/toast";
 import {
   AbortMultipartUpload,
   CancelTransferTask,
@@ -209,7 +210,7 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
   uploadFiles: async (files, options) => {
     const { accountId, bucket, prefix } = options;
     if (!accountId || !bucket) {
-      window.alert?.("请选择账户与 Bucket 后再上传文件");
+      showWarning("请选择账户与 Bucket 后再上传文件");
       return;
     }
     if (!files.length) return;
@@ -253,7 +254,7 @@ const useTransfersStoreBase = create<TransfersStore>((set, get) => ({
     }
   },
   downloadFiles: async () => {
-    window.alert?.("批量下载尚未实现，敬请期待。");
+    showInfo("批量下载尚未实现，敬请期待。");
   },
   pauseTask: async (taskID: string) => {
     const runtime = localRuntimes.get(taskID);

@@ -10,7 +10,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/accounts/$accountId")({
   beforeLoad: async ({ params }) => {
-    await accountsStore.bootstrap();
+    // Accounts already loaded in root route, just validate
     const state = accountsStore.getState();
     if (!state.accounts.length) {
       throw redirect({ to: "/" });
@@ -22,6 +22,12 @@ export const Route = createFileRoute("/accounts/$accountId")({
         params: { accountId: state.accounts[0].id },
       });
     }
+    //  Start transfer polling when entering account page
+    transfersStore.startPolling();
+  },
+  onLeave: () => {
+    // Stop transfer polling when leaving account pages
+    transfersStore.stopPolling();
   },
   component: AccountLayout,
 });
@@ -53,15 +59,15 @@ function AccountLayout() {
     mode: "create",
   });
 
+  // Set active account when accountId changes
   useEffect(() => {
     if (activeAccountId !== accountId) {
       void accountsStore.setActiveAccount(accountId);
     }
   }, [activeAccountId, accountId]);
 
-  useEffect(() => {
-    transfersStore.startPolling();
-  }, []);
+  // Active account setting and polling now handled in route's beforeLoad/onLeave
+  // This ensures proper cleanup when navigating away
 
   const activeAccount = useMemo(() => {
     if (!accounts.length) return undefined;

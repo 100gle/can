@@ -1,3 +1,4 @@
+import { PasswordDialog } from "@/components/dialogs/password-dialog";
 import { PageHeader } from "@/components/layouts/page-header";
 import { useResolvedTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { offlineCache } from "@/lib/offline";
+import { backupService } from "@/lib/services";
+import { showError, showSuccess } from "@/lib/toast";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import {
   DEFAULT_ADVANCED_OPTIONS,
@@ -234,54 +237,50 @@ export default function SettingsPage() {
       .finally(() => setCheckingUpdate(false));
   };
 
-  const handleCreateBackup = () => {
+  const handleCreateBackup = async () => {
     if (enableBackupEncryption) {
       setShowBackupPasswordDialog(true);
     } else {
-      void CreateAppBackup(false, "")
-        .then(() => window.alert("备份创建成功"))
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : String(error);
-          window.alert(`备份失败: ${message}`);
-        });
+      const result = await backupService.createBackup();
+      if (!result.success) {
+        showError(`备份失败: ${result.error}`);
+      }
     }
   };
 
-  const handleCreateEncryptedBackup = (password: string) => {
-    void CreateAppBackup(true, password)
-      .then(() => window.alert("加密备份创建成功，请妥善保管密码"))
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        window.alert(`备份失败: ${message}`);
-      });
+  const handleCreateEncryptedBackup = async (password: string) => {
+    const result = await backupService.createEncryptedBackup(password);
+    if (!result.success) {
+      showError(`备份失败: ${result.error}`);
+    }
   };
 
-  const handleRestoreBackup = () => {
-    // Try to restore without password first (might be unencrypted)
-    void RestoreAppBackup("")
-      .then(() => window.alert("恢复成功"))
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        // Check if it's an encryption-related error
-        if (message.includes("encrypted") || message.includes("password")) {
-          setShowRestorePasswordDialog(true);
-        } else {
-          window.alert(`恢复失败: ${message}`);
-        }
-      });
+  const handleRestoreBackup = async () => {
+    // Try to restore - backupService will handle password prompt if needed
+    const result = await backupService.restoreBackup("");
+    if (result.success) {
+      showSuccess("恢复成功");
+    } else {
+      // Check if encryption error
+      if (result.error.includes("encrypted") || result.error.includes("password")) {
+        setShowRestorePasswordDialog(true);
+      } else {
+        showError(`恢复失败: ${result.error}`);
+      }
+    }
   };
 
-  const handleRestoreWithPassword = (password: string) => {
-    void RestoreAppBackup(password)
-      .then(() => window.alert("恢复成功"))
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("decrypt") || message.includes("wrong password")) {
-          window.alert("密码错误，请重试");
-        } else {
-          window.alert(`恢复失败: ${message}`);
-        }
-      });
+  const handleRestoreWithPassword = async (password: string) => {
+    const result = await backupService.restoreBackup(password);
+    if (result.success) {
+      showSuccess("恢复成功");
+    } else {
+      if (result.error.includes("decrypt") || result.error.includes("wrong password")) {
+        showError("密码错误，请重试");
+      } else {
+        showError(`恢复失败: ${result.error}`);
+      }
+    }
   };
 
   const isDefaultAdvanced =
@@ -290,18 +289,20 @@ export default function SettingsPage() {
 
   const handleExport = () => {
     if (!accounts.length) {
-      window.alert?.("暂无可导出的账户");
+      showError("暂无可导出的账户");
       return;
     }
     void accountsStore
       .exportAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        const lines = [
+        const message = [
           `已导出 ${summary.count} 个账户`,
           summary.filePath ? `保存位置：${summary.filePath}` : null,
-        ].filter(Boolean);
-        window.alert?.(lines.join("\n"));
+        ]
+          .filter(Boolean)
+          .join("\n");
+        showSuccess(message);
       })
       .catch(() => {
         /* handled */
@@ -315,16 +316,16 @@ export default function SettingsPage() {
       .importAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        const lines = [
+        const message = [
           `成功导入 ${summary.imported}/${summary.total} 个账户`,
           summary.skipped ? `跳过 ${summary.skipped} 个` : null,
           summary.failed ? `失败 ${summary.failed} 个` : null,
         ].filter(Boolean);
         if (summary.issues?.length) {
-          lines.push("详情：");
-          summary.issues.forEach((issue) => lines.push(`- ${issue}`));
+          message.push("详情：");
+          summary.issues.forEach((issue) => message.push(`- ${issue}`));
         }
-        window.alert?.(lines.join("\n"));
+        showSuccess(message.join("\n"));
       })
       .catch(() => {
         /* handled */
@@ -343,7 +344,7 @@ export default function SettingsPage() {
     await offlineCache.clear();
     const usage = await offlineCache.getUsage();
     setCacheUsage(usage);
-    window.alert?.("缓存已清除");
+    showSuccess("缓存已清除");
   };
 
   const handleCacheSizeChange = (value: string) => {

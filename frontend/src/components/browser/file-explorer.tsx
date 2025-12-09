@@ -220,11 +220,9 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       });
     } else {
       return objects.filter((obj) => {
-        // In list mode (flat view), we typically only want to see files.
-        // Filter out explicit directories (isDir) and folder marker objects (ending in /).
-        if (viewMode === "list" && (obj.isDir || obj.key.endsWith("/"))) {
-          return false;
-        }
+        // In list mode (flat view), show all objects
+        // In grid mode, folder markers (ending in /) are shown as folders
+        // No need to filter by isDir or key ending in list mode
 
         if (searchTerm && !obj.key.toLowerCase().includes(searchTerm.toLowerCase())) {
           return false;
@@ -258,11 +256,9 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
     setLevel("objects");
     setSearchTerm("");
     setTypeFilter("all");
-    // Set delimiter based on current viewMode before loading objects
-    // list = flat mode (empty delimiter), grid = folder hierarchy
+    // Set delimiter based on current viewMode: list = flat mode (empty), grid = folder hierarchy
     const delimiter = viewMode === "list" ? "" : "/";
-    await objectsStore.setDelimiter(delimiter);
-    void objectsStore.setContext(accountId, bucketName);
+    await objectsStore.setContext(accountId, bucketName, delimiter);
     objectsStore.clearSelection();
   };
 

@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getFieldErrorMessage } from "@/lib/forms";
+import { showError } from "@/lib/toast";
 import { formatBytes } from "@/lib/utils";
 import { searchStore, useSearchStore } from "@/state/search";
 import { useForm, useStore } from "@tanstack/react-form";
@@ -131,7 +132,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
       setSaveOpen(false);
       setSaveName("");
     } catch {
-      window.alert?.("保存失败");
+      showError("保存失败");
     }
   };
 

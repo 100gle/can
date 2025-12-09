@@ -1,10 +1,9 @@
 import { isBridgeAvailable } from "@/lib/bridge";
+import { accountService } from "@/lib/services";
 import {
   ActiveAccount,
   CreateAccount,
   DeleteAccount,
-  ExportAccounts,
-  ImportAccounts,
   ListAccounts,
   ProviderCapabilities,
   SetActiveAccount,
@@ -459,42 +458,26 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
     }
   },
   exportAccounts: async () => {
-    const useBridge = isBridgeAvailable();
-    if (!useBridge) {
-      if (typeof window !== "undefined") {
-        window.alert?.("导入/导出功能仅在桌面应用中可用");
-      }
-      return undefined;
-    }
-    try {
-      const summary = await ExportAccounts();
+    const result = await accountService.exportAccounts();
+    if (result.success) {
       set({ error: undefined });
-      return summary as WailsExportSummary;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "导出配置失败";
-      set({ error: message });
-      throw error;
+      return result.data;
+    } else {
+      set({ error: result.error });
+      throw new Error(result.error);
     }
   },
   importAccounts: async () => {
-    const useBridge = isBridgeAvailable();
-    if (!useBridge) {
-      if (typeof window !== "undefined") {
-        window.alert?.("导入/导出功能仅在桌面应用中可用");
-      }
-      return undefined;
-    }
-    try {
-      const summary = await ImportAccounts();
-      if (!summary.cancelled) {
+    const result = await accountService.importAccounts();
+    if (result.success) {
+      if (!result.data.cancelled) {
         await get().refresh();
       }
       set({ error: undefined });
-      return summary as WailsImportSummary;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "导入配置失败";
-      set({ error: message });
-      throw error;
+      return result.data;
+    } else {
+      set({ error: result.error });
+      throw new Error(result.error);
     }
   },
 }));

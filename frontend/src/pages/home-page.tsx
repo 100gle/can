@@ -1,8 +1,9 @@
 import { AccountFormDrawer } from "@/components/accounts/account-form-drawer";
 import { AccountSelector } from "@/components/accounts/account-selector";
 import { HomeLayout } from "@/components/layouts/home-layout";
+import { showError, showSuccess } from "@/lib/toast";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type DrawerState =
   | { open: false }
@@ -19,9 +20,7 @@ export default function HomePage() {
   const providers = useAccountsStore((state) => state.providers);
   const [drawerState, setDrawerState] = useState<DrawerState>(CLOSED_DRAWER);
 
-  useEffect(() => {
-    void accountsStore.bootstrap();
-  }, []);
+  // Accounts already bootstrapped in root route (__root.tsx)
 
   const openDrawer = (mode: "create" | "edit", account?: AccountModel) => {
     setDrawerState({ open: true, mode, account });
@@ -31,18 +30,20 @@ export default function HomePage() {
 
   const handleExportAccounts = () => {
     if (!accounts.length) {
-      window.alert?.("暂无可导出的账户");
+      showError("暂无可导出的账户");
       return;
     }
     void accountsStore
       .exportAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        const lines = [
+        const message = [
           `已导出 ${summary.count} 个账户`,
           summary.filePath ? `保存位置：${summary.filePath}` : null,
-        ].filter(Boolean);
-        window.alert?.(lines.join("\n"));
+        ]
+          .filter(Boolean)
+          .join("\n");
+        showSuccess(message);
       })
       .catch(() => {
         /* handled in store */
@@ -54,16 +55,16 @@ export default function HomePage() {
       .importAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        const lines = [
+        const message = [
           `成功导入 ${summary.imported}/${summary.total} 个账户`,
           summary.skipped ? `跳过 ${summary.skipped} 个` : null,
           summary.failed ? `失败 ${summary.failed} 个` : null,
         ].filter(Boolean);
         if (summary.issues?.length) {
-          lines.push("详情：");
-          summary.issues.forEach((issue) => lines.push(`- ${issue}`));
+          message.push("详情：");
+          summary.issues.forEach((issue) => message.push(`- ${issue}`));
         }
-        window.alert?.(lines.join("\n"));
+        showSuccess(message.join("\n"));
       })
       .catch(() => {
         /* handled */

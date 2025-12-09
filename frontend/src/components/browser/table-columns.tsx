@@ -92,7 +92,7 @@ export function createFileTableColumns(
         const label = deriveLabel(item.key, prefix);
 
         return (
-          <div className="flex items-center gap-2 max-w-[400px]">
+          <div className="flex items-center gap-2 w-full overflow-hidden">
             <div className="flex items-center justify-center h-4 w-4 shrink-0">
               {item.isDir ? (
                 <Folder className="h-4 w-4 text-primary fill-primary/20" />
@@ -111,7 +111,9 @@ export function createFileTableColumns(
           </div>
         );
       },
-      minSize: 200,
+      enableResizing: true,
+      size: 1000,
+      minSize: 500,
     },
     {
       accessorKey: "lastModified",
@@ -138,7 +140,9 @@ export function createFileTableColumns(
           {formatDate(row.original.lastModified)}
         </span>
       ),
+      enableResizing: true,
       size: 180,
+      minSize: 100,
     },
     {
       accessorKey: "isDir",
@@ -171,7 +175,9 @@ export function createFileTableColumns(
         }
         return <span className="text-muted-foreground">-</span>;
       },
+      enableResizing: true,
       size: 120,
+      minSize: 80,
     },
     {
       accessorKey: "size",
@@ -200,7 +206,9 @@ export function createFileTableColumns(
         );
       },
       sortingFn: "basic",
+      enableResizing: true,
       size: 120,
+      minSize: 80,
     },
     {
       id: "actions",

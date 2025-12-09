@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { showError, showWarning } from "@/lib/toast";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
@@ -38,11 +39,11 @@ export function PasswordDialog({
 
   const handleConfirm = () => {
     if (!password) {
-      window.alert("请输入密码");
+      showWarning("请输入密码");
       return;
     }
     if (requireConfirmation && password !== confirmPassword) {
-      window.alert("两次输入的密码不一致");
+      showError("两次输入的密码不一致");
       return;
     }
     onConfirm(password);

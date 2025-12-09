@@ -1,16 +1,9 @@
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ObjectModel } from "@/state/objects";
 import {
+  ColumnResizeMode,
   SortingState,
   flexRender,
   getCoreRowModel,
@@ -52,6 +45,7 @@ export function FileTable({
   onDelete,
 }: FileTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnResizeMode] = useState<ColumnResizeMode>("onChange");
   const [lastSelectedKey, setLastSelectedKey] = useState<string | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -127,6 +121,8 @@ export function FileTable({
   const table = useReactTable({
     data,
     columns,
+    columnResizeMode,
+    enableColumnResizing: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
@@ -148,38 +144,43 @@ export function FileTable({
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
 
-  // Calculate total table width for consistent column alignment
-  const tableWidth = table.getAllColumns().reduce((sum, col) => sum + col.getSize(), 0);
-
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="rounded-md border">
+      <div className="rounded-md border w-full">
         {/* Fixed Header */}
         <div className="overflow-hidden border-b">
-          <Table style={{ width: tableWidth, tableLayout: "fixed" }}>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead
-                        key={header.id}
-                        style={{
-                          width: header.getSize(),
-                          minWidth: header.getSize(),
-                          maxWidth: header.getSize(),
-                        }}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-          </Table>
+          <div className="flex items-center bg-muted/50">
+            {table.getHeaderGroups()[0]?.headers.map((header, index) => {
+              const isLastColumn = index === table.getHeaderGroups()[0].headers.length - 1;
+              const isActionsColumn = header.column.id === "actions";
+              return (
+                <div
+                  key={header.id}
+                  className="relative py-2 px-2 text-sm font-medium text-muted-foreground select-none"
+                  style={{
+                    flex: isActionsColumn ? "1 0 auto" : `0 0 ${header.getSize()}px`,
+                    minWidth: header.column.columnDef.minSize ?? 50,
+                  }}
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                  {/* Resize handle - shown for all resizable columns except last */}
+                  {!isLastColumn && header.column.getCanResize() && (
+                    <div
+                      onMouseDown={header.getResizeHandler()}
+                      onTouchStart={header.getResizeHandler()}
+                      className={cn(
+                        "absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none",
+                        "hover:bg-primary/30",
+                        header.column.getIsResizing() && "bg-primary/50"
+                      )}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Virtual scrolling container */}
@@ -189,64 +190,64 @@ export function FileTable({
           style={{ height: "calc(100vh - 300px)", minHeight: "300px", maxHeight: "600px" }}
         >
           {rows.length ? (
-            <Table style={{ width: tableWidth, tableLayout: "fixed" }}>
-              <TableBody style={{ height: `${totalSize}px`, position: "relative" }}>
-                {virtualRows.map((virtualRow) => {
-                  const row = rows[virtualRow.index];
-                  return (
-                    <ContextMenu key={row.id}>
-                      <ContextMenuTrigger asChild>
-                        <TableRow
-                          data-state={selectedKeys.has(row.original.key) && "selected"}
-                          className={cn(
-                            "cursor-pointer hover:bg-muted/50 transition-colors",
-                            selectedKeys.has(row.original.key) && "bg-muted",
-                          )}
-                          style={{
-                            height: ROW_HEIGHT,
-                            transform: `translateY(${virtualRow.start}px)`,
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                          }}
-                          onClick={(e) => handleRowClick(e, row.original.key)}
-                          onDoubleClick={() => {
-                            if (row.original.isDir) {
-                              onEnterFolder(row.original.key);
-                            } else {
-                              onPreview(row.original.key);
-                            }
-                          }}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell
+            <div style={{ height: `${totalSize}px`, position: "relative" }}>
+              {virtualRows.map((virtualRow) => {
+                const row = rows[virtualRow.index];
+                return (
+                  <ContextMenu key={row.id}>
+                    <ContextMenuTrigger asChild>
+                      <div
+                        data-state={selectedKeys.has(row.original.key) && "selected"}
+                        className={cn(
+                          "flex items-center cursor-pointer hover:bg-muted/50 transition-colors border-b",
+                          selectedKeys.has(row.original.key) && "bg-muted",
+                        )}
+                        style={{
+                          height: ROW_HEIGHT,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                        }}
+                        onClick={(e) => handleRowClick(e, row.original.key)}
+                        onDoubleClick={() => {
+                          if (row.original.isDir) {
+                            onEnterFolder(row.original.key);
+                          } else {
+                            onPreview(row.original.key);
+                          }
+                        }}
+                      >
+                        {row.getVisibleCells().map((cell) => {
+                          const isActionsColumn = cell.column.id === "actions";
+                          return (
+                            <div
                               key={cell.id}
-                              className="py-2"
+                              className="py-2 px-2 truncate"
                               style={{
-                                width: cell.column.getSize(),
-                                minWidth: cell.column.getSize(),
-                                maxWidth: cell.column.getSize(),
+                                flex: isActionsColumn ? "1 0 auto" : `0 0 ${cell.column.getSize()}px`,
+                                minWidth: cell.column.columnDef.minSize ?? 50,
                               }}
                             >
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </ContextMenuTrigger>
-                      <TableRowContextMenu
-                        isDir={row.original.isDir}
-                        onEnterFolder={() => onEnterFolder(row.original.key)}
-                        onPreview={() => onPreview(row.original.key)}
-                        onDownload={() => onDownload(row.original.key)}
-                        onCopyLink={() => onCopyLink(row.original.key)}
-                        onDelete={() => onDelete(row.original.key)}
-                      />
-                    </ContextMenu>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ContextMenuTrigger>
+                    <TableRowContextMenu
+                      isDir={row.original.isDir}
+                      onEnterFolder={() => onEnterFolder(row.original.key)}
+                      onPreview={() => onPreview(row.original.key)}
+                      onDownload={() => onDownload(row.original.key)}
+                      onCopyLink={() => onCopyLink(row.original.key)}
+                      onDelete={() => onDelete(row.original.key)}
+                    />
+                  </ContextMenu>
+                );
+              })}
+            </div>
           ) : (
             <div className="h-24 flex items-center justify-center text-muted-foreground">
               No results.

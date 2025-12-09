@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { showError, showWarning } from "@/lib/toast";
 import {
   bucketConfigStore,
   useBucketConfigStore,
@@ -99,7 +100,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
 
   const handleSave = () => {
     if (!draft.ownerId) {
-      window.alert?.("无法保存：缺少 Owner ID，稍后重试。");
+      showError("无法保存：缺少 Owner ID，稍后重试。");
       return;
     }
     const cleaned: BucketACLModel = {
@@ -113,15 +114,15 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
     };
     const hasCustomGrant = cleaned.grants.length > 0;
     if (!cleaned.canned && !hasCustomGrant) {
-      window.alert?.("请选择预设 ACL 或添加至少一个自定义授权。");
+      showWarning("请选择预设 ACL 或添加至少一个自定义授权。");
       return;
     }
     if (hasCustomGrant && cleaned.canned) {
-      window.alert?.("若要使用自定义授权，请将预设 ACL 设置为“自定义（仅使用下方授权）”。");
+      showWarning("若要使用自定义授权，请将预设 ACL 设置为“自定义（仅使用下方授权）”。");
       return;
     }
     if (!supportsCustomGrant && !cleaned.canned) {
-      window.alert?.("当前供应商仅支持预设 ACL，请勿切换到自定义模式。");
+      showWarning("当前供应商仅支持预设 ACL，请勿切换到自定义模式。");
       return;
     }
     void bucketConfigStore.saveBucketACL(cleaned);

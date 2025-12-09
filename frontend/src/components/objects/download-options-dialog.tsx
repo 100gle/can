@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { showWarning } from "@/lib/toast";
 import type { ObjectModel } from "@/state/objects";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { SelectLocalFolder } from "@wailsjs/go/app/App";
@@ -78,7 +79,7 @@ export function DownloadOptionsDialog({
       }
     } catch (err) {
       console.error(err);
-      window.alert?.("当前环境不支持选择本地目录，请手动输入路径");
+      showWarning("当前环境不支持选择本地目录，请手动输入路径");
     }
   };
 

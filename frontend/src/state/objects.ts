@@ -12,8 +12,8 @@ import {
   UpdateObjectAttributes,
 } from "@wailsjs/go/app/App";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
-import { create } from "zustand";
 import { toast } from "sonner";
+import { create } from "zustand";
 
 export type ObjectModel = ObjectModels.ObjectInfo;
 
@@ -38,7 +38,7 @@ export type ObjectsState = {
 };
 
 export type ObjectsActions = {
-  setContext: (accountId?: string, bucket?: string) => Promise<void>;
+  setContext: (accountId?: string, bucket?: string, delimiter?: string) => Promise<void>;
   enterPrefix: (prefix: string) => Promise<void>;
   goUp: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -137,18 +137,18 @@ const normalizeObject = (object: ObjectModels.ObjectInfo | ObjectModel): ObjectM
 
 const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   ...createInitialState(),
-  setContext: async (accountId?: string, bucket?: string) => {
+  setContext: async (accountId?: string, bucket?: string, delimiter?: string) => {
     if (!accountId || !bucket) {
       set({ ...createInitialState(), accountId: undefined, bucket: undefined });
       return;
     }
-    // Preserve current delimiter when switching buckets
-    const currentDelimiter = get().delimiter;
+    // Use provided delimiter or preserve current value
+    const effectiveDelimiter = delimiter ?? get().delimiter;
     set({
       accountId,
       bucket,
       prefix: "",
-      delimiter: currentDelimiter,
+      delimiter: effectiveDelimiter,
       objects: [],
       nextMarker: undefined,
       truncated: false,
@@ -428,8 +428,12 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
   },
   reset: () => set({ ...createInitialState(), accountId: undefined, bucket: undefined }),
   setDelimiter: async (delimiter: string) => {
-    set({ delimiter, objects: [], nextMarker: undefined, truncated: false });
-    await get().refresh();
+    set({ delimiter, nextMarker: undefined, truncated: false });
+    // Auto-reload if context is set
+    const state = get();
+    if (state.accountId && state.bucket) {
+      await get().refresh();
+    }
   },
 
   // Selection actions

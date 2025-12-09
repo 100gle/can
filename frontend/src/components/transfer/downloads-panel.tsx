@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { showSuccess } from "@/lib/toast";
 import { formatBytes } from "@/lib/utils";
 import type { TransferViewModel } from "@/state/transfers";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
@@ -50,7 +51,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
       // This would require a backend call to open file explorer
       // For now just copy path to clipboard
       navigator.clipboard.writeText(folder);
-      window.alert?.(`路径已复制: ${folder}`);
+      showSuccess(`路径已复制: ${folder}`);
     }
   };
 
