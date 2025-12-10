@@ -462,6 +462,20 @@ export namespace config {
 	        this.updated = source["updated"];
 	    }
 	}
+	export class BucketMAZConfig {
+	    status: string;
+	    updated: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BucketMAZConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.updated = source["updated"];
+	    }
+	}
 	export class PolicyStatement {
 	    sid: string;
 	    effect: string;

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAccountsStore } from "@/state/accounts";
 import { useTransferStats } from "@/state/transfers";
 import { useNavigate } from "@tanstack/react-router";
-import { HelpCircle, Plus, Settings, Share2, ShieldCheck } from "lucide-react";
+import { HelpCircle, Plus, Settings, Share2 } from "lucide-react";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -48,22 +48,7 @@ export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
           <Plus className="h-4 w-4" />
           新建账户
         </Button>
-        {currentAccountId && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2"
-            onClick={() =>
-              navigate({
-                to: "/accounts/$accountId/security",
-                params: { accountId: currentAccountId },
-              })
-            }
-          >
-            <ShieldCheck className="h-4 w-4" />
-            安全中心
-          </Button>
-        )}
+
         <div className="relative">
           <Button
             variant="outline"

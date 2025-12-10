@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 
 	"can/internal/accounts"
-	"can/internal/providers"
+	"can/internal/storage"
 )
 
 const (
@@ -80,7 +80,7 @@ func WithQueueSize(size int) Option {
 // Service coordinates transfer tasks, persists them, and executes work asynchronously.
 type Service struct {
 	accounts *accounts.Service
-	pool     providers.ClientPool
+	pool     storage.ClientPool
 	store    Store
 
 	queue   *taskQueue
@@ -128,7 +128,7 @@ func (r *taskRuntime) getReason() stopReason {
 }
 
 // NewService wires the dependencies required by the transfer subsystem.
-func NewService(accounts *accounts.Service, pool providers.ClientPool, store Store, opts ...Option) *Service {
+func NewService(accounts *accounts.Service, pool storage.ClientPool, store Store, opts ...Option) *Service {
 	if store == nil {
 		store = NewMemoryStore()
 	}
@@ -830,7 +830,7 @@ func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask)
 		expectedChecksum = cfg.ExpectedChecksum
 	}
 
-	input := providers.DownloadObjectInput{
+	input := storage.DownloadObjectInput{
 		Bucket:    task.Bucket,
 		Key:       task.Key,
 		VersionID: task.VersionID,
@@ -959,7 +959,7 @@ func (s *Service) executeArchiveDownload(ctx context.Context, task *TransferTask
 			}
 			continue
 		}
-		input := providers.DownloadObjectInput{
+		input := storage.DownloadObjectInput{
 			Bucket:    entry.Bucket,
 			Key:       entry.Key,
 			VersionID: entry.VersionID,
@@ -1249,7 +1249,7 @@ func (s *Service) persistTask(task *TransferTask) {
 	}
 }
 
-func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
+func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, error) {
 	accountID = strings.TrimSpace(accountID)
 	if accountID == "" {
 		return nil, errors.New("account id is required")
@@ -1257,7 +1257,7 @@ func (s *Service) client(ctx context.Context, accountID string) (providers.Stora
 	if s.pool == nil {
 		return nil, errors.New("storage client pool not configured")
 	}
-	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+	supplier := func(ctx context.Context) (storage.ConnectionCredentials, error) {
 		return s.accounts.ConnectionCredentials(ctx, accountID)
 	}
 	client, _, err := s.pool.Get(ctx, accountID, supplier)

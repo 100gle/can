@@ -1,7 +1,7 @@
 package app
 
 import (
-	"can/internal/backup"
+	"can/internal/system/backup"
 	"os"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"

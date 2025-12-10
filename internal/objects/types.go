@@ -25,7 +25,7 @@ type ObjectInfo struct {
 
 // ListObjectsInput specifies the listing boundaries.
 type ListObjectsInput struct {
-	Bucket    string `json:"bucket"`
+	Bucket    string `json:"bucket" validate:"required,bucket-name"`
 	Prefix    string `json:"prefix"`
 	Delimiter string `json:"delimiter"`
 	Limit     int    `json:"limit"`
@@ -41,10 +41,10 @@ type ListObjectsResult struct {
 
 // MoveObjectRequest represents a single move/copy+delete operation.
 type MoveObjectRequest struct {
-	SourceBucket string `json:"sourceBucket"`
-	SourceKey    string `json:"sourceKey"`
-	TargetBucket string `json:"targetBucket"`
-	TargetKey    string `json:"targetKey"`
+	SourceBucket string `json:"sourceBucket" validate:"required,bucket-name"`
+	SourceKey    string `json:"sourceKey" validate:"required,object-key"`
+	TargetBucket string `json:"targetBucket" validate:"required,bucket-name"`
+	TargetKey    string `json:"targetKey" validate:"required,object-key"`
 }
 
 // BatchOperationFailure captures best-effort errors for batch work.
@@ -81,8 +81,8 @@ type AccessGrant struct {
 
 // ObjectAttributesPatch defines a partial update for metadata/tags/ACL.
 type ObjectAttributesPatch struct {
-	Bucket       string            `json:"bucket"`
-	Key          string            `json:"key"`
+	Bucket       string            `json:"bucket" validate:"required,bucket-name"`
+	Key          string            `json:"key" validate:"required,object-key"`
 	Metadata     map[string]string `json:"metadata"`
 	Tags         map[string]string `json:"tags"`
 	ContentType  string            `json:"contentType"`
@@ -120,11 +120,11 @@ type ObjectRetentionState struct {
 
 // UpdateObjectRetentionInput controls retention mutations for an object/version.
 type UpdateObjectRetentionInput struct {
-	Bucket           string    `json:"bucket"`
-	Key              string    `json:"key"`
+	Bucket           string    `json:"bucket" validate:"required,bucket-name"`
+	Key              string    `json:"key" validate:"required,object-key"`
 	VersionID        string    `json:"versionId"`
-	Mode             string    `json:"mode"`
-	RetainUntil      time.Time `json:"retainUntil" ts_type:"string"`
+	Mode             string    `json:"mode" validate:"required,oneof=GOVERNANCE COMPLIANCE"`
+	RetainUntil      time.Time `json:"retainUntil" ts_type:"string" validate:"required"`
 	BypassGovernance bool      `json:"bypassGovernance"`
 }
 
@@ -135,17 +135,17 @@ type ObjectLegalHoldState struct {
 
 // UpdateObjectLegalHoldInput toggles legal hold status.
 type UpdateObjectLegalHoldInput struct {
-	Bucket    string `json:"bucket"`
-	Key       string `json:"key"`
+	Bucket    string `json:"bucket" validate:"required,bucket-name"`
+	Key       string `json:"key" validate:"required,object-key"`
 	VersionID string `json:"versionId"`
-	Status    string `json:"status"`
+	Status    string `json:"status" validate:"required,oneof=ON OFF"`
 }
 
 // DownloadObjectInput describes advanced download preferences for a single object.
 type DownloadObjectInput struct {
-	Bucket           string `json:"bucket"`
-	Key              string `json:"key"`
-	SavePath         string `json:"savePath"`
+	Bucket           string `json:"bucket" validate:"required,bucket-name"`
+	Key              string `json:"key" validate:"required,object-key"`
+	SavePath         string `json:"savePath" validate:"required"`
 	TargetDirectory  string `json:"targetDirectory"`
 	ConflictStrategy string `json:"conflictStrategy"`
 	DisableResume    bool   `json:"disableResume"`
@@ -174,10 +174,10 @@ type DownloadBatchEntry struct {
 
 // AccessLinkRequest controls presigned URL generation.
 type AccessLinkRequest struct {
-	Bucket            string            `json:"bucket"`
-	Key               string            `json:"key"`
-	Methods           []string          `json:"methods"`
-	ExpirationSeconds int64             `json:"expirationSeconds"`
+	Bucket            string            `json:"bucket" validate:"required,bucket-name"`
+	Key               string            `json:"key" validate:"required,object-key"`
+	Methods           []string          `json:"methods" validate:"required,min=1"`
+	ExpirationSeconds int64             `json:"expirationSeconds" validate:"required,min=1"`
 	ResponseHeaders   map[string]string `json:"responseHeaders"`
 	FileName          string            `json:"fileName"`
 	VersionID         string            `json:"versionId"`

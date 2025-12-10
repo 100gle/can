@@ -10,6 +10,9 @@ import (
 
 // ListObjects enumerates objects under the given prefix.
 func (a *App) ListObjects(accountID string, input objects.ListObjectsInput) (objects.ListObjectsResult, error) {
+	if err := ValidateStruct(input); err != nil {
+		return objects.ListObjectsResult{}, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.ListObjects(ctx, accountID, input)
@@ -31,6 +34,9 @@ func (a *App) DownloadObject(accountID, bucket, key, savePath string) (*transfer
 
 // DownloadObjectWithOptions exposes advanced download controls to the UI.
 func (a *App) DownloadObjectWithOptions(accountID string, input objects.DownloadObjectInput) (*transfer.TransferTask, error) {
+	if err := ValidateStruct(input); err != nil {
+		return nil, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.DownloadObjectWithOptions(ctx, accountID, input)
@@ -38,6 +44,9 @@ func (a *App) DownloadObjectWithOptions(accountID string, input objects.Download
 
 // DownloadBatch bundles multiple objects into an archive download.
 func (a *App) DownloadBatch(accountID string, input objects.DownloadBatchInput) (*transfer.TransferTask, error) {
+	if err := ValidateStruct(input); err != nil {
+		return nil, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.DownloadBatch(ctx, accountID, input)
@@ -50,11 +59,11 @@ func (a *App) DeleteObject(accountID, bucket, key string) error {
 	return a.objects.DeleteObject(ctx, accountID, bucket, key)
 }
 
-// DeleteObjectWithOptions deletes an object with idempotency/origin metadata (offline queue).
-func (a *App) DeleteObjectWithOptions(accountID, bucket, key string, options objects.MutationOptions) error {
+// DeleteObjectWithOptions removes an object with mutation tracking metadata.
+func (a *App) DeleteObjectWithOptions(accountID, bucket, key string, opts objects.MutationOptions) error {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.objects.DeleteObject(ctx, accountID, bucket, key, objects.WithMutationOptions(options))
+	return a.objects.DeleteObjectWithOptions(ctx, accountID, bucket, key, opts)
 }
 
 // BatchDeleteObjects removes multiple objects from the bucket.
@@ -78,11 +87,11 @@ func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
 	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
 }
 
-// RenameObjectWithOptions renames an object while carrying mutation metadata.
-func (a *App) RenameObjectWithOptions(accountID, bucket, oldKey, newKey string, options objects.MutationOptions) error {
+// RenameObjectWithOptions renames an object with mutation tracking metadata.
+func (a *App) RenameObjectWithOptions(accountID, bucket, oldKey, newKey string, opts objects.MutationOptions) error {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey, objects.WithMutationOptions(options))
+	return a.objects.RenameObjectWithOptions(ctx, accountID, bucket, oldKey, newKey, opts)
 }
 
 // MoveObjects performs batch move operations (copy + delete).
@@ -92,11 +101,11 @@ func (a *App) MoveObjects(accountID string, requests []objects.MoveObjectRequest
 	return a.objects.MoveObjects(ctx, accountID, requests)
 }
 
-// MoveObjectsWithOptions performs move operations with mutation metadata (offline queue).
-func (a *App) MoveObjectsWithOptions(accountID string, requests []objects.MoveObjectRequest, options objects.MutationOptions) (objects.MoveObjectsResult, error) {
+// MoveObjectsWithOptions performs batch move operations with mutation tracking.
+func (a *App) MoveObjectsWithOptions(accountID string, requests []objects.MoveObjectRequest, opts objects.MutationOptions) (objects.MoveObjectsResult, error) {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.objects.MoveObjects(ctx, accountID, requests, objects.WithMutationOptions(options))
+	return a.objects.MoveObjectsWithOptions(ctx, accountID, requests, opts)
 }
 
 // CreateFolder materialises a pseudo-folder marker object.
@@ -201,6 +210,9 @@ func (a *App) AbortMultipartUpload(accountID, bucket, key, uploadID string) erro
 
 // GenerateAccessLinks returns presigned URLs plus helper metadata.
 func (a *App) GenerateAccessLinks(accountID string, input objects.AccessLinkRequest) ([]objects.AccessLink, error) {
+	if err := ValidateStruct(input); err != nil {
+		return nil, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.GenerateAccessLinks(ctx, accountID, input)
@@ -211,6 +223,13 @@ func (a *App) CreateSymlink(accountID, bucket, linkKey, targetKey string) error 
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.CreateSymlink(ctx, accountID, bucket, linkKey, targetKey)
+}
+
+// GetSymlink returns the target of an OSS symlink.
+func (a *App) GetSymlink(accountID, bucket, key string) (string, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetSymlink(ctx, accountID, bucket, key)
 }
 
 // GetObjectLockConfiguration fetches bucket-level object lock defaults.
@@ -229,6 +248,9 @@ func (a *App) GetObjectRetention(accountID, bucket, key, versionID string) (obje
 
 // UpdateObjectRetention applies retention settings for an object/version.
 func (a *App) UpdateObjectRetention(accountID string, input objects.UpdateObjectRetentionInput) (objects.ObjectRetentionState, error) {
+	if err := ValidateStruct(input); err != nil {
+		return objects.ObjectRetentionState{}, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.UpdateObjectRetention(ctx, accountID, input)
@@ -243,6 +265,9 @@ func (a *App) GetObjectLegalHold(accountID, bucket, key, versionID string) (obje
 
 // UpdateObjectLegalHold toggles object legal hold.
 func (a *App) UpdateObjectLegalHold(accountID string, input objects.UpdateObjectLegalHoldInput) (objects.ObjectLegalHoldState, error) {
+	if err := ValidateStruct(input); err != nil {
+		return objects.ObjectLegalHoldState{}, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.UpdateObjectLegalHold(ctx, accountID, input)

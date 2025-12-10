@@ -100,3 +100,9 @@ type BucketReferer struct {
 	Mode       string    `json:"mode"`
 	Updated    time.Time `json:"updated" ts_type:"string"`
 }
+
+// BucketMAZConfig exposes the Multi-AZ status to the frontend.
+type BucketMAZConfig struct {
+	Status  string    `json:"status"`
+	Updated time.Time `json:"updated" ts_type:"string"`
+}

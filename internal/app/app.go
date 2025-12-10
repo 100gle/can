@@ -2,37 +2,39 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/backup"
 	"can/internal/bootstrap"
 	"can/internal/buckets"
 	"can/internal/config"
 	"can/internal/objects"
-	"can/internal/providers"
 	"can/internal/search"
-	"can/internal/security"
+	"can/internal/storage"
+	"can/internal/storage/cos"
+	"can/internal/storage/oss"
+	"can/internal/storage/s3"
+
 	"can/internal/system"
+	"can/internal/system/backup"
 	"can/internal/transfer"
 	"can/internal/types"
 )
 
 // App struct
 type App struct {
-	ctx                 context.Context
-	requestTimeout      time.Duration
-	accounts            *accounts.Service
-	buckets             *buckets.Service
-	objects             *objects.Service
-	transfers           *transfer.Service
-	config              *config.BucketConfigService
-	search              *search.Service
-	system              *system.Service
-	backup              backup.Service
-	audit               *security.Service
+	ctx            context.Context
+	requestTimeout time.Duration
+	accounts       *accounts.Service
+	buckets        *buckets.Service
+	objects        *objects.Service
+	transfers      *transfer.Service
+	config         *config.BucketConfigService
+	search         *search.Service
+	system         *system.Service
+	backup         backup.Service
+
 	quitRequested       bool
 	windowVisible       atomic.Bool
 	networkOnline       atomic.Bool
@@ -43,24 +45,17 @@ type App struct {
 
 func New() *App {
 	store := bootstrap.InitAccountsStore()
-	cipher := security.DefaultCipher()
+	cipher := accounts.DefaultCipher()
 
-	// Audit
-	auditDBPath, _ := bootstrap.DefaultAuditPath()
-	var auditSvc *security.Service
-	auditStore, err := security.NewSQLiteAuditStore(auditDBPath)
-	if err != nil {
-		panic(fmt.Sprintf("failed to open audit db: %v", err))
-	}
-	if err := auditStore.Init(); err != nil {
-		panic(fmt.Sprintf("failed to init audit schema: %v", err))
-	}
-	auditSvc = security.NewService(auditStore)
+	// Audit removed
 
-	s3Factory := providers.NewS3ClientFactory()
-	storageFactory := providers.NewStorageFactory(s3Factory)
-	clientPool := providers.NewClientPool(storageFactory)
-	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
+	storageFactory := storage.NewStorageFactory(
+		storage.WithDefaultStorageBuilder(s3.NewStorageClient),
+		storage.WithStorageBuilder(types.ProviderOSS, oss.NewStorageClient),
+		storage.WithStorageBuilder(types.ProviderCOS, cos.NewStorageClient),
+	)
+	clientPool := storage.NewClientPool(storageFactory)
+	dialer := s3.NewDialer()
 	sessionStore := bootstrap.InitSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	accountSvc.SetClientPool(clientPool)
@@ -68,8 +63,8 @@ func New() *App {
 	transferStore := bootstrap.InitTransferStore()
 	transferSvc := transfer.NewService(accountSvc, clientPool, transferStore)
 	linkHistoryStore := bootstrap.InitLinkHistoryStore()
-	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore, auditSvc)
-	configSvc := config.NewBucketConfigService(accountSvc, s3Factory, storageFactory)
+	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore)
+	configSvc := config.NewBucketConfigService(accountSvc, storageFactory)
 	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 
@@ -92,7 +87,6 @@ func New() *App {
 		search:         searchSvc,
 		system:         systemSvc,
 		backup:         backupSvc,
-		audit:          auditSvc,
 	}
 	instance.windowVisible.Store(true)
 	instance.networkOnline.Store(true)

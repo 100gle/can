@@ -24,7 +24,7 @@ func (a *App) CheckForUpdates(currentVersion string) (system.UpdateInfo, error) 
 	if a.system == nil {
 		return system.UpdateInfo{}, fmt.Errorf("system service unavailable")
 	}
-	ctx, cancel := a.requestContext(nil)
+	ctx, cancel := a.requestContext(a.ctx)
 	defer cancel()
 	return a.system.CheckForUpdates(ctx, currentVersion)
 }
@@ -117,7 +117,7 @@ func (a *App) PingEndpoint(target string, timeoutMs int) system.PingResult {
 			Online:    false,
 		}
 	}
-	ctx, cancel := a.requestContext(nil)
+	ctx, cancel := a.requestContext(a.ctx)
 	defer cancel()
 	var timeout time.Duration
 	if timeoutMs > 0 {
@@ -164,4 +164,3 @@ func (a *App) OpenDirectoryDialogWithFiles(title string) (*DirectoryFilesResult,
 
 	return &DirectoryFilesResult{BasePath: dir, Files: files}, nil
 }
-

@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/storage"
 	"can/internal/types"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
 
@@ -23,9 +21,7 @@ func (s *BucketConfigService) GetWebsite(ctx context.Context, accountID, bucket 
 	if err != nil {
 		return nil, err
 	}
-	output, err := client.GetBucketWebsite(ctx, &s3.GetBucketWebsiteInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	config, err := client.Buckets().GetBucketWebsite(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchWebsiteConfiguration" {
@@ -33,10 +29,21 @@ func (s *BucketConfigService) GetWebsite(ctx context.Context, accountID, bucket 
 		}
 		return nil, fmt.Errorf("get bucket website: %w", err)
 	}
+	if config == nil {
+		return &BucketWebsite{Enabled: false}, nil
+	}
+	indexKey := ""
+	errorKey := ""
+	if config.IndexDocument != nil {
+		indexKey = config.IndexDocument.Suffix
+	}
+	if config.ErrorDocument != nil {
+		errorKey = config.ErrorDocument.Key
+	}
 	return &BucketWebsite{
 		Enabled:  true,
-		IndexKey: aws.ToString(output.IndexDocument.Suffix),
-		ErrorKey: aws.ToString(output.ErrorDocument.Key),
+		IndexKey: indexKey,
+		ErrorKey: errorKey,
 	}, nil
 }
 
@@ -56,16 +63,13 @@ func (s *BucketConfigService) SetWebsite(ctx context.Context, accountID, bucket 
 	if indexKey == "" {
 		return errors.New("index document key is required when enabling website hosting")
 	}
-	input := &s3.PutBucketWebsiteInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-		WebsiteConfiguration: &s3types.WebsiteConfiguration{
-			IndexDocument: &s3types.IndexDocument{Suffix: aws.String(indexKey)},
-		},
+	config := storage.BucketWebsiteConfiguration{
+		IndexDocument: &storage.IndexDocument{Suffix: indexKey},
 	}
 	if errorKey := strings.TrimSpace(website.ErrorKey); errorKey != "" {
-		input.WebsiteConfiguration.ErrorDocument = &s3types.ErrorDocument{Key: aws.String(errorKey)}
+		config.ErrorDocument = &storage.ErrorDocument{Key: errorKey}
 	}
-	_, err = client.PutBucketWebsite(ctx, input)
+	err = client.Buckets().PutBucketWebsite(ctx, strings.TrimSpace(bucket), config)
 	if err != nil {
 		return fmt.Errorf("put bucket website: %w", err)
 	}
@@ -81,9 +85,7 @@ func (s *BucketConfigService) DeleteWebsite(ctx context.Context, accountID, buck
 	if err != nil {
 		return err
 	}
-	_, err = client.DeleteBucketWebsite(ctx, &s3.DeleteBucketWebsiteInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	err = client.Buckets().DeleteBucketWebsite(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket website: %w", err)
 	}

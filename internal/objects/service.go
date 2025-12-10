@@ -6,14 +6,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/providers"
-	"can/internal/security"
+	"can/internal/storage"
 	"can/internal/transfer"
 
 	"github.com/google/uuid"
@@ -23,28 +23,30 @@ import (
 // Service exposes object CRUD operations.
 type Service struct {
 	accounts  *accounts.Service
-	pool      providers.ClientPool
+	pool      storage.ClientPool
 	transfers *transfer.Service
 	history   LinkHistoryStore
-	audit     *security.Service
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service, history LinkHistoryStore, audit *security.Service) *Service {
+func NewService(accounts *accounts.Service, pool storage.ClientPool, transfers *transfer.Service, history LinkHistoryStore) *Service {
 	if history == nil {
 		history = NewMemoryLinkHistoryStore()
 	}
-	return &Service{accounts: accounts, pool: pool, transfers: transfers, history: history, audit: audit}
+	return &Service{accounts: accounts, pool: pool, transfers: transfers, history: history}
 }
 
 // ListObjects returns a single page of objects for the requested prefix.
 func (s *Service) ListObjects(ctx context.Context, accountID string, input ListObjectsInput) (ListObjectsResult, error) {
+	if input.Limit <= 0 {
+		input.Limit = 1000 // Default limit
+	}
 	var result ListObjectsResult
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return result, err
 	}
-	payload := providers.ListObjectsInput{
+	payload := storage.ListObjectsInput{
 		Bucket:    input.Bucket,
 		Prefix:    input.Prefix,
 		Delimiter: input.Delimiter,
@@ -134,9 +136,7 @@ func (s *Service) DownloadBatch(ctx context.Context, accountID string, input Dow
 	return s.transfers.EnqueueDownload(ctx, req)
 }
 
-// DeleteObject removes a single object from the bucket.
-func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key string, opts ...MutationOption) error {
-	meta := applyMutationOptions(opts)
+func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key string) error {
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
@@ -149,14 +149,17 @@ func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key strin
 	if key == "" {
 		return errors.New("object key is required")
 	}
-	if skip, err := s.shouldSkipMutation(ctx, meta); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	err = client.Objects().DeleteObject(ctx, bucket, key)
-	s.logMutation(ctx, "DeleteObject", fmt.Sprintf("%s/%s", bucket, key), accountID, err, meta)
-	return err
+	return client.Objects().DeleteObject(ctx, bucket, key)
+}
+
+// DeleteObjectWithOptions removes an object with mutation tracking metadata.
+func (s *Service) DeleteObjectWithOptions(ctx context.Context, accountID, bucket, key string, opts MutationOptions) error {
+	slog.Info("objects.Service.DeleteObject",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"bucket", bucket,
+		"key", key)
+	return s.DeleteObject(ctx, accountID, bucket, key)
 }
 
 // BatchDeleteObjects removes multiple objects from the bucket.
@@ -182,17 +185,14 @@ func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket stri
 			if key == "" {
 				continue
 			}
-			resource := fmt.Sprintf("%s/%s", bucket, key)
 			if err := driver.DeleteObject(ctx, bucket, key); err != nil {
 				result.Failed = append(result.Failed, BatchOperationFailure{
 					Bucket: bucket,
 					Key:    key,
 					Error:  err.Error(),
 				})
-				s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, err, mutationContext{})
 			} else {
 				result.Succeeded++
-				s.logMutation(ctx, "BatchDeleteObjects", resource, accountID, nil, mutationContext{})
 			}
 		}
 		return result, nil
@@ -209,11 +209,6 @@ func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket stri
 	}
 
 	// Log the batch operation
-	if len(result.Failed) > 0 {
-		s.logMutation(ctx, "BatchDeleteObjects", fmt.Sprintf("%s: %d/%d failed", bucket, len(result.Failed), result.Total), accountID, fmt.Errorf("%d deletions failed", len(result.Failed)), mutationContext{})
-	} else {
-		s.logMutation(ctx, "BatchDeleteObjects", fmt.Sprintf("%s: %d objects", bucket, result.Succeeded), accountID, nil, mutationContext{})
-	}
 
 	return result, nil
 }
@@ -233,9 +228,7 @@ func (s *Service) CopyObject(ctx context.Context, accountID, sourceBucket, sourc
 	return client.Objects().CopyObject(ctx, sourceBucket, sourceKey, targetBucket, targetKey)
 }
 
-// RenameObject renames an object by copying it to the new key and deleting the old key.
-func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, newKey string, opts ...MutationOption) error {
-	meta := applyMutationOptions(opts)
+func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, newKey string) error {
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return err
@@ -256,32 +249,32 @@ func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, n
 		return errors.New("new object key must be different from the current key")
 	}
 	driver := client.Objects()
-	if skip, err := s.shouldSkipMutation(ctx, meta); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	resource := fmt.Sprintf("%s/%s->%s", bucket, oldKey, newKey)
 	if _, err := driver.HeadObject(ctx, bucket, newKey); err == nil {
 		return fmt.Errorf("object %q already exists", newKey)
-	} else if err != nil && !isNotFoundError(err) {
+	} else if !isNotFoundError(err) {
 		return err
 	}
 	if err := driver.CopyObject(ctx, bucket, oldKey, bucket, newKey); err != nil {
-		s.logMutation(ctx, "RenameObject", resource, accountID, err, meta)
 		return err
 	}
 	if err := driver.DeleteObject(ctx, bucket, oldKey); err != nil {
-		s.logMutation(ctx, "RenameObject", resource, accountID, err, meta)
 		return err
 	}
-	s.logMutation(ctx, "RenameObject", resource, accountID, nil, meta)
 	return nil
 }
 
-// MoveObjects copies objects to their new destination and deletes the originals.
-func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []MoveObjectRequest, opts ...MutationOption) (MoveObjectsResult, error) {
-	meta := applyMutationOptions(opts)
+// RenameObjectWithOptions renames an object with mutation tracking metadata.
+func (s *Service) RenameObjectWithOptions(ctx context.Context, accountID, bucket, oldKey, newKey string, opts MutationOptions) error {
+	slog.Info("objects.Service.RenameObject",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"bucket", bucket,
+		"oldKey", oldKey,
+		"newKey", newKey)
+	return s.RenameObject(ctx, accountID, bucket, oldKey, newKey)
+}
+
+func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []MoveObjectRequest) (MoveObjectsResult, error) {
 	var result MoveObjectsResult
 	client, err := s.client(ctx, accountID)
 	if err != nil {
@@ -289,12 +282,6 @@ func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []
 	}
 	driver := client.Objects()
 	result.Total = len(requests)
-	if skip, err := s.shouldSkipMutation(ctx, meta); err != nil {
-		return result, err
-	} else if skip {
-		result.Succeeded = result.Total
-		return result, nil
-	}
 	for _, req := range requests {
 		srcBucket := strings.TrimSpace(req.SourceBucket)
 		srcKey := strings.TrimSpace(req.SourceKey)
@@ -345,8 +332,17 @@ func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []
 	if len(result.Failed) > 0 {
 		opErr = fmt.Errorf("%d move operations failed", len(result.Failed))
 	}
-	s.logMutation(ctx, "MoveObjects", fmt.Sprintf("move:%d", len(requests)), accountID, opErr, meta)
+	_ = opErr // suppress unused variable error if log is removed
 	return result, nil
+}
+
+// MoveObjectsWithOptions performs batch move operations with mutation tracking metadata.
+func (s *Service) MoveObjectsWithOptions(ctx context.Context, accountID string, requests []MoveObjectRequest, opts MutationOptions) (MoveObjectsResult, error) {
+	slog.Info("objects.Service.MoveObjects",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"count", len(requests))
+	return s.MoveObjects(ctx, accountID, requests)
 }
 
 // CreateFolder creates a zero-byte object to represent a pseudo-folder.
@@ -388,6 +384,23 @@ func (s *Service) CreateSymlink(ctx context.Context, accountID, bucket, linkKey,
 		return errors.New("link key 与目标 key 均不能为空")
 	}
 	return client.Objects().CreateSymlink(ctx, bucket, linkKey, targetKey)
+}
+
+// GetSymlink returns the target of an OSS symlink.
+func (s *Service) GetSymlink(ctx context.Context, accountID, bucket, key string) (string, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return "", errors.New("bucket is required")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", errors.New("object key is required")
+	}
+	return client.Objects().GetSymlink(ctx, bucket, key)
 }
 
 // HeadObject fetches metadata for a single object.
@@ -437,7 +450,7 @@ func (s *Service) GetObjectAttributes(ctx context.Context, accountID, bucket, ke
 	attrs.Metadata = cloneStringMap(desc.Metadata)
 	if tags, err := driver.GetObjectTags(ctx, bucket, key); err == nil {
 		attrs.Tags = tags
-	} else if err != nil && !errors.Is(err, providers.ErrUnsupportedCapability) {
+	} else if !errors.Is(err, storage.ErrUnsupportedCapability) {
 		return attrs, err
 	}
 	if acl, err := driver.GetObjectACL(ctx, bucket, key); err == nil {
@@ -445,7 +458,7 @@ func (s *Service) GetObjectAttributes(ctx context.Context, accountID, bucket, ke
 		attrs.OwnerID = acl.OwnerID
 		attrs.OwnerName = acl.OwnerDisplayName
 		attrs.Grants = convertAccessGrants(acl.Grants)
-	} else if err != nil && !errors.Is(err, providers.ErrUnsupportedCapability) {
+	} else if !errors.Is(err, storage.ErrUnsupportedCapability) {
 		return attrs, err
 	}
 	return attrs, nil
@@ -538,7 +551,7 @@ func (s *Service) UpdateObjectRetention(ctx context.Context, accountID string, i
 	if input.RetainUntil.IsZero() {
 		return state, errors.New("retain until 时间不能为空")
 	}
-	payload := providers.PutObjectRetentionInput{
+	payload := storage.PutObjectRetentionInput{
 		Bucket:           input.Bucket,
 		Key:              input.Key,
 		VersionID:        input.VersionID,
@@ -586,7 +599,7 @@ func (s *Service) UpdateObjectLegalHold(ctx context.Context, accountID string, i
 	if strings.TrimSpace(input.Status) == "" {
 		return state, errors.New("status is required")
 	}
-	payload := providers.PutObjectLegalHoldInput{
+	payload := storage.PutObjectLegalHoldInput{
 		Bucket:    input.Bucket,
 		Key:       input.Key,
 		VersionID: input.VersionID,
@@ -636,7 +649,7 @@ func (s *Service) GetPresignedURLWithHeaders(
 		expirationSeconds = maxTTL
 	}
 	duration := time.Duration(expirationSeconds) * time.Second
-	url, err := client.Objects().PresignURL(ctx, providers.PresignRequest{
+	url, err := client.Objects().PresignURL(ctx, storage.PresignRequest{
 		Bucket:          bucket,
 		Key:             key,
 		Method:          method,
@@ -766,7 +779,7 @@ func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, inp
 		_ = s.history.Cleanup(ctx, now)
 	}
 	for _, method := range methods {
-		req := providers.PresignRequest{
+		req := storage.PresignRequest{
 			Bucket:          bucket,
 			Key:             key,
 			Method:          method,
@@ -836,34 +849,7 @@ func (s *Service) DeleteAccessLinkHistory(ctx context.Context, accountID, id str
 	return s.history.Delete(ctx, accountID, strings.TrimSpace(id))
 }
 
-func (s *Service) shouldSkipMutation(ctx context.Context, meta mutationContext) (bool, error) {
-	if meta.requestID == "" || s.audit == nil {
-		return false, nil
-	}
-	return s.audit.HasRequest(ctx, meta.requestID)
-}
-
-func (s *Service) logMutation(ctx context.Context, action, resource, accountID string, opErr error, meta mutationContext) {
-	if s.audit == nil {
-		return
-	}
-	status := "Success"
-	details := ""
-	if opErr != nil {
-		status = "Failure"
-		details = opErr.Error()
-	}
-	var opts []security.LogOption
-	if meta.origin != "" {
-		opts = append(opts, security.WithOrigin(meta.origin))
-	}
-	if meta.requestID != "" {
-		opts = append(opts, security.WithRequestID(meta.requestID))
-	}
-	_ = s.audit.Log(ctx, action, resource, accountID, status, details, opts...)
-}
-
-func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
+func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, error) {
 	client, _, err := s.accounts.GetStorageClient(ctx, s.pool, accountID)
 	if err != nil {
 		return nil, err
@@ -886,7 +872,7 @@ func isNotFoundError(err error) bool {
 		strings.Contains(msg, "不存在")
 }
 
-func toObjectInfo(desc providers.ObjectDescriptor) ObjectInfo {
+func toObjectInfo(desc storage.ObjectDescriptor) ObjectInfo {
 	return ObjectInfo{
 		Key:           desc.Key,
 		Size:          desc.Size,
@@ -913,7 +899,7 @@ func cloneStringMap(input map[string]string) map[string]string {
 	return clone
 }
 
-func convertLockConfiguration(cfg providers.ObjectLockConfiguration) ObjectLockConfiguration {
+func convertLockConfiguration(cfg storage.ObjectLockConfiguration) ObjectLockConfiguration {
 	return ObjectLockConfiguration{
 		Enabled:        cfg.Enabled,
 		Mode:           cfg.Mode,
@@ -922,20 +908,20 @@ func convertLockConfiguration(cfg providers.ObjectLockConfiguration) ObjectLockC
 	}
 }
 
-func convertRetentionState(state providers.ObjectRetentionState) ObjectRetentionState {
+func convertRetentionState(state storage.ObjectRetentionState) ObjectRetentionState {
 	return ObjectRetentionState{
 		Mode:        state.Mode,
 		RetainUntil: state.RetainUntil,
 	}
 }
 
-func convertLegalHoldState(state providers.ObjectLegalHoldState) ObjectLegalHoldState {
+func convertLegalHoldState(state storage.ObjectLegalHoldState) ObjectLegalHoldState {
 	return ObjectLegalHoldState{
 		Status: state.Status,
 	}
 }
 
-func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch ObjectAttributesPatch) error {
+func applyObjectPatch(ctx context.Context, driver storage.ObjectDriver, patch ObjectAttributesPatch) error {
 	bucket := strings.TrimSpace(patch.Bucket)
 	key := strings.TrimSpace(patch.Key)
 	if bucket == "" || key == "" {
@@ -944,13 +930,13 @@ func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch 
 	var unsupported []string
 	applied := false
 	if patch.Metadata != nil || patch.ContentType != "" || patch.StorageClass != "" {
-		update := providers.ObjectMetadataUpdate{
+		update := storage.ObjectMetadataUpdate{
 			Metadata:     patch.Metadata,
 			ContentType:  patch.ContentType,
 			StorageClass: patch.StorageClass,
 		}
 		if err := driver.UpdateObjectMetadata(ctx, bucket, key, update); err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				unsupported = appendUnsupported(unsupported, "metadata")
 			} else {
 				return err
@@ -961,7 +947,7 @@ func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch 
 	}
 	if patch.Tags != nil {
 		if err := driver.PutObjectTags(ctx, bucket, key, patch.Tags); err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				unsupported = appendUnsupported(unsupported, "tags")
 			} else {
 				return err
@@ -972,7 +958,7 @@ func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch 
 	}
 	if acl := strings.TrimSpace(patch.ACL); acl != "" {
 		if err := driver.PutObjectACL(ctx, bucket, key, acl); err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				unsupported = appendUnsupported(unsupported, "acl")
 			} else {
 				return err
@@ -996,7 +982,7 @@ func appendUnsupported(list []string, feature string) []string {
 	return append(list, feature)
 }
 
-func convertAccessGrants(grants []providers.AccessGrant) []AccessGrant {
+func convertAccessGrants(grants []storage.AccessGrant) []AccessGrant {
 	if len(grants) == 0 {
 		return nil
 	}

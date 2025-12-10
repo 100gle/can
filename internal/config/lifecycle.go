@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/storage"
 	"can/internal/types"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
 
@@ -23,9 +21,7 @@ func (s *BucketConfigService) GetLifecycle(ctx context.Context, accountID, bucke
 	if err != nil {
 		return nil, err
 	}
-	output, err := client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	rules, err := client.Buckets().GetBucketLifecycleConfiguration(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchLifecycleConfiguration" {
@@ -33,15 +29,15 @@ func (s *BucketConfigService) GetLifecycle(ctx context.Context, accountID, bucke
 		}
 		return nil, fmt.Errorf("get lifecycle configuration: %w", err)
 	}
-	if output == nil || len(output.Rules) == 0 {
+	if len(rules) == 0 {
 		return []*LifecycleRule{}, nil
 	}
-	result := make([]*LifecycleRule, 0, len(output.Rules))
-	for _, rule := range output.Rules {
+	result := make([]*LifecycleRule, 0, len(rules))
+	for _, rule := range rules {
 		result = append(result, &LifecycleRule{
-			ID:             aws.ToString(rule.ID),
-			Prefix:         aws.ToString(rule.Prefix),
-			Status:         string(rule.Status),
+			ID:             rule.ID,
+			Prefix:         rule.Prefix,
+			Status:         rule.Status,
 			ExpirationDays: convertLifecycleDays(rule.Expiration),
 			TransitionDays: firstTransitionDays(rule.Transitions),
 			NoncurrentDays: convertNoncurrentDays(rule.NoncurrentVersionExpiration),
@@ -62,55 +58,48 @@ func (s *BucketConfigService) SetLifecycle(ctx context.Context, accountID, bucke
 	if len(rules) == 0 {
 		return s.DeleteLifecycle(ctx, accountID, bucket)
 	}
-	sdkRules := make([]s3types.LifecycleRule, 0, len(rules))
+	storageRules := make([]storage.LifecycleRule, 0, len(rules))
 	for _, rule := range rules {
 		if rule == nil {
 			continue
 		}
-		status := s3types.ExpirationStatusDisabled
-		switch strings.ToLower(strings.TrimSpace(rule.Status)) {
-		case "enabled":
-			status = s3types.ExpirationStatusEnabled
-		case "disabled":
-			status = s3types.ExpirationStatusDisabled
+		status := "Disabled"
+		if strings.ToLower(strings.TrimSpace(rule.Status)) == "enabled" {
+			status = "Enabled"
 		}
-		sdkRule := s3types.LifecycleRule{
-			ID:     aws.String(strings.TrimSpace(rule.ID)),
-			Prefix: aws.String(strings.TrimSpace(rule.Prefix)),
+
+		storageRule := storage.LifecycleRule{
+			ID:     strings.TrimSpace(rule.ID),
+			Prefix: strings.TrimSpace(rule.Prefix),
 			Status: status,
 		}
 		if rule.ExpirationDays > 0 {
 			days := int32(rule.ExpirationDays)
-			sdkRule.Expiration = &s3types.LifecycleExpiration{
-				Days: aws.Int32(days),
+			storageRule.Expiration = &storage.LifecycleExpiration{
+				Days: &days,
 			}
 		}
 		if rule.TransitionDays > 0 {
 			days := int32(rule.TransitionDays)
-			sdkRule.Transitions = []s3types.Transition{
+			storageRule.Transitions = []storage.LifecycleTransition{
 				{
-					Days:         aws.Int32(days),
-					StorageClass: s3types.TransitionStorageClassStandardIa,
+					Days:         &days,
+					StorageClass: "STANDARD_IA",
 				},
 			}
 		}
 		if rule.NoncurrentDays > 0 {
 			days := int32(rule.NoncurrentDays)
-			sdkRule.NoncurrentVersionExpiration = &s3types.NoncurrentVersionExpiration{
-				NoncurrentDays: aws.Int32(days),
+			storageRule.NoncurrentVersionExpiration = &storage.NoncurrentVersionExpiration{
+				NoncurrentDays: &days,
 			}
 		}
-		sdkRules = append(sdkRules, sdkRule)
+		storageRules = append(storageRules, storageRule)
 	}
-	if len(sdkRules) == 0 {
+	if len(storageRules) == 0 {
 		return s.DeleteLifecycle(ctx, accountID, bucket)
 	}
-	_, err = client.PutBucketLifecycleConfiguration(ctx, &s3.PutBucketLifecycleConfigurationInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-		LifecycleConfiguration: &s3types.BucketLifecycleConfiguration{
-			Rules: sdkRules,
-		},
-	})
+	err = client.Buckets().PutBucketLifecycleConfiguration(ctx, strings.TrimSpace(bucket), storageRules)
 	if err != nil {
 		return fmt.Errorf("put lifecycle configuration: %w", err)
 	}
@@ -126,16 +115,14 @@ func (s *BucketConfigService) DeleteLifecycle(ctx context.Context, accountID, bu
 	if err != nil {
 		return err
 	}
-	_, err = client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	err = client.Buckets().DeleteBucketLifecycle(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete lifecycle configuration: %w", err)
 	}
 	return nil
 }
 
-func convertLifecycleDays(expiration *s3types.LifecycleExpiration) int {
+func convertLifecycleDays(expiration *storage.LifecycleExpiration) int {
 	if expiration == nil {
 		return 0
 	}
@@ -145,7 +132,7 @@ func convertLifecycleDays(expiration *s3types.LifecycleExpiration) int {
 	return 0
 }
 
-func convertNoncurrentDays(expiration *s3types.NoncurrentVersionExpiration) int {
+func convertNoncurrentDays(expiration *storage.NoncurrentVersionExpiration) int {
 	if expiration == nil {
 		return 0
 	}
@@ -155,7 +142,7 @@ func convertNoncurrentDays(expiration *s3types.NoncurrentVersionExpiration) int 
 	return int(*expiration.NoncurrentDays)
 }
 
-func firstTransitionDays(transitions []s3types.Transition) int {
+func firstTransitionDays(transitions []storage.LifecycleTransition) int {
 	if len(transitions) == 0 {
 		return 0
 	}

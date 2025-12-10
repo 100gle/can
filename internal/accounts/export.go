@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"can/internal/security"
 	"can/internal/types"
 )
 
@@ -162,11 +161,11 @@ func accountKey(name, endpoint string, provider types.Provider) string {
 	return fmt.Sprintf("%s|%s|%s", normalizedName, normalizedEndpoint, string(provider))
 }
 
-func cipherName(c security.Cipher) string {
+func cipherName(c Cipher) string {
 	switch c.(type) {
-	case security.NoopCipher:
+	case NoopCipher:
 		return "noop"
-	case *security.AESCipher:
+	case *AESCipher:
 		return "aes-256-gcm"
 	default:
 		return "unknown"

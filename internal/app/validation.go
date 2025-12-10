@@ -15,8 +15,13 @@ var (
 func init() {
 	validate = validator.New()
 
-	// Register custom validators if needed
-	// Example: validate.RegisterValidation("bucket-name", validateBucketName)
+	// Register custom validators
+	_ = validate.RegisterValidation("bucket-name", func(fl validator.FieldLevel) bool {
+		return ValidateBucketName(fl.Field().String()) == nil
+	})
+	_ = validate.RegisterValidation("object-key", func(fl validator.FieldLevel) bool {
+		return ValidateObjectKey(fl.Field().String()) == nil
+	})
 }
 
 // ValidateStruct validates a struct using the validator tags

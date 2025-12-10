@@ -6,11 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"can/internal/storage"
 	"can/internal/types"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // GetVersioning returns the current bucket versioning status.
@@ -22,15 +19,13 @@ func (s *BucketConfigService) GetVersioning(ctx context.Context, accountID, buck
 	if err != nil {
 		return nil, err
 	}
-	output, err := client.GetBucketVersioning(ctx, &s3.GetBucketVersioningInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	verStatus, err := client.Buckets().GetBucketVersioning(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return nil, fmt.Errorf("get bucket versioning: %w", err)
 	}
 	status := "Disabled"
-	if output != nil && output.Status != "" {
-		status = string(output.Status)
+	if verStatus != "" {
+		status = string(verStatus)
 	}
 	return &BucketVersioning{
 		Status:  status,
@@ -43,7 +38,7 @@ func (s *BucketConfigService) EnableVersioning(ctx context.Context, accountID, b
 	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketVersioning); err != nil {
 		return err
 	}
-	return s.updateVersioning(ctx, accountID, bucket, s3types.BucketVersioningStatusEnabled)
+	return s.updateVersioning(ctx, accountID, bucket, storage.VersioningStatusEnabled)
 }
 
 // SuspendVersioning suspends version tracking for new uploads.
@@ -51,20 +46,15 @@ func (s *BucketConfigService) SuspendVersioning(ctx context.Context, accountID, 
 	if err := s.ensureCapability(ctx, accountID, types.FeatureBucketVersioning); err != nil {
 		return err
 	}
-	return s.updateVersioning(ctx, accountID, bucket, s3types.BucketVersioningStatusSuspended)
+	return s.updateVersioning(ctx, accountID, bucket, storage.VersioningStatusSuspended)
 }
 
-func (s *BucketConfigService) updateVersioning(ctx context.Context, accountID, bucket string, status s3types.BucketVersioningStatus) error {
+func (s *BucketConfigService) updateVersioning(ctx context.Context, accountID, bucket string, status storage.BucketVersioningStatus) error {
 	client, _, err := s.client(ctx, accountID, bucket)
 	if err != nil {
 		return err
 	}
-	_, err = client.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-		VersioningConfiguration: &s3types.VersioningConfiguration{
-			Status: status,
-		},
-	})
+	err = client.Buckets().PutBucketVersioning(ctx, strings.TrimSpace(bucket), status)
 	if err != nil {
 		return fmt.Errorf("update bucket versioning: %w", err)
 	}

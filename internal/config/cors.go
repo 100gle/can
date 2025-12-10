@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"can/internal/storage"
 	"can/internal/types"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
 
@@ -23,9 +21,7 @@ func (s *BucketConfigService) GetCORS(ctx context.Context, accountID, bucket str
 	if err != nil {
 		return nil, err
 	}
-	output, err := client.GetBucketCors(ctx, &s3.GetBucketCorsInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	rules, err := client.Buckets().GetBucketCors(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchCORSConfiguration" {
@@ -34,13 +30,13 @@ func (s *BucketConfigService) GetCORS(ctx context.Context, accountID, bucket str
 		return nil, fmt.Errorf("get bucket cors: %w", err)
 	}
 	result := &BucketCORS{}
-	for _, rule := range output.CORSRules {
+	for _, rule := range rules {
 		result.Rules = append(result.Rules, CORSRule{
 			AllowedOrigins: append([]string{}, rule.AllowedOrigins...),
 			AllowedMethods: append([]string{}, rule.AllowedMethods...),
 			AllowedHeaders: append([]string{}, rule.AllowedHeaders...),
 			ExposeHeaders:  append([]string{}, rule.ExposeHeaders...),
-			MaxAgeSeconds:  aws.ToInt32(rule.MaxAgeSeconds),
+			MaxAgeSeconds:  rule.MaxAgeSeconds,
 		})
 	}
 	return result, nil
@@ -58,22 +54,17 @@ func (s *BucketConfigService) SetCORS(ctx context.Context, accountID, bucket str
 	if cors == nil || len(cors.Rules) == 0 {
 		return s.DeleteCORS(ctx, accountID, bucket)
 	}
-	rules := make([]s3types.CORSRule, 0, len(cors.Rules))
+	rules := make([]storage.CORSRule, 0, len(cors.Rules))
 	for _, rule := range cors.Rules {
-		rules = append(rules, s3types.CORSRule{
+		rules = append(rules, storage.CORSRule{
 			AllowedOrigins: append([]string{}, rule.AllowedOrigins...),
 			AllowedMethods: append([]string{}, rule.AllowedMethods...),
 			AllowedHeaders: append([]string{}, rule.AllowedHeaders...),
 			ExposeHeaders:  append([]string{}, rule.ExposeHeaders...),
-			MaxAgeSeconds:  aws.Int32(rule.MaxAgeSeconds),
+			MaxAgeSeconds:  rule.MaxAgeSeconds,
 		})
 	}
-	_, err = client.PutBucketCors(ctx, &s3.PutBucketCorsInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-		CORSConfiguration: &s3types.CORSConfiguration{
-			CORSRules: rules,
-		},
-	})
+	err = client.Buckets().PutBucketCors(ctx, strings.TrimSpace(bucket), rules)
 	if err != nil {
 		return fmt.Errorf("put bucket cors: %w", err)
 	}
@@ -89,9 +80,7 @@ func (s *BucketConfigService) DeleteCORS(ctx context.Context, accountID, bucket 
 	if err != nil {
 		return err
 	}
-	_, err = client.DeleteBucketCors(ctx, &s3.DeleteBucketCorsInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	err = client.Buckets().DeleteBucketCors(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket cors: %w", err)
 	}

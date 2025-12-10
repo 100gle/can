@@ -133,7 +133,7 @@ func (a *App) showWindow() {
 }
 
 func (a *App) minimizeToTray() {
-	a.hideWindow(nil)
+	a.hideWindow(a.ctx)
 }
 
 func (a *App) setWindowVisible(visible bool) {

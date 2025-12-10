@@ -7,15 +7,21 @@ import (
 	"sync"
 	"testing"
 
-	"can/internal/providers"
-	"can/internal/security"
+	"can/internal/storage"
+
 	"can/internal/types"
 )
+
+type fakeDialer struct{}
+
+func (f *fakeDialer) TestConnection(ctx context.Context, creds storage.ConnectionCredentials) error {
+	return nil
+}
 
 func TestServiceExportImportRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	svc := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
+	svc := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
 
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Account A",
@@ -52,7 +58,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("expected 2 accounts exported, got %d", exportData.Count)
 	}
 
-	dest := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
+	dest := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
 	result, err := dest.ImportData(ctx, exportData.Blob)
 	if err != nil {
 		t.Fatalf("import data: %v", err)
@@ -86,7 +92,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 func TestImportSkipsDuplicates(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	exporter := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
+	exporter := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
 	input := CreateAccountInput{
 		Name:            "Duplicate",
 		Tag:             "dup",
@@ -106,7 +112,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 		t.Fatalf("export data: %v", err)
 	}
 
-	importer := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
+	importer := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
 	if _, err := importer.CreateAccount(ctx, input); err != nil {
 		t.Fatalf("seed importer account: %v", err)
 	}
@@ -128,7 +134,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 func TestImportRejectsInvalidPayload(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	svc := NewService(NewMemoryStore(), cipher, providers.NewStubDialer(), NewMemorySessionStore())
+	svc := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
 	if _, err := svc.ImportData(ctx, []byte("not-json")); err == nil {
 		t.Fatalf("expected error for invalid payload")
 	}
@@ -142,7 +148,7 @@ func TestSQLiteStorePersistsData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new sqlite store: %v", err)
 	}
-	svc := NewService(store, testCipher(t), providers.NewStubDialer(), NewMemorySessionStore())
+	svc := NewService(store, testCipher(t), &fakeDialer{}, NewMemorySessionStore())
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "SQLite Account",
 		Provider:        types.ProviderAWS,
@@ -172,7 +178,7 @@ func TestActiveAccountPersistsViaSessionStore(t *testing.T) {
 	store := NewMemoryStore()
 	sessionStore := NewMemorySessionStore()
 	cipher := testCipher(t)
-	dialer := providers.NewStubDialer()
+	dialer := &fakeDialer{}
 
 	svc := NewService(store, cipher, dialer, sessionStore)
 	account, err := svc.CreateAccount(ctx, CreateAccountInput{
@@ -205,7 +211,7 @@ func TestActiveAccountPersistsViaSessionStore(t *testing.T) {
 
 func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
 	ctx := context.Background()
-	svc := NewService(NewMemoryStore(), testCipher(t), providers.NewStubDialer(), NewMemorySessionStore())
+	svc := NewService(NewMemoryStore(), testCipher(t), &fakeDialer{}, NewMemorySessionStore())
 	accA, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Concurrent-A",
 		Provider:        types.ProviderAWS,
@@ -305,10 +311,10 @@ func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
 	}
 }
 
-func testCipher(t *testing.T) security.Cipher {
+func testCipher(t *testing.T) Cipher {
 	t.Helper()
 	key := []byte("01234567890123456789012345678901")
-	cipher, err := security.NewAESCipher(key)
+	cipher, err := NewAESCipher(key)
 	if err != nil {
 		t.Fatalf("new aes cipher: %v", err)
 	}

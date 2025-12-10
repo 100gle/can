@@ -17,7 +17,6 @@ const (
 	FeatureBucketACL          FeatureID = "bucket.acl"
 	FeatureBucketPublicAccess FeatureID = "bucket.public_access_block"
 	FeatureBucketReferer      FeatureID = "bucket.referer"
-	FeatureSTS                FeatureID = "security.sts"
 )
 
 // featureCatalog defines the descriptive metadata for known features.
@@ -100,12 +99,6 @@ var featureCatalog = map[FeatureID]FeatureMetadata{
 		Description: "配置 Referer 白名单避免盗链。",
 		Category:    "bucket",
 	},
-	FeatureSTS: {
-		ID:          FeatureSTS,
-		Name:        "临时凭证 (STS)",
-		Description: "生成具有有时限限制的临时访问凭证。",
-		Category:    "security",
-	},
 }
 
 // FeatureMetadata describes a capability in UI-friendly terms.
@@ -142,7 +135,6 @@ var providerCapabilityMatrix = map[Provider]map[FeatureID]ProviderCapability{
 		FeatureBucketACL:          true,
 		FeatureBucketPublicAccess: true,
 		FeatureBucketReferer:      false,
-		FeatureSTS:                true,
 	}, map[FeatureID]string{
 		FeatureObjectSymlink: "AWS S3 暂不支持对象级软链接。",
 		FeatureBucketReferer: "AWS S3 未提供 Referer 白名单能力。",
