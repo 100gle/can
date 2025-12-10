@@ -22,7 +22,7 @@ func WithDialTimeout(timeout time.Duration) S3DialerOption {
 }
 
 // WithS3ClientFactory injects a custom S3 client factory.
-func WithS3ClientFactory(factory S3ClientFactory) S3DialerOption {
+func WithS3ClientFactory(factory ClientFactory) S3DialerOption {
 	return func(d *S3Dialer) {
 		if factory != nil {
 			d.factory = factory
@@ -32,7 +32,7 @@ func WithS3ClientFactory(factory S3ClientFactory) S3DialerOption {
 
 // S3Dialer validates credentials using real S3-compatible calls.
 type S3Dialer struct {
-	factory S3ClientFactory
+	factory ClientFactory
 	timeout time.Duration
 }
 
