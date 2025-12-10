@@ -548,6 +548,19 @@ func (d *s3BucketDriver) PutBucketReferer(ctx context.Context, name string, refe
 	return ErrUnsupportedCapability
 }
 
+// MAZ-related operations are not available on S3-compatible drivers by default.
+func (d *s3BucketDriver) GetBucketMAZConfig(ctx context.Context, name string) (*storage.MAZConfiguration, error) {
+	return nil, storage.ErrUnsupportedCapability
+}
+
+func (d *s3BucketDriver) EnableBucketMAZ(ctx context.Context, name string) error {
+	return storage.ErrUnsupportedCapability
+}
+
+func (d *s3BucketDriver) DisableBucketMAZ(ctx context.Context, name string) error {
+	return storage.ErrUnsupportedCapability
+}
+
 func (d *s3BucketDriver) lookupBucketRegion(ctx context.Context, name string) (string, error) {
 	out, err := d.client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{Bucket: aws.String(name)})
 	if err != nil {
@@ -903,6 +916,10 @@ func (d *s3ObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey
 
 func (d *s3ObjectDriver) CreateSymlink(context.Context, string, string, string) error {
 	return ErrUnsupportedCapability
+}
+
+func (d *s3ObjectDriver) GetSymlink(context.Context, string, string) (string, error) {
+	return "", ErrUnsupportedCapability
 }
 
 func (d *s3ObjectDriver) HeadObject(ctx context.Context, bucket, key string) (storage.ObjectDescriptor, error) {

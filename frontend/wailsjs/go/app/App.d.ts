@@ -70,11 +70,15 @@ export function DeleteSavedSearchQuery(arg1:string):Promise<void>;
 
 export function DeleteTransferTask(arg1:string):Promise<void>;
 
+export function DisableBucketMAZ(arg1:string,arg2:string):Promise<void>;
+
 export function DownloadBatch(arg1:string,arg2:objects.DownloadBatchInput):Promise<transfer.TransferTask>;
 
 export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
 export function DownloadObjectWithOptions(arg1:string,arg2:objects.DownloadObjectInput):Promise<transfer.TransferTask>;
+
+export function EnableBucketMAZ(arg1:string,arg2:string):Promise<void>;
 
 export function EnableBucketVersioning(arg1:string,arg2:string):Promise<void>;
 
@@ -93,6 +97,8 @@ export function GetBucketCORS(arg1:string,arg2:string):Promise<config.BucketCORS
 export function GetBucketEncryption(arg1:string,arg2:string):Promise<config.BucketEncryption>;
 
 export function GetBucketLifecycle(arg1:string,arg2:string):Promise<Array<config.LifecycleRule>>;
+
+export function GetBucketMAZConfig(arg1:string,arg2:string):Promise<config.BucketMAZConfig>;
 
 export function GetBucketPolicy(arg1:string,arg2:string):Promise<config.BucketPolicy>;
 
@@ -119,6 +125,8 @@ export function GetPresignedUploadURL(arg1:string,arg2:string,arg3:string,arg4:n
 export function GetProviderCapabilities(arg1:string):Promise<Array<types.ProviderCapability>>;
 
 export function GetPublicAccessBlock(arg1:string,arg2:string):Promise<config.PublicAccessBlock>;
+
+export function GetSymlink(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function GetSystemMetrics():Promise<system.SystemMetrics>;
 

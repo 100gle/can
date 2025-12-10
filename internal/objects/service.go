@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -151,6 +152,16 @@ func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key strin
 	return client.Objects().DeleteObject(ctx, bucket, key)
 }
 
+// DeleteObjectWithOptions removes an object with mutation tracking metadata.
+func (s *Service) DeleteObjectWithOptions(ctx context.Context, accountID, bucket, key string, opts MutationOptions) error {
+	slog.Info("objects.Service.DeleteObject",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"bucket", bucket,
+		"key", key)
+	return s.DeleteObject(ctx, accountID, bucket, key)
+}
+
 // BatchDeleteObjects removes multiple objects from the bucket.
 func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket string, keys []string) (BatchDeleteResult, error) {
 	var result BatchDeleteResult
@@ -252,6 +263,17 @@ func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, n
 	return nil
 }
 
+// RenameObjectWithOptions renames an object with mutation tracking metadata.
+func (s *Service) RenameObjectWithOptions(ctx context.Context, accountID, bucket, oldKey, newKey string, opts MutationOptions) error {
+	slog.Info("objects.Service.RenameObject",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"bucket", bucket,
+		"oldKey", oldKey,
+		"newKey", newKey)
+	return s.RenameObject(ctx, accountID, bucket, oldKey, newKey)
+}
+
 func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []MoveObjectRequest) (MoveObjectsResult, error) {
 	var result MoveObjectsResult
 	client, err := s.client(ctx, accountID)
@@ -314,6 +336,15 @@ func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []
 	return result, nil
 }
 
+// MoveObjectsWithOptions performs batch move operations with mutation tracking metadata.
+func (s *Service) MoveObjectsWithOptions(ctx context.Context, accountID string, requests []MoveObjectRequest, opts MutationOptions) (MoveObjectsResult, error) {
+	slog.Info("objects.Service.MoveObjects",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"count", len(requests))
+	return s.MoveObjects(ctx, accountID, requests)
+}
+
 // CreateFolder creates a zero-byte object to represent a pseudo-folder.
 func (s *Service) CreateFolder(ctx context.Context, accountID, bucket, prefix string) error {
 	client, err := s.client(ctx, accountID)
@@ -353,6 +384,23 @@ func (s *Service) CreateSymlink(ctx context.Context, accountID, bucket, linkKey,
 		return errors.New("link key 与目标 key 均不能为空")
 	}
 	return client.Objects().CreateSymlink(ctx, bucket, linkKey, targetKey)
+}
+
+// GetSymlink returns the target of an OSS symlink.
+func (s *Service) GetSymlink(ctx context.Context, accountID, bucket, key string) (string, error) {
+	client, err := s.client(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	bucket = strings.TrimSpace(bucket)
+	if bucket == "" {
+		return "", errors.New("bucket is required")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", errors.New("object key is required")
+	}
+	return client.Objects().GetSymlink(ctx, bucket, key)
 }
 
 // HeadObject fetches metadata for a single object.

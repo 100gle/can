@@ -480,6 +480,10 @@ func (s *stubObjectDriver) CreateSymlink(context.Context, string, string, string
 	return nil
 }
 
+func (s *stubObjectDriver) GetSymlink(context.Context, string, string) (string, error) {
+	return "", storage.ErrUnsupportedCapability
+}
+
 func (s *stubObjectDriver) HeadObject(_ context.Context, bucket, key string) (storage.ObjectDescriptor, error) {
 	resp, ok := s.headResponses[s.key(bucket, key)]
 	if !ok {

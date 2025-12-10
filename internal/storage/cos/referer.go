@@ -9,7 +9,7 @@ import (
 )
 
 func (b *bucketAdapter) GetBucketReferer(ctx context.Context, name string) (storage.BucketReferer, error) {
-	client := b.buildClient(name)
+	client := b.buildClient(name, "")
 	res, _, err := client.Bucket.GetReferer(ctx)
 	if err != nil {
 		return storage.BucketReferer{}, err
@@ -24,7 +24,7 @@ func (b *bucketAdapter) GetBucketReferer(ctx context.Context, name string) (stor
 }
 
 func (b *bucketAdapter) PutBucketReferer(ctx context.Context, name string, referer storage.BucketReferer) error {
-	client := b.buildClient(name)
+	client := b.buildClient(name, "")
 
 	status := "Disabled"
 	if referer.Enabled {

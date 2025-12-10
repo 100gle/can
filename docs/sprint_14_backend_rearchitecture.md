@@ -125,6 +125,9 @@ type BucketDriver interface {
     PutBucketACL(ctx context.Context, name string, acl BucketACLInput) error
     GetBucketReferer(ctx context.Context, name string) (BucketReferer, error)
     PutBucketReferer(ctx context.Context, name string, referer BucketReferer) error
+    GetBucketMAZConfig(ctx context.Context, name string) (*MAZConfiguration, error)
+    EnableBucketMAZ(ctx context.Context, name string) error
+    DisableBucketMAZ(ctx context.Context, name string) error
     // ... 更多方法见 internal/storage/client.go
 }
 
@@ -404,9 +407,11 @@ client, creds, err := pool.Get(ctx, accountID, supplyCredentials)
 | Symlink | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Referer | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Public Access Block | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Multi-AZ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Multi-AZ | ✅ | ❌ | ✅* | ❌ | ❌ |
 | Website | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Custom Domain | ✅ | ✅ | ✅ | ✅ | ❌ |
+
+\* COS 仅支持在创建 Bucket 时设置 MAZ，现阶段无法在已有 Bucket 上二次切换。
 
 ---
 
@@ -440,13 +445,13 @@ require (
 
 ### 2025-12-10 CTO 审核修复
 
-根据 `docs/sprint_14_backend_rearchitecture_todo.md` 中的审核反馈，进行以下修正：
+根据 Sprint 14 审核 TODO（现已合并入本档）中的反馈，进行以下修正：
 
 1. **storage.Client 接口对齐**：重写 Section 3，使用 `StorageClient.Buckets()`/`Objects()` Driver 接口模式替代原文档中的 `Client.SDK` 嵌套结构
 2. **分页参数命名**：修正为实际使用的 `Marker`/`NextMarker`，而非 `Cursor`/`NextCursor`
 3. **MutationOptions 透传**：`app/objects.go` 中 `*WithOptions` 方法现已记录 `requestId`/`origin` 用于追踪
 4. **OSS Symlink**：在 Section 3.4 说明 Symlink 通过 `ObjectDriver.CreateSymlink` 调用
-5. **COS MAZ 能力矩阵**：修正为 ❌，因 SDK 支持不完善，返回 `ErrUnsupportedCapability`
+5. **COS MAZ 能力矩阵**：新增 `BucketDriver.GetBucketMAZConfig` 等接口，COS adapter 在创建时写入 `BucketAZConfig=MAZ` 并可回读状态，能力矩阵恢复为 ✅（仅限创建阶段）
 6. **文档整体回归**：确保代码对应关系表、验收标准与实现一致
 
 > **注意**：

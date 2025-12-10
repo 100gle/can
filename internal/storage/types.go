@@ -217,3 +217,8 @@ type GenerateTokensRequest struct {
 type MAZConfiguration struct {
 	Status string `json:"status"`
 }
+
+const (
+	MAZStatusEnabled  = "Enabled"
+	MAZStatusDisabled = "Disabled"
+)

@@ -169,3 +169,24 @@ func (a *App) SetBucketReferer(accountID, bucket string, referer *config.BucketR
 	defer cancel()
 	return a.config.SetBucketReferer(ctx, accountID, bucket, referer)
 }
+
+// GetBucketMAZConfig returns the Multi-AZ status for a bucket.
+func (a *App) GetBucketMAZConfig(accountID, bucket string) (*config.BucketMAZConfig, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.GetBucketMAZConfig(ctx, accountID, bucket)
+}
+
+// EnableBucketMAZ tries to switch a bucket to Multi-AZ mode.
+func (a *App) EnableBucketMAZ(accountID, bucket string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.EnableBucketMAZ(ctx, accountID, bucket)
+}
+
+// DisableBucketMAZ attempts to revert a bucket back to single AZ mode.
+func (a *App) DisableBucketMAZ(accountID, bucket string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.config.DisableBucketMAZ(ctx, accountID, bucket)
+}

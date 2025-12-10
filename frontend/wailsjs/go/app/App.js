@@ -118,6 +118,10 @@ export function DeleteTransferTask(arg1) {
   return window['go']['app']['App']['DeleteTransferTask'](arg1);
 }
 
+export function DisableBucketMAZ(arg1, arg2) {
+  return window['go']['app']['App']['DisableBucketMAZ'](arg1, arg2);
+}
+
 export function DownloadBatch(arg1, arg2) {
   return window['go']['app']['App']['DownloadBatch'](arg1, arg2);
 }
@@ -128,6 +132,10 @@ export function DownloadObject(arg1, arg2, arg3, arg4) {
 
 export function DownloadObjectWithOptions(arg1, arg2) {
   return window['go']['app']['App']['DownloadObjectWithOptions'](arg1, arg2);
+}
+
+export function EnableBucketMAZ(arg1, arg2) {
+  return window['go']['app']['App']['EnableBucketMAZ'](arg1, arg2);
 }
 
 export function EnableBucketVersioning(arg1, arg2) {
@@ -164,6 +172,10 @@ export function GetBucketEncryption(arg1, arg2) {
 
 export function GetBucketLifecycle(arg1, arg2) {
   return window['go']['app']['App']['GetBucketLifecycle'](arg1, arg2);
+}
+
+export function GetBucketMAZConfig(arg1, arg2) {
+  return window['go']['app']['App']['GetBucketMAZConfig'](arg1, arg2);
 }
 
 export function GetBucketPolicy(arg1, arg2) {
@@ -216,6 +228,10 @@ export function GetProviderCapabilities(arg1) {
 
 export function GetPublicAccessBlock(arg1, arg2) {
   return window['go']['app']['App']['GetPublicAccessBlock'](arg1, arg2);
+}
+
+export function GetSymlink(arg1, arg2, arg3) {
+  return window['go']['app']['App']['GetSymlink'](arg1, arg2, arg3);
 }
 
 export function GetSystemMetrics() {

@@ -321,6 +321,11 @@ func (d *fakeBucketDriver) PutBucketWebsite(ctx context.Context, bucket string, 
 	return nil
 }
 func (d *fakeBucketDriver) DeleteBucketWebsite(ctx context.Context, bucket string) error { return nil }
+func (d *fakeBucketDriver) GetBucketMAZConfig(ctx context.Context, name string) (*storage.MAZConfiguration, error) {
+	return &storage.MAZConfiguration{Status: storage.MAZStatusDisabled}, nil
+}
+func (d *fakeBucketDriver) EnableBucketMAZ(ctx context.Context, name string) error  { return nil }
+func (d *fakeBucketDriver) DisableBucketMAZ(ctx context.Context, name string) error { return nil }
 
 var _ storage.BucketDriver = (*fakeBucketDriver)(nil)
 var _ storage.StorageClient = (*fakeStorageClient)(nil)

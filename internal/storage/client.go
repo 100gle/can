@@ -39,6 +39,9 @@ type BucketDriver interface {
 	GetBucketWebsite(ctx context.Context, bucket string) (*BucketWebsiteConfiguration, error)
 	PutBucketWebsite(ctx context.Context, bucket string, config BucketWebsiteConfiguration) error
 	DeleteBucketWebsite(ctx context.Context, bucket string) error
+	GetBucketMAZConfig(ctx context.Context, name string) (*MAZConfiguration, error)
+	EnableBucketMAZ(ctx context.Context, name string) error
+	DisableBucketMAZ(ctx context.Context, name string) error
 }
 
 // ObjectDriver exposes object-level operations for a provider.
@@ -61,6 +64,7 @@ type ObjectDriver interface {
 	GetObjectACL(ctx context.Context, bucket, key string) (ObjectACL, error)
 	PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error
 	CreateSymlink(ctx context.Context, bucket, key, target string) error
+	GetSymlink(ctx context.Context, bucket, key string) (string, error)
 	GetObjectLockConfiguration(ctx context.Context, bucket string) (ObjectLockConfiguration, error)
 	GetObjectRetention(ctx context.Context, bucket, key, versionID string) (ObjectRetentionState, error)
 	PutObjectRetention(ctx context.Context, input PutObjectRetentionInput) error

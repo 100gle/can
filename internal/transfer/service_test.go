@@ -577,6 +577,10 @@ func (d *fakeObjectDriver) CreateSymlink(context.Context, string, string, string
 	return storage.ErrUnsupportedCapability
 }
 
+func (d *fakeObjectDriver) GetSymlink(context.Context, string, string) (string, error) {
+	return "", storage.ErrUnsupportedCapability
+}
+
 func (d *fakeObjectDriver) GetObjectLockConfiguration(context.Context, string) (storage.ObjectLockConfiguration, error) {
 	return storage.ObjectLockConfiguration{}, storage.ErrUnsupportedCapability
 }

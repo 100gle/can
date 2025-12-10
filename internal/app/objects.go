@@ -3,7 +3,6 @@ package app
 import (
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 
 	"can/internal/objects"
 	"can/internal/transfer"
@@ -61,16 +60,10 @@ func (a *App) DeleteObject(accountID, bucket, key string) error {
 }
 
 // DeleteObjectWithOptions removes an object with mutation tracking metadata.
-// The options parameter is used for logging/idempotency but does not change the operation.
 func (a *App) DeleteObjectWithOptions(accountID, bucket, key string, opts objects.MutationOptions) error {
-	slog.Info("DeleteObject operation",
-		"requestId", opts.RequestID,
-		"origin", opts.Origin,
-		"bucket", bucket,
-		"key", key)
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.objects.DeleteObject(ctx, accountID, bucket, key)
+	return a.objects.DeleteObjectWithOptions(ctx, accountID, bucket, key, opts)
 }
 
 // BatchDeleteObjects removes multiple objects from the bucket.
@@ -96,15 +89,9 @@ func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
 
 // RenameObjectWithOptions renames an object with mutation tracking metadata.
 func (a *App) RenameObjectWithOptions(accountID, bucket, oldKey, newKey string, opts objects.MutationOptions) error {
-	slog.Info("RenameObject operation",
-		"requestId", opts.RequestID,
-		"origin", opts.Origin,
-		"bucket", bucket,
-		"oldKey", oldKey,
-		"newKey", newKey)
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
+	return a.objects.RenameObjectWithOptions(ctx, accountID, bucket, oldKey, newKey, opts)
 }
 
 // MoveObjects performs batch move operations (copy + delete).
@@ -116,13 +103,9 @@ func (a *App) MoveObjects(accountID string, requests []objects.MoveObjectRequest
 
 // MoveObjectsWithOptions performs batch move operations with mutation tracking.
 func (a *App) MoveObjectsWithOptions(accountID string, requests []objects.MoveObjectRequest, opts objects.MutationOptions) (objects.MoveObjectsResult, error) {
-	slog.Info("MoveObjects operation",
-		"requestId", opts.RequestID,
-		"origin", opts.Origin,
-		"count", len(requests))
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
-	return a.objects.MoveObjects(ctx, accountID, requests)
+	return a.objects.MoveObjectsWithOptions(ctx, accountID, requests, opts)
 }
 
 // CreateFolder materialises a pseudo-folder marker object.
@@ -240,6 +223,13 @@ func (a *App) CreateSymlink(accountID, bucket, linkKey, targetKey string) error 
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.CreateSymlink(ctx, accountID, bucket, linkKey, targetKey)
+}
+
+// GetSymlink returns the target of an OSS symlink.
+func (a *App) GetSymlink(accountID, bucket, key string) (string, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.GetSymlink(ctx, accountID, bucket, key)
 }
 
 // GetObjectLockConfiguration fetches bucket-level object lock defaults.
