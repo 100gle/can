@@ -1,4 +1,4 @@
-package security
+package accounts
 
 import (
 	"context"

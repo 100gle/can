@@ -10,6 +10,8 @@ const (
 	ProviderOSS    Provider = "oss"
 	ProviderCOS    Provider = "cos"
 	ProviderR2     Provider = "r2"
+	ProviderQiniu  Provider = "qiniu"
+	ProviderMinIO  Provider = "minio"
 	ProviderCustom Provider = "custom"
 )
 
@@ -19,6 +21,8 @@ var providerLabels = map[Provider]string{
 	ProviderOSS:    "Aliyun OSS",
 	ProviderCOS:    "Tencent COS",
 	ProviderR2:     "Cloudflare R2",
+	ProviderQiniu:  "Qiniu Kodo",
+	ProviderMinIO:  "MinIO",
 	ProviderCustom: "Generic S3",
 }
 
@@ -36,6 +40,8 @@ func KnownProviders() []ProviderMetadata {
 		{ID: ProviderOSS, Label: providerLabels[ProviderOSS], Description: "Aliyun Object Storage Service"},
 		{ID: ProviderCOS, Label: providerLabels[ProviderCOS], Description: "Tencent Cloud Object Storage"},
 		{ID: ProviderR2, Label: providerLabels[ProviderR2], Description: "Cloudflare R2"},
+		{ID: ProviderQiniu, Label: providerLabels[ProviderQiniu], Description: "Qiniu Kodo"},
+		{ID: ProviderMinIO, Label: providerLabels[ProviderMinIO], Description: "MinIO Object Storage"},
 		{ID: ProviderCustom, Label: providerLabels[ProviderCustom], Description: "Generic S3-compatible endpoints"},
 	}
 }
@@ -43,7 +49,7 @@ func KnownProviders() []ProviderMetadata {
 // ParseProvider normalizes arbitrary provider strings into a supported constant.
 func ParseProvider(raw string) Provider {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
-	for _, item := range []Provider{ProviderAWS, ProviderOSS, ProviderCOS, ProviderR2, ProviderCustom} {
+	for _, item := range []Provider{ProviderAWS, ProviderOSS, ProviderCOS, ProviderR2, ProviderQiniu, ProviderMinIO, ProviderCustom} {
 		if normalized == string(item) {
 			return item
 		}

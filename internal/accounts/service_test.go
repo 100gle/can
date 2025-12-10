@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"can/internal/providers"
-	"can/internal/security"
+
 	"can/internal/types"
 )
 
@@ -305,10 +305,10 @@ func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
 	}
 }
 
-func testCipher(t *testing.T) security.Cipher {
+func testCipher(t *testing.T) Cipher {
 	t.Helper()
 	key := []byte("01234567890123456789012345678901")
-	cipher, err := security.NewAESCipher(key)
+	cipher, err := NewAESCipher(key)
 	if err != nil {
 		t.Fatalf("new aes cipher: %v", err)
 	}

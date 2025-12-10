@@ -8,7 +8,7 @@ import (
 
 	"can/internal/accounts"
 	"can/internal/providers"
-	"can/internal/security"
+
 	"can/internal/types"
 )
 
@@ -140,7 +140,7 @@ func TestClientRequiresAccountID(t *testing.T) {
 func newTestBucketService(t *testing.T, driver *fakeBucketDriver) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
-	cipher := security.NoopCipher{}
+	cipher := accounts.NoopCipher{}
 	dialer := providers.NewStubDialer()
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)

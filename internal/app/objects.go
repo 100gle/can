@@ -50,13 +50,6 @@ func (a *App) DeleteObject(accountID, bucket, key string) error {
 	return a.objects.DeleteObject(ctx, accountID, bucket, key)
 }
 
-// DeleteObjectWithOptions deletes an object with idempotency/origin metadata (offline queue).
-func (a *App) DeleteObjectWithOptions(accountID, bucket, key string, options objects.MutationOptions) error {
-	ctx, cancel := a.backgroundContext()
-	defer cancel()
-	return a.objects.DeleteObject(ctx, accountID, bucket, key, objects.WithMutationOptions(options))
-}
-
 // BatchDeleteObjects removes multiple objects from the bucket.
 func (a *App) BatchDeleteObjects(accountID, bucket string, keys []string) (objects.BatchDeleteResult, error) {
 	ctx, cancel := a.backgroundContext()
@@ -78,25 +71,11 @@ func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
 	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
 }
 
-// RenameObjectWithOptions renames an object while carrying mutation metadata.
-func (a *App) RenameObjectWithOptions(accountID, bucket, oldKey, newKey string, options objects.MutationOptions) error {
-	ctx, cancel := a.backgroundContext()
-	defer cancel()
-	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey, objects.WithMutationOptions(options))
-}
-
 // MoveObjects performs batch move operations (copy + delete).
 func (a *App) MoveObjects(accountID string, requests []objects.MoveObjectRequest) (objects.MoveObjectsResult, error) {
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.MoveObjects(ctx, accountID, requests)
-}
-
-// MoveObjectsWithOptions performs move operations with mutation metadata (offline queue).
-func (a *App) MoveObjectsWithOptions(accountID string, requests []objects.MoveObjectRequest, options objects.MutationOptions) (objects.MoveObjectsResult, error) {
-	ctx, cancel := a.backgroundContext()
-	defer cancel()
-	return a.objects.MoveObjects(ctx, accountID, requests, objects.WithMutationOptions(options))
 }
 
 // CreateFolder materialises a pseudo-folder marker object.

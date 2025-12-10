@@ -11,14 +11,14 @@ import (
 	"github.com/google/uuid"
 
 	"can/internal/providers"
-	"can/internal/security"
+
 	"can/internal/types"
 )
 
 // Service orchestrates account CRUD, encryption, and provider probing.
 type Service struct {
 	store    Store
-	cipher   security.Cipher
+	cipher   Cipher
 	dialer   providers.Dialer
 	session  ActiveSessionStore
 	clients  providers.ClientPool
@@ -29,7 +29,7 @@ type Service struct {
 }
 
 // NewService wires dependencies for account management.
-func NewService(store Store, cipher security.Cipher, dialer providers.Dialer, session ActiveSessionStore) *Service {
+func NewService(store Store, cipher Cipher, dialer providers.Dialer, session ActiveSessionStore) *Service {
 	if session == nil {
 		session = NewMemorySessionStore()
 	}

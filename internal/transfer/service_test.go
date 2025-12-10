@@ -14,7 +14,7 @@ import (
 
 	"can/internal/accounts"
 	"can/internal/providers"
-	"can/internal/security"
+
 	"can/internal/types"
 )
 
@@ -382,7 +382,7 @@ func tempFile(t *testing.T, data []byte) string {
 func newTestTransferService(t *testing.T, driver providers.ObjectDriver) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
-	cipher := security.NoopCipher{}
+	cipher := accounts.NoopCipher{}
 	dialer := providers.NewStubDialer()
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)
@@ -594,7 +594,7 @@ func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, providers.PutObje
 func TestWorkerScalingRace(t *testing.T) {
 	driver := newFakeObjectDriver()
 	store := accounts.NewMemoryStore()
-	cipher := security.NoopCipher{}
+	cipher := accounts.NoopCipher{}
 	dialer := providers.NewStubDialer()
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)

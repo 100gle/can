@@ -106,10 +106,6 @@ export function DeleteObject(arg1, arg2, arg3) {
   return window['go']['app']['App']['DeleteObject'](arg1, arg2, arg3);
 }
 
-export function DeleteObjectWithOptions(arg1, arg2, arg3, arg4) {
-  return window['go']['app']['App']['DeleteObjectWithOptions'](arg1, arg2, arg3, arg4);
-}
-
 export function DeleteSavedSearchQuery(arg1) {
   return window['go']['app']['App']['DeleteSavedSearchQuery'](arg1);
 }
@@ -282,10 +278,6 @@ export function MoveObjects(arg1, arg2) {
   return window['go']['app']['App']['MoveObjects'](arg1, arg2);
 }
 
-export function MoveObjectsWithOptions(arg1, arg2, arg3) {
-  return window['go']['app']['App']['MoveObjectsWithOptions'](arg1, arg2, arg3);
-}
-
 export function OnSecondInstance(arg1) {
   return window['go']['app']['App']['OnSecondInstance'](arg1);
 }
@@ -316,10 +308,6 @@ export function ProviderCapabilities() {
 
 export function RenameObject(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['RenameObject'](arg1, arg2, arg3, arg4);
-}
-
-export function RenameObjectWithOptions(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['app']['App']['RenameObjectWithOptions'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function RestoreAppBackup(arg1) {

@@ -1022,20 +1022,6 @@ export namespace objects {
 		    return a;
 		}
 	}
-	export class MutationOptions {
-	    requestId: string;
-	    origin: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new MutationOptions(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.requestId = source["requestId"];
-	        this.origin = source["origin"];
-	    }
-	}
 	export class ObjectAttributes {
 	    object: ObjectInfo;
 	    metadata: Record<string, string>;

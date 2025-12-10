@@ -10,7 +10,7 @@ import (
 
 	"can/internal/accounts"
 	"can/internal/providers"
-	"can/internal/security"
+
 	"can/internal/types"
 )
 
@@ -75,30 +75,6 @@ func TestRenameObjectValidatesKeys(t *testing.T) {
 	svc, accountID := newTestObjectsService(t, newStubObjectDriver())
 	if err := svc.RenameObject(context.Background(), accountID, "docs", "same.txt", "same.txt"); err == nil {
 		t.Fatalf("expected error when keys are identical")
-	}
-}
-
-func TestDeleteObjectWithRequestIDSkipsDuplicates(t *testing.T) {
-	driver := newStubObjectDriver()
-	store := &memoryAuditStore{}
-	auditSvc := security.NewService(store)
-	svc, accountID := newTestObjectsService(t, driver, auditSvc)
-	ctx := context.Background()
-	opts := WithMutationOptions(MutationOptions{
-		RequestID: "req-123",
-		Origin:    "offline-queue",
-	})
-	if err := svc.DeleteObject(ctx, accountID, "docs", "file.txt", opts); err != nil {
-		t.Fatalf("first delete failed: %v", err)
-	}
-	if err := svc.DeleteObject(ctx, accountID, "docs", "file.txt", opts); err != nil {
-		t.Fatalf("duplicate delete should be skipped, got error: %v", err)
-	}
-	if len(driver.deleteCalls) != 1 {
-		t.Fatalf("expected exactly one delete call, got %d", len(driver.deleteCalls))
-	}
-	if processed, _ := store.HasRequest(ctx, "req-123"); !processed {
-		t.Fatalf("expected request id to be recorded")
 	}
 }
 
@@ -337,38 +313,6 @@ type deleteCall struct {
 	key    string
 }
 
-type memoryAuditStore struct {
-	events []security.AuditEvent
-}
-
-func (m *memoryAuditStore) Record(_ context.Context, event security.AuditEvent) error {
-	m.events = append(m.events, event)
-	return nil
-}
-
-func (m *memoryAuditStore) Query(context.Context, security.AuditFilter) ([]security.AuditEvent, error) {
-	copied := make([]security.AuditEvent, len(m.events))
-	copy(copied, m.events)
-	return copied, nil
-}
-
-func (m *memoryAuditStore) Init() error {
-	return nil
-}
-
-func (m *memoryAuditStore) HasRequest(_ context.Context, requestID string) (bool, error) {
-	id := strings.TrimSpace(requestID)
-	if id == "" {
-		return false, nil
-	}
-	for _, event := range m.events {
-		if event.RequestID == id && strings.EqualFold(event.Status, "Success") {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 func newStubObjectDriver() *stubObjectDriver {
 	return &stubObjectDriver{
 		headResponses: make(map[string]headResponse),
@@ -599,10 +543,10 @@ func (s *stubStorageClient) Security() providers.SecurityDriver {
 	return nil
 }
 
-func newTestObjectsService(t *testing.T, driver providers.ObjectDriver, audits ...*security.Service) (*Service, string) {
+func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
-	cipher := security.NoopCipher{}
+	cipher := accounts.NoopCipher{}
 	dialer := providers.NewStubDialer()
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)
@@ -623,10 +567,6 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver, audits .
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
 	pool := providers.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
-	var audit *security.Service
-	if len(audits) > 0 {
-		audit = audits[0]
-	}
-	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore(), audit)
+	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore())
 	return service, account.ID
 }
