@@ -149,15 +149,28 @@ func (f *clientFactory) buildAWSConfig(creds storage.ConnectionCredentials) (aws
 	cfg.HTTPClient = f.httpClient
 	if hasEndpoint {
 		resolvedEndpoint := endpoint
+		// For virtual-hosted style providers (OSS, COS), HostnameImmutable must be false
+		// so SDK can prepend bucket name to the hostname
+		hostnameImmutable := !requiresVirtualHostedStyle(creds.Provider)
 		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
 			if service == s3.ServiceID {
-				return aws.Endpoint{URL: resolvedEndpoint, HostnameImmutable: true}, nil
+				return aws.Endpoint{URL: resolvedEndpoint, HostnameImmutable: hostnameImmutable}, nil
 			}
 			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 		})
 	}
 	usePathStyle := shouldUsePathStyle(creds.Provider)
 	return cfg, usePathStyle, nil
+}
+
+// requiresVirtualHostedStyle returns true if the provider requires virtual-hosted style URLs.
+func requiresVirtualHostedStyle(provider types.Provider) bool {
+	switch provider {
+	case types.ProviderAWS, types.ProviderOSS, types.ProviderCOS:
+		return true
+	default:
+		return false
+	}
 }
 
 func DefaultRegionFor(provider types.Provider) string {
@@ -174,10 +187,14 @@ func DefaultRegionFor(provider types.Provider) string {
 }
 
 func shouldUsePathStyle(provider types.Provider) bool {
-	if provider == types.ProviderAWS {
+	switch provider {
+	case types.ProviderAWS, types.ProviderOSS, types.ProviderCOS:
+		// AWS, OSS, COS require virtual-hosted style
 		return false
+	default:
+		// MinIO, R2, Qiniu, custom endpoints typically use path style
+		return true
 	}
-	return true
 }
 
 func normalizeEndpoint(creds storage.ConnectionCredentials) (string, bool, error) {

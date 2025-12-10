@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"can/internal/providers"
+	"can/internal/storage"
 
 	"can/internal/types"
 )
@@ -19,9 +19,9 @@ import (
 type Service struct {
 	store    Store
 	cipher   Cipher
-	dialer   providers.Dialer
+	dialer   storage.Dialer
 	session  ActiveSessionStore
-	clients  providers.ClientPool
+	clients  storage.ClientPool
 	activeID string
 
 	activeLoaded bool
@@ -29,7 +29,7 @@ type Service struct {
 }
 
 // NewService wires dependencies for account management.
-func NewService(store Store, cipher Cipher, dialer providers.Dialer, session ActiveSessionStore) *Service {
+func NewService(store Store, cipher Cipher, dialer storage.Dialer, session ActiveSessionStore) *Service {
 	if session == nil {
 		session = NewMemorySessionStore()
 	}
@@ -37,7 +37,7 @@ func NewService(store Store, cipher Cipher, dialer providers.Dialer, session Act
 }
 
 // SetClientPool wires the provider client cache for cross-service invalidation events.
-func (s *Service) SetClientPool(pool providers.ClientPool) {
+func (s *Service) SetClientPool(pool storage.ClientPool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clients = pool
@@ -258,28 +258,28 @@ func (s *Service) TestConnectionWithInput(ctx context.Context, input CreateAccou
 }
 
 // ConnectionCredentials resolves decrypted credentials for the given account.
-func (s *Service) ConnectionCredentials(ctx context.Context, id string) (providers.ConnectionCredentials, error) {
+func (s *Service) ConnectionCredentials(ctx context.Context, id string) (storage.ConnectionCredentials, error) {
 	record, err := s.store.Get(ctx, id)
 	if err != nil {
-		return providers.ConnectionCredentials{}, err
+		return storage.ConnectionCredentials{}, err
 	}
 	return s.credentialsFromRecord(ctx, record)
 }
 
 // GetStorageClient retrieves a storage client for the given account using the provided pool.
-func (s *Service) GetStorageClient(ctx context.Context, pool providers.ClientPool, accountID string) (providers.StorageClient, providers.ConnectionCredentials, error) {
+func (s *Service) GetStorageClient(ctx context.Context, pool storage.ClientPool, accountID string) (storage.StorageClient, storage.ConnectionCredentials, error) {
 	accountID = strings.TrimSpace(accountID)
 	if accountID == "" {
-		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
+		return nil, storage.ConnectionCredentials{}, errors.New("account id is required")
 	}
 	if pool == nil {
 		pool = s.clients // Fallback to internal pool if available
 	}
 	if pool == nil {
-		return nil, providers.ConnectionCredentials{}, errors.New("storage client pool not configured")
+		return nil, storage.ConnectionCredentials{}, errors.New("storage client pool not configured")
 	}
 
-	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+	supplier := func(ctx context.Context) (storage.ConnectionCredentials, error) {
 		return s.ConnectionCredentials(ctx, accountID)
 	}
 	return pool.Get(ctx, accountID, supplier)
@@ -301,12 +301,12 @@ func validateCreateInput(input CreateAccountInput) error {
 	return nil
 }
 
-func credentialsFromInput(input CreateAccountInput) providers.ConnectionCredentials {
+func credentialsFromInput(input CreateAccountInput) storage.ConnectionCredentials {
 	provider := input.Provider
 	if provider == "" {
 		provider = types.ProviderCustom
 	}
-	return providers.ConnectionCredentials{
+	return storage.ConnectionCredentials{
 		Provider:        provider,
 		Endpoint:        strings.TrimSpace(input.Endpoint),
 		AccessKeyID:     strings.TrimSpace(input.AccessKeyID),
@@ -317,12 +317,12 @@ func credentialsFromInput(input CreateAccountInput) providers.ConnectionCredenti
 	}
 }
 
-func (s *Service) credentialsFromRecord(ctx context.Context, record accountRecord) (providers.ConnectionCredentials, error) {
+func (s *Service) credentialsFromRecord(ctx context.Context, record accountRecord) (storage.ConnectionCredentials, error) {
 	secret, err := s.cipher.DecryptString(ctx, record.EncryptedSecret)
 	if err != nil {
-		return providers.ConnectionCredentials{}, fmt.Errorf("decrypt secret: %w", err)
+		return storage.ConnectionCredentials{}, fmt.Errorf("decrypt secret: %w", err)
 	}
-	return providers.ConnectionCredentials{
+	return storage.ConnectionCredentials{
 		Provider:        record.Provider,
 		Endpoint:        record.Endpoint,
 		AccessKeyID:     record.AccessKeyID,

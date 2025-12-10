@@ -11,6 +11,9 @@ func (a *App) ListBuckets(accountID string) ([]buckets.BucketInfo, error) {
 
 // CreateBucket provisions a new bucket under the provided account.
 func (a *App) CreateBucket(accountID string, input buckets.CreateBucketInput) error {
+	if err := ValidateStruct(input); err != nil {
+		return err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.buckets.CreateBucket(ctx, accountID, input)

@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 
 	"can/internal/objects"
 	"can/internal/transfer"
@@ -10,6 +11,9 @@ import (
 
 // ListObjects enumerates objects under the given prefix.
 func (a *App) ListObjects(accountID string, input objects.ListObjectsInput) (objects.ListObjectsResult, error) {
+	if err := ValidateStruct(input); err != nil {
+		return objects.ListObjectsResult{}, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.ListObjects(ctx, accountID, input)
@@ -31,6 +35,9 @@ func (a *App) DownloadObject(accountID, bucket, key, savePath string) (*transfer
 
 // DownloadObjectWithOptions exposes advanced download controls to the UI.
 func (a *App) DownloadObjectWithOptions(accountID string, input objects.DownloadObjectInput) (*transfer.TransferTask, error) {
+	if err := ValidateStruct(input); err != nil {
+		return nil, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.DownloadObjectWithOptions(ctx, accountID, input)
@@ -38,6 +45,9 @@ func (a *App) DownloadObjectWithOptions(accountID string, input objects.Download
 
 // DownloadBatch bundles multiple objects into an archive download.
 func (a *App) DownloadBatch(accountID string, input objects.DownloadBatchInput) (*transfer.TransferTask, error) {
+	if err := ValidateStruct(input); err != nil {
+		return nil, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.DownloadBatch(ctx, accountID, input)
@@ -45,6 +55,19 @@ func (a *App) DownloadBatch(accountID string, input objects.DownloadBatchInput) 
 
 // DeleteObject removes an object from the bucket.
 func (a *App) DeleteObject(accountID, bucket, key string) error {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.DeleteObject(ctx, accountID, bucket, key)
+}
+
+// DeleteObjectWithOptions removes an object with mutation tracking metadata.
+// The options parameter is used for logging/idempotency but does not change the operation.
+func (a *App) DeleteObjectWithOptions(accountID, bucket, key string, opts objects.MutationOptions) error {
+	slog.Info("DeleteObject operation",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"bucket", bucket,
+		"key", key)
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.DeleteObject(ctx, accountID, bucket, key)
@@ -71,8 +94,32 @@ func (a *App) RenameObject(accountID, bucket, oldKey, newKey string) error {
 	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
 }
 
+// RenameObjectWithOptions renames an object with mutation tracking metadata.
+func (a *App) RenameObjectWithOptions(accountID, bucket, oldKey, newKey string, opts objects.MutationOptions) error {
+	slog.Info("RenameObject operation",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"bucket", bucket,
+		"oldKey", oldKey,
+		"newKey", newKey)
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.RenameObject(ctx, accountID, bucket, oldKey, newKey)
+}
+
 // MoveObjects performs batch move operations (copy + delete).
 func (a *App) MoveObjects(accountID string, requests []objects.MoveObjectRequest) (objects.MoveObjectsResult, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+	return a.objects.MoveObjects(ctx, accountID, requests)
+}
+
+// MoveObjectsWithOptions performs batch move operations with mutation tracking.
+func (a *App) MoveObjectsWithOptions(accountID string, requests []objects.MoveObjectRequest, opts objects.MutationOptions) (objects.MoveObjectsResult, error) {
+	slog.Info("MoveObjects operation",
+		"requestId", opts.RequestID,
+		"origin", opts.Origin,
+		"count", len(requests))
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.MoveObjects(ctx, accountID, requests)
@@ -180,6 +227,9 @@ func (a *App) AbortMultipartUpload(accountID, bucket, key, uploadID string) erro
 
 // GenerateAccessLinks returns presigned URLs plus helper metadata.
 func (a *App) GenerateAccessLinks(accountID string, input objects.AccessLinkRequest) ([]objects.AccessLink, error) {
+	if err := ValidateStruct(input); err != nil {
+		return nil, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.GenerateAccessLinks(ctx, accountID, input)
@@ -208,6 +258,9 @@ func (a *App) GetObjectRetention(accountID, bucket, key, versionID string) (obje
 
 // UpdateObjectRetention applies retention settings for an object/version.
 func (a *App) UpdateObjectRetention(accountID string, input objects.UpdateObjectRetentionInput) (objects.ObjectRetentionState, error) {
+	if err := ValidateStruct(input); err != nil {
+		return objects.ObjectRetentionState{}, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.UpdateObjectRetention(ctx, accountID, input)
@@ -222,6 +275,9 @@ func (a *App) GetObjectLegalHold(accountID, bucket, key, versionID string) (obje
 
 // UpdateObjectLegalHold toggles object legal hold.
 func (a *App) UpdateObjectLegalHold(accountID string, input objects.UpdateObjectLegalHoldInput) (objects.ObjectLegalHoldState, error) {
+	if err := ValidateStruct(input); err != nil {
+		return objects.ObjectLegalHoldState{}, err
+	}
 	ctx, cancel := a.backgroundContext()
 	defer cancel()
 	return a.objects.UpdateObjectLegalHold(ctx, accountID, input)

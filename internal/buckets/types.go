@@ -13,7 +13,7 @@ type BucketInfo struct {
 
 // CreateBucketInput captures user-provided options when provisioning a bucket.
 type CreateBucketInput struct {
-	Name         string `json:"name"`
+	Name         string `json:"name" validate:"required,bucket-name"`
 	Region       string `json:"region"`
 	ACL          string `json:"acl"`
 	StorageClass string `json:"storageClass"`

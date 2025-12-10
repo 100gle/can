@@ -156,6 +156,289 @@ func (d *s3BucketDriver) BucketLocation(ctx context.Context, name string) (strin
 	return region, nil
 }
 
+// encryption
+func (d *s3BucketDriver) GetBucketEncryption(ctx context.Context, bucket string) (*storage.BucketEncryptionConfiguration, error) {
+	out, err := d.client.GetBucketEncryption(ctx, &s3.GetBucketEncryptionInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		return nil, WrapS3Error("get bucket encryption", err)
+	}
+	if out.ServerSideEncryptionConfiguration == nil {
+		return nil, nil
+	}
+	rules := make([]storage.BucketEncryptionRule, len(out.ServerSideEncryptionConfiguration.Rules))
+	for i, r := range out.ServerSideEncryptionConfiguration.Rules {
+		rules[i] = storage.BucketEncryptionRule{}
+		if r.ApplyServerSideEncryptionByDefault != nil {
+			rules[i].ApplyServerSideEncryptionByDefault = &storage.ServerSideEncryptionByDefault{
+				SSEAlgorithm:   string(r.ApplyServerSideEncryptionByDefault.SSEAlgorithm),
+				KMSMasterKeyID: aws.ToString(r.ApplyServerSideEncryptionByDefault.KMSMasterKeyID),
+			}
+		}
+	}
+	return &storage.BucketEncryptionConfiguration{Rules: rules}, nil
+}
+
+func (d *s3BucketDriver) PutBucketEncryption(ctx context.Context, bucket string, config storage.BucketEncryptionConfiguration) error {
+	rules := make([]s3types.ServerSideEncryptionRule, len(config.Rules))
+	for i, r := range config.Rules {
+		rules[i] = s3types.ServerSideEncryptionRule{}
+		if r.ApplyServerSideEncryptionByDefault != nil {
+			rules[i].ApplyServerSideEncryptionByDefault = &s3types.ServerSideEncryptionByDefault{
+				SSEAlgorithm:   s3types.ServerSideEncryption(r.ApplyServerSideEncryptionByDefault.SSEAlgorithm),
+				KMSMasterKeyID: aws.String(r.ApplyServerSideEncryptionByDefault.KMSMasterKeyID),
+			}
+		}
+	}
+	_, err := d.client.PutBucketEncryption(ctx, &s3.PutBucketEncryptionInput{
+		Bucket: aws.String(bucket),
+		ServerSideEncryptionConfiguration: &s3types.ServerSideEncryptionConfiguration{
+			Rules: rules,
+		},
+	})
+	return WrapS3Error("put bucket encryption", err)
+}
+
+func (d *s3BucketDriver) DeleteBucketEncryption(ctx context.Context, bucket string) error {
+	_, err := d.client.DeleteBucketEncryption(ctx, &s3.DeleteBucketEncryptionInput{
+		Bucket: aws.String(bucket),
+	})
+	return WrapS3Error("delete bucket encryption", err)
+}
+
+// policy
+func (d *s3BucketDriver) GetBucketPolicy(ctx context.Context, bucket string) (string, error) {
+	out, err := d.client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		return "", WrapS3Error("get bucket policy", err)
+	}
+	return aws.ToString(out.Policy), nil
+}
+
+func (d *s3BucketDriver) PutBucketPolicy(ctx context.Context, bucket, policy string) error {
+	_, err := d.client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+		Bucket: aws.String(bucket),
+		Policy: aws.String(policy),
+	})
+	return WrapS3Error("put bucket policy", err)
+}
+
+func (d *s3BucketDriver) DeleteBucketPolicy(ctx context.Context, bucket string) error {
+	_, err := d.client.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
+		Bucket: aws.String(bucket),
+	})
+	return WrapS3Error("delete bucket policy", err)
+}
+
+// versioning
+func (d *s3BucketDriver) GetBucketVersioning(ctx context.Context, bucket string) (storage.BucketVersioningStatus, error) {
+	out, err := d.client.GetBucketVersioning(ctx, &s3.GetBucketVersioningInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		return "", WrapS3Error("get bucket versioning", err)
+	}
+	return storage.BucketVersioningStatus(out.Status), nil
+}
+
+func (d *s3BucketDriver) PutBucketVersioning(ctx context.Context, bucket string, status storage.BucketVersioningStatus) error {
+	_, err := d.client.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
+		Bucket: aws.String(bucket),
+		VersioningConfiguration: &s3types.VersioningConfiguration{
+			Status: s3types.BucketVersioningStatus(status),
+		},
+	})
+	return WrapS3Error("put bucket versioning", err)
+}
+
+// lifecycle
+func (d *s3BucketDriver) GetBucketLifecycleConfiguration(ctx context.Context, bucket string) ([]storage.LifecycleRule, error) {
+	out, err := d.client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		// S3 returns NoSuchLifecycleConfiguration if no rules exist
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && strings.Contains(apiErr.ErrorCode(), "NoSuchLifecycleConfiguration") {
+			return []storage.LifecycleRule{}, nil
+		}
+		return nil, WrapS3Error("get bucket lifecycle", err)
+	}
+	rules := make([]storage.LifecycleRule, len(out.Rules))
+	for i, r := range out.Rules {
+		rules[i] = storage.LifecycleRule{
+			ID:     aws.ToString(r.ID),
+			Prefix: aws.ToString(r.Prefix),
+			Status: string(r.Status),
+		}
+		if r.Expiration != nil {
+			rules[i].Expiration = &storage.LifecycleExpiration{
+				Days:                      r.Expiration.Days,
+				Date:                      r.Expiration.Date,
+				ExpiredObjectDeleteMarker: aws.ToBool(r.Expiration.ExpiredObjectDeleteMarker),
+			}
+		}
+		if r.NoncurrentVersionExpiration != nil {
+			rules[i].NoncurrentVersionExpiration = &storage.NoncurrentVersionExpiration{
+				NoncurrentDays: r.NoncurrentVersionExpiration.NoncurrentDays,
+			}
+		}
+		// Incomplete implementation: Transitions, Filter, AbortIncompleteMultipartUpload omitted for brevity matching current needs
+	}
+	return rules, nil
+}
+
+func (d *s3BucketDriver) PutBucketLifecycleConfiguration(ctx context.Context, bucket string, rules []storage.LifecycleRule) error {
+	s3Rules := make([]s3types.LifecycleRule, len(rules))
+	for i, r := range rules {
+		s3Rules[i] = s3types.LifecycleRule{
+			ID:     aws.String(r.ID),
+			Prefix: aws.String(r.Prefix),
+			Status: s3types.ExpirationStatus(r.Status),
+		}
+		if r.Expiration != nil {
+			s3Rules[i].Expiration = &s3types.LifecycleExpiration{
+				Days:                      r.Expiration.Days,
+				Date:                      r.Expiration.Date,
+				ExpiredObjectDeleteMarker: aws.Bool(r.Expiration.ExpiredObjectDeleteMarker),
+			}
+		}
+		if r.NoncurrentVersionExpiration != nil {
+			s3Rules[i].NoncurrentVersionExpiration = &s3types.NoncurrentVersionExpiration{
+				NoncurrentDays: r.NoncurrentVersionExpiration.NoncurrentDays,
+			}
+		}
+	}
+	_, err := d.client.PutBucketLifecycleConfiguration(ctx, &s3.PutBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucket),
+		LifecycleConfiguration: &s3types.BucketLifecycleConfiguration{
+			Rules: s3Rules,
+		},
+	})
+	return WrapS3Error("put bucket lifecycle", err)
+}
+
+func (d *s3BucketDriver) DeleteBucketLifecycle(ctx context.Context, bucket string) error {
+	_, err := d.client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
+		Bucket: aws.String(bucket),
+	})
+	return WrapS3Error("delete bucket lifecycle", err)
+}
+
+// cors
+func (d *s3BucketDriver) GetBucketCors(ctx context.Context, bucket string) ([]storage.CORSRule, error) {
+	out, err := d.client.GetBucketCors(ctx, &s3.GetBucketCorsInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && strings.Contains(apiErr.ErrorCode(), "NoSuchCORSConfiguration") {
+			return []storage.CORSRule{}, nil
+		}
+		return nil, WrapS3Error("get bucket cors", err)
+	}
+	rules := make([]storage.CORSRule, len(out.CORSRules))
+	for i, r := range out.CORSRules {
+		rules[i] = storage.CORSRule{
+			ID:             aws.ToString(r.ID),
+			AllowedHeaders: r.AllowedHeaders,
+			AllowedMethods: r.AllowedMethods,
+			AllowedOrigins: r.AllowedOrigins,
+			ExposeHeaders:  r.ExposeHeaders,
+			MaxAgeSeconds:  aws.ToInt32(r.MaxAgeSeconds),
+		}
+	}
+	return rules, nil
+}
+
+func (d *s3BucketDriver) PutBucketCors(ctx context.Context, bucket string, rules []storage.CORSRule) error {
+	s3Rules := make([]s3types.CORSRule, len(rules))
+	for i, r := range rules {
+		s3Rules[i] = s3types.CORSRule{
+			ID:             aws.String(r.ID),
+			AllowedHeaders: r.AllowedHeaders,
+			AllowedMethods: r.AllowedMethods,
+			AllowedOrigins: r.AllowedOrigins,
+			ExposeHeaders:  r.ExposeHeaders,
+			MaxAgeSeconds:  aws.Int32(r.MaxAgeSeconds),
+		}
+	}
+	_, err := d.client.PutBucketCors(ctx, &s3.PutBucketCorsInput{
+		Bucket: aws.String(bucket),
+		CORSConfiguration: &s3types.CORSConfiguration{
+			CORSRules: s3Rules,
+		},
+	})
+	return WrapS3Error("put bucket cors", err)
+}
+
+func (d *s3BucketDriver) DeleteBucketCors(ctx context.Context, bucket string) error {
+	_, err := d.client.DeleteBucketCors(ctx, &s3.DeleteBucketCorsInput{
+		Bucket: aws.String(bucket),
+	})
+	return WrapS3Error("delete bucket cors", err)
+}
+
+// website
+func (d *s3BucketDriver) GetBucketWebsite(ctx context.Context, bucket string) (*storage.BucketWebsiteConfiguration, error) {
+	out, err := d.client.GetBucketWebsite(ctx, &s3.GetBucketWebsiteInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && strings.Contains(apiErr.ErrorCode(), "NoSuchWebsiteConfiguration") {
+			return nil, nil // Or specific error
+		}
+		return nil, WrapS3Error("get bucket website", err)
+	}
+	cfg := &storage.BucketWebsiteConfiguration{}
+	if out.ErrorDocument != nil {
+		cfg.ErrorDocument = &storage.ErrorDocument{Key: aws.ToString(out.ErrorDocument.Key)}
+	}
+	if out.IndexDocument != nil {
+		cfg.IndexDocument = &storage.IndexDocument{Suffix: aws.ToString(out.IndexDocument.Suffix)}
+	}
+	if out.RedirectAllRequestsTo != nil {
+		cfg.RedirectAllRequestsTo = &storage.RedirectAllRequestsTo{
+			HostName: aws.ToString(out.RedirectAllRequestsTo.HostName),
+			Protocol: string(out.RedirectAllRequestsTo.Protocol),
+		}
+	}
+	// Routing rules omitted for brevity
+	return cfg, nil
+}
+
+func (d *s3BucketDriver) PutBucketWebsite(ctx context.Context, bucket string, config storage.BucketWebsiteConfiguration) error {
+	input := &s3.PutBucketWebsiteInput{
+		Bucket:               aws.String(bucket),
+		WebsiteConfiguration: &s3types.WebsiteConfiguration{},
+	}
+	if config.ErrorDocument != nil {
+		input.WebsiteConfiguration.ErrorDocument = &s3types.ErrorDocument{Key: aws.String(config.ErrorDocument.Key)}
+	}
+	if config.IndexDocument != nil {
+		input.WebsiteConfiguration.IndexDocument = &s3types.IndexDocument{Suffix: aws.String(config.IndexDocument.Suffix)}
+	}
+	if config.RedirectAllRequestsTo != nil {
+		input.WebsiteConfiguration.RedirectAllRequestsTo = &s3types.RedirectAllRequestsTo{
+			HostName: aws.String(config.RedirectAllRequestsTo.HostName),
+			Protocol: s3types.Protocol(config.RedirectAllRequestsTo.Protocol),
+		}
+	}
+	_, err := d.client.PutBucketWebsite(ctx, input)
+	return WrapS3Error("put bucket website", err)
+}
+
+func (d *s3BucketDriver) DeleteBucketWebsite(ctx context.Context, bucket string) error {
+	_, err := d.client.DeleteBucketWebsite(ctx, &s3.DeleteBucketWebsiteInput{
+		Bucket: aws.String(bucket),
+	})
+	return WrapS3Error("delete bucket website", err)
+}
+
 func (d *s3BucketDriver) GetBucketACL(ctx context.Context, name string) (storage.BucketACL, error) {
 	var result storage.BucketACL
 	bucket := strings.TrimSpace(name)

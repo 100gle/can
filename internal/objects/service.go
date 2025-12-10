@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/providers"
-
+	"can/internal/storage"
 	"can/internal/transfer"
 
 	"github.com/google/uuid"
@@ -23,13 +22,13 @@ import (
 // Service exposes object CRUD operations.
 type Service struct {
 	accounts  *accounts.Service
-	pool      providers.ClientPool
+	pool      storage.ClientPool
 	transfers *transfer.Service
 	history   LinkHistoryStore
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers *transfer.Service, history LinkHistoryStore) *Service {
+func NewService(accounts *accounts.Service, pool storage.ClientPool, transfers *transfer.Service, history LinkHistoryStore) *Service {
 	if history == nil {
 		history = NewMemoryLinkHistoryStore()
 	}
@@ -38,12 +37,15 @@ func NewService(accounts *accounts.Service, pool providers.ClientPool, transfers
 
 // ListObjects returns a single page of objects for the requested prefix.
 func (s *Service) ListObjects(ctx context.Context, accountID string, input ListObjectsInput) (ListObjectsResult, error) {
+	if input.Limit <= 0 {
+		input.Limit = 1000 // Default limit
+	}
 	var result ListObjectsResult
 	client, err := s.client(ctx, accountID)
 	if err != nil {
 		return result, err
 	}
-	payload := providers.ListObjectsInput{
+	payload := storage.ListObjectsInput{
 		Bucket:    input.Bucket,
 		Prefix:    input.Prefix,
 		Delimiter: input.Delimiter,
@@ -238,7 +240,7 @@ func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, n
 	driver := client.Objects()
 	if _, err := driver.HeadObject(ctx, bucket, newKey); err == nil {
 		return fmt.Errorf("object %q already exists", newKey)
-	} else if err != nil && !isNotFoundError(err) {
+	} else if !isNotFoundError(err) {
 		return err
 	}
 	if err := driver.CopyObject(ctx, bucket, oldKey, bucket, newKey); err != nil {
@@ -400,7 +402,7 @@ func (s *Service) GetObjectAttributes(ctx context.Context, accountID, bucket, ke
 	attrs.Metadata = cloneStringMap(desc.Metadata)
 	if tags, err := driver.GetObjectTags(ctx, bucket, key); err == nil {
 		attrs.Tags = tags
-	} else if err != nil && !errors.Is(err, providers.ErrUnsupportedCapability) {
+	} else if !errors.Is(err, storage.ErrUnsupportedCapability) {
 		return attrs, err
 	}
 	if acl, err := driver.GetObjectACL(ctx, bucket, key); err == nil {
@@ -408,7 +410,7 @@ func (s *Service) GetObjectAttributes(ctx context.Context, accountID, bucket, ke
 		attrs.OwnerID = acl.OwnerID
 		attrs.OwnerName = acl.OwnerDisplayName
 		attrs.Grants = convertAccessGrants(acl.Grants)
-	} else if err != nil && !errors.Is(err, providers.ErrUnsupportedCapability) {
+	} else if !errors.Is(err, storage.ErrUnsupportedCapability) {
 		return attrs, err
 	}
 	return attrs, nil
@@ -501,7 +503,7 @@ func (s *Service) UpdateObjectRetention(ctx context.Context, accountID string, i
 	if input.RetainUntil.IsZero() {
 		return state, errors.New("retain until 时间不能为空")
 	}
-	payload := providers.PutObjectRetentionInput{
+	payload := storage.PutObjectRetentionInput{
 		Bucket:           input.Bucket,
 		Key:              input.Key,
 		VersionID:        input.VersionID,
@@ -549,7 +551,7 @@ func (s *Service) UpdateObjectLegalHold(ctx context.Context, accountID string, i
 	if strings.TrimSpace(input.Status) == "" {
 		return state, errors.New("status is required")
 	}
-	payload := providers.PutObjectLegalHoldInput{
+	payload := storage.PutObjectLegalHoldInput{
 		Bucket:    input.Bucket,
 		Key:       input.Key,
 		VersionID: input.VersionID,
@@ -599,7 +601,7 @@ func (s *Service) GetPresignedURLWithHeaders(
 		expirationSeconds = maxTTL
 	}
 	duration := time.Duration(expirationSeconds) * time.Second
-	url, err := client.Objects().PresignURL(ctx, providers.PresignRequest{
+	url, err := client.Objects().PresignURL(ctx, storage.PresignRequest{
 		Bucket:          bucket,
 		Key:             key,
 		Method:          method,
@@ -729,7 +731,7 @@ func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, inp
 		_ = s.history.Cleanup(ctx, now)
 	}
 	for _, method := range methods {
-		req := providers.PresignRequest{
+		req := storage.PresignRequest{
 			Bucket:          bucket,
 			Key:             key,
 			Method:          method,
@@ -799,7 +801,7 @@ func (s *Service) DeleteAccessLinkHistory(ctx context.Context, accountID, id str
 	return s.history.Delete(ctx, accountID, strings.TrimSpace(id))
 }
 
-func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
+func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, error) {
 	client, _, err := s.accounts.GetStorageClient(ctx, s.pool, accountID)
 	if err != nil {
 		return nil, err
@@ -822,7 +824,7 @@ func isNotFoundError(err error) bool {
 		strings.Contains(msg, "不存在")
 }
 
-func toObjectInfo(desc providers.ObjectDescriptor) ObjectInfo {
+func toObjectInfo(desc storage.ObjectDescriptor) ObjectInfo {
 	return ObjectInfo{
 		Key:           desc.Key,
 		Size:          desc.Size,
@@ -849,7 +851,7 @@ func cloneStringMap(input map[string]string) map[string]string {
 	return clone
 }
 
-func convertLockConfiguration(cfg providers.ObjectLockConfiguration) ObjectLockConfiguration {
+func convertLockConfiguration(cfg storage.ObjectLockConfiguration) ObjectLockConfiguration {
 	return ObjectLockConfiguration{
 		Enabled:        cfg.Enabled,
 		Mode:           cfg.Mode,
@@ -858,20 +860,20 @@ func convertLockConfiguration(cfg providers.ObjectLockConfiguration) ObjectLockC
 	}
 }
 
-func convertRetentionState(state providers.ObjectRetentionState) ObjectRetentionState {
+func convertRetentionState(state storage.ObjectRetentionState) ObjectRetentionState {
 	return ObjectRetentionState{
 		Mode:        state.Mode,
 		RetainUntil: state.RetainUntil,
 	}
 }
 
-func convertLegalHoldState(state providers.ObjectLegalHoldState) ObjectLegalHoldState {
+func convertLegalHoldState(state storage.ObjectLegalHoldState) ObjectLegalHoldState {
 	return ObjectLegalHoldState{
 		Status: state.Status,
 	}
 }
 
-func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch ObjectAttributesPatch) error {
+func applyObjectPatch(ctx context.Context, driver storage.ObjectDriver, patch ObjectAttributesPatch) error {
 	bucket := strings.TrimSpace(patch.Bucket)
 	key := strings.TrimSpace(patch.Key)
 	if bucket == "" || key == "" {
@@ -880,13 +882,13 @@ func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch 
 	var unsupported []string
 	applied := false
 	if patch.Metadata != nil || patch.ContentType != "" || patch.StorageClass != "" {
-		update := providers.ObjectMetadataUpdate{
+		update := storage.ObjectMetadataUpdate{
 			Metadata:     patch.Metadata,
 			ContentType:  patch.ContentType,
 			StorageClass: patch.StorageClass,
 		}
 		if err := driver.UpdateObjectMetadata(ctx, bucket, key, update); err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				unsupported = appendUnsupported(unsupported, "metadata")
 			} else {
 				return err
@@ -897,7 +899,7 @@ func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch 
 	}
 	if patch.Tags != nil {
 		if err := driver.PutObjectTags(ctx, bucket, key, patch.Tags); err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				unsupported = appendUnsupported(unsupported, "tags")
 			} else {
 				return err
@@ -908,7 +910,7 @@ func applyObjectPatch(ctx context.Context, driver providers.ObjectDriver, patch 
 	}
 	if acl := strings.TrimSpace(patch.ACL); acl != "" {
 		if err := driver.PutObjectACL(ctx, bucket, key, acl); err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				unsupported = appendUnsupported(unsupported, "acl")
 			} else {
 				return err
@@ -932,7 +934,7 @@ func appendUnsupported(list []string, feature string) []string {
 	return append(list, feature)
 }
 
-func convertAccessGrants(grants []providers.AccessGrant) []AccessGrant {
+func convertAccessGrants(grants []storage.AccessGrant) []AccessGrant {
 	if len(grants) == 0 {
 		return nil
 	}

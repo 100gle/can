@@ -9,8 +9,6 @@ import (
 
 	"can/internal/types"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 )
 
@@ -23,17 +21,16 @@ func (s *BucketConfigService) GetPolicy(ctx context.Context, accountID, bucket s
 	if err != nil {
 		return nil, err
 	}
-	output, err := client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	raw, err := client.Buckets().GetBucketPolicy(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy" {
 			return &BucketPolicy{}, nil
 		}
+		// Also check for empty policy which might be returned as error by some providers?
+		// But let's assume storage package handles it.
 		return nil, fmt.Errorf("get bucket policy: %w", err)
 	}
-	raw := aws.ToString(output.Policy)
 	if strings.TrimSpace(raw) == "" {
 		return &BucketPolicy{}, nil
 	}
@@ -69,10 +66,7 @@ func (s *BucketConfigService) SetPolicy(ctx context.Context, accountID, bucket s
 		}
 		payload = string(blob)
 	}
-	_, err = client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-		Policy: aws.String(payload),
-	})
+	err = client.Buckets().PutBucketPolicy(ctx, strings.TrimSpace(bucket), payload)
 	if err != nil {
 		return fmt.Errorf("put bucket policy: %w", err)
 	}
@@ -88,9 +82,7 @@ func (s *BucketConfigService) DeletePolicy(ctx context.Context, accountID, bucke
 	if err != nil {
 		return err
 	}
-	_, err = client.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	err = client.Buckets().DeleteBucketPolicy(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket policy: %w", err)
 	}

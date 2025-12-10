@@ -212,3 +212,8 @@ type GenerateTokensRequest struct {
 	DurationSeconds int64  `json:"durationSeconds"`
 	Policy          string `json:"policy,omitempty"` // Optional JSON policy
 }
+
+// MAZConfiguration represents Multi-AZ configuration for a bucket.
+type MAZConfiguration struct {
+	Status string `json:"status"`
+}

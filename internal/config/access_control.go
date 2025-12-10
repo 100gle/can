@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"can/internal/providers"
+	"can/internal/storage"
 	"can/internal/types"
 )
 
@@ -39,7 +39,7 @@ func (s *BucketConfigService) SetBucketACL(ctx context.Context, accountID, bucke
 	if err != nil {
 		return err
 	}
-	input := providers.BucketACLInput{
+	input := storage.BucketACLInput{
 		OwnerID: acl.OwnerID,
 		Canned:  strings.TrimSpace(acl.Canned),
 		Grants:  mapConfigGrants(acl.Grants),
@@ -58,7 +58,7 @@ func (s *BucketConfigService) GetPublicAccessBlock(ctx context.Context, accountI
 	}
 	block, err := client.Buckets().GetPublicAccessBlock(ctx, bucket)
 	if err != nil {
-		if errors.Is(err, providers.ErrUnsupportedCapability) {
+		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return nil, fmt.Errorf("%s 不支持阻止公共访问", creds.Provider.Label())
 		}
 		return nil, err
@@ -78,13 +78,13 @@ func (s *BucketConfigService) SetPublicAccessBlock(ctx context.Context, accountI
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().PutPublicAccessBlock(ctx, bucket, providers.PublicAccessBlock{
+	err = client.Buckets().PutPublicAccessBlock(ctx, bucket, storage.PublicAccessBlock{
 		BlockPublicAcls:       cfg.BlockPublicAcls,
 		IgnorePublicAcls:      cfg.IgnorePublicAcls,
 		BlockPublicPolicy:     cfg.BlockPublicPolicy,
 		RestrictPublicBuckets: cfg.RestrictPublicBuckets,
 	})
-	if errors.Is(err, providers.ErrUnsupportedCapability) {
+	if errors.Is(err, storage.ErrUnsupportedCapability) {
 		return fmt.Errorf("%s 不支持阻止公共访问", creds.Provider.Label())
 	}
 	return err
@@ -101,7 +101,7 @@ func (s *BucketConfigService) GetBucketReferer(ctx context.Context, accountID, b
 	}
 	referer, err := client.Buckets().GetBucketReferer(ctx, bucket)
 	if err != nil {
-		if errors.Is(err, providers.ErrUnsupportedCapability) {
+		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return nil, fmt.Errorf("%s 不支持 Referer 白名单", creds.Provider.Label())
 		}
 		return nil, err
@@ -121,19 +121,19 @@ func (s *BucketConfigService) SetBucketReferer(ctx context.Context, accountID, b
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().PutBucketReferer(ctx, bucket, providers.BucketReferer{
+	err = client.Buckets().PutBucketReferer(ctx, bucket, storage.BucketReferer{
 		Enabled:    referer.Enabled,
 		AllowEmpty: referer.AllowEmpty,
 		Whitelist:  append([]string(nil), referer.Whitelist...),
 		Mode:       referer.Mode,
 	})
-	if errors.Is(err, providers.ErrUnsupportedCapability) {
+	if errors.Is(err, storage.ErrUnsupportedCapability) {
 		return fmt.Errorf("%s 不支持 Referer 白名单", creds.Provider.Label())
 	}
 	return err
 }
 
-func mapProviderACL(model providers.BucketACL) *BucketACL {
+func mapProviderACL(model storage.BucketACL) *BucketACL {
 	return &BucketACL{
 		OwnerID:          model.OwnerID,
 		OwnerDisplayName: model.OwnerDisplayName,
@@ -143,7 +143,7 @@ func mapProviderACL(model providers.BucketACL) *BucketACL {
 	}
 }
 
-func mapProviderGrants(grants []providers.AccessGrant) []ACLGrant {
+func mapProviderGrants(grants []storage.AccessGrant) []ACLGrant {
 	if len(grants) == 0 {
 		return nil
 	}
@@ -160,13 +160,13 @@ func mapProviderGrants(grants []providers.AccessGrant) []ACLGrant {
 	return out
 }
 
-func mapConfigGrants(grants []ACLGrant) []providers.AccessGrant {
+func mapConfigGrants(grants []ACLGrant) []storage.AccessGrant {
 	if len(grants) == 0 {
 		return nil
 	}
-	out := make([]providers.AccessGrant, 0, len(grants))
+	out := make([]storage.AccessGrant, 0, len(grants))
 	for _, grant := range grants {
-		out = append(out, providers.AccessGrant{
+		out = append(out, storage.AccessGrant{
 			GranteeType: grant.GranteeType,
 			Grantee:     grant.Grantee,
 			Permission:  grant.Permission,
@@ -177,7 +177,7 @@ func mapConfigGrants(grants []ACLGrant) []providers.AccessGrant {
 	return out
 }
 
-func mapProviderPAB(block providers.PublicAccessBlock) *PublicAccessBlock {
+func mapProviderPAB(block storage.PublicAccessBlock) *PublicAccessBlock {
 	return &PublicAccessBlock{
 		BlockPublicAcls:       block.BlockPublicAcls,
 		IgnorePublicAcls:      block.IgnorePublicAcls,
@@ -187,7 +187,7 @@ func mapProviderPAB(block providers.PublicAccessBlock) *PublicAccessBlock {
 	}
 }
 
-func mapProviderReferer(referer providers.BucketReferer) *BucketReferer {
+func mapProviderReferer(referer storage.BucketReferer) *BucketReferer {
 	return &BucketReferer{
 		Enabled:    referer.Enabled,
 		AllowEmpty: referer.AllowEmpty,

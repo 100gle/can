@@ -7,11 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"can/internal/storage"
 	"can/internal/types"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
 
@@ -24,9 +22,7 @@ func (s *BucketConfigService) GetEncryption(ctx context.Context, accountID, buck
 	if err != nil {
 		return nil, err
 	}
-	output, err := client.GetBucketEncryption(ctx, &s3.GetBucketEncryptionInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	config, err := client.Buckets().GetBucketEncryption(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "ServerSideEncryptionConfigurationNotFoundError" {
@@ -34,16 +30,16 @@ func (s *BucketConfigService) GetEncryption(ctx context.Context, accountID, buck
 		}
 		return nil, fmt.Errorf("get bucket encryption: %w", err)
 	}
-	if output == nil || output.ServerSideEncryptionConfiguration == nil || len(output.ServerSideEncryptionConfiguration.Rules) == 0 {
+	if config == nil || len(config.Rules) == 0 {
 		return &BucketEncryption{Enabled: false, Updated: time.Now()}, nil
 	}
-	rule := output.ServerSideEncryptionConfiguration.Rules[0]
+	rule := config.Rules[0]
 	defaults := rule.ApplyServerSideEncryptionByDefault
 	algorithm := ""
 	kmsKey := ""
 	if defaults != nil {
-		algorithm = string(defaults.SSEAlgorithm)
-		kmsKey = aws.ToString(defaults.KMSMasterKeyID)
+		algorithm = defaults.SSEAlgorithm
+		kmsKey = defaults.KMSMasterKeyID
 	}
 	return &BucketEncryption{
 		Enabled:   algorithm != "",
@@ -69,37 +65,37 @@ func (s *BucketConfigService) SetEncryption(ctx context.Context, accountID, buck
 	if algo == "" {
 		return errors.New("algorithm is required when enabling encryption")
 	}
-	var sseAlgo s3types.ServerSideEncryption
+	var sseAlgo string
 	switch algo {
 	case "aes256":
-		sseAlgo = s3types.ServerSideEncryptionAes256
+		sseAlgo = "AES256"
 	case "aws:kms":
-		sseAlgo = s3types.ServerSideEncryptionAwsKms
+		sseAlgo = "aws:kms"
 	case "aws:kms:dsse":
-		sseAlgo = s3types.ServerSideEncryptionAwsKmsDsse
+		sseAlgo = "aws:kms:dsse"
 	default:
 		return fmt.Errorf("unsupported encryption algorithm %q", encryption.Algorithm)
 	}
-	if (sseAlgo == s3types.ServerSideEncryptionAwsKms || sseAlgo == s3types.ServerSideEncryptionAwsKmsDsse) && strings.TrimSpace(encryption.KmsKeyID) == "" {
+	if (sseAlgo == "aws:kms" || sseAlgo == "aws:kms:dsse") && strings.TrimSpace(encryption.KmsKeyID) == "" {
 		return errors.New("kms key id is required for aws:kms encryption")
 	}
-	defaultRule := &s3types.ServerSideEncryptionByDefault{
+	defaultRule := &storage.ServerSideEncryptionByDefault{
 		SSEAlgorithm: sseAlgo,
 	}
 	kmsKey := strings.TrimSpace(encryption.KmsKeyID)
 	if kmsKey != "" {
-		defaultRule.KMSMasterKeyID = aws.String(kmsKey)
+		defaultRule.KMSMasterKeyID = kmsKey
 	}
-	_, err = client.PutBucketEncryption(ctx, &s3.PutBucketEncryptionInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-		ServerSideEncryptionConfiguration: &s3types.ServerSideEncryptionConfiguration{
-			Rules: []s3types.ServerSideEncryptionRule{
-				{
-					ApplyServerSideEncryptionByDefault: defaultRule,
-				},
+
+	config := storage.BucketEncryptionConfiguration{
+		Rules: []storage.BucketEncryptionRule{
+			{
+				ApplyServerSideEncryptionByDefault: defaultRule,
 			},
 		},
-	})
+	}
+
+	err = client.Buckets().PutBucketEncryption(ctx, strings.TrimSpace(bucket), config)
 	if err != nil {
 		return fmt.Errorf("put bucket encryption: %w", err)
 	}
@@ -115,9 +111,7 @@ func (s *BucketConfigService) DeleteEncryption(ctx context.Context, accountID, b
 	if err != nil {
 		return err
 	}
-	_, err = client.DeleteBucketEncryption(ctx, &s3.DeleteBucketEncryptionInput{
-		Bucket: aws.String(strings.TrimSpace(bucket)),
-	})
+	err = client.Buckets().DeleteBucketEncryption(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket encryption: %w", err)
 	}

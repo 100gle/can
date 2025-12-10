@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"can/internal/accounts"
-	"can/internal/providers"
+	"can/internal/storage"
 	"can/internal/types"
 )
 
@@ -20,44 +20,40 @@ var ErrUnsupportedProvider = errors.New("bucket configuration unsupported for pr
 // BucketConfigService orchestrates advanced bucket configuration operations.
 type BucketConfigService struct {
 	accounts       *accounts.Service
-	factory        providers.S3ClientFactory
-	storageFactory providers.StorageFactory
+	storageFactory storage.StorageFactory
 }
 
 // NewBucketConfigService wires account and provider dependencies.
-func NewBucketConfigService(accounts *accounts.Service, factory providers.S3ClientFactory, storageFactory providers.StorageFactory) *BucketConfigService {
-	if factory == nil {
-		factory = providers.NewS3ClientFactory()
-	}
+func NewBucketConfigService(accounts *accounts.Service, storageFactory storage.StorageFactory) *BucketConfigService {
+	// If no factory provided, create a default one (without specific S3 factory injection, rely on default)
 	if storageFactory == nil {
-		storageFactory = providers.NewStorageFactory(factory)
+		storageFactory = storage.NewStorageFactory()
 	}
 	return &BucketConfigService{
 		accounts:       accounts,
-		factory:        factory,
 		storageFactory: storageFactory,
 	}
 }
 
-func (s *BucketConfigService) client(ctx context.Context, accountID, bucket string) (providers.S3Client, providers.ConnectionCredentials, error) {
+func (s *BucketConfigService) client(ctx context.Context, accountID, bucket string) (storage.StorageClient, storage.ConnectionCredentials, error) {
 	accountID = strings.TrimSpace(accountID)
 	if accountID == "" {
-		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
+		return nil, storage.ConnectionCredentials{}, errors.New("account id is required")
 	}
 	bucket = strings.TrimSpace(bucket)
 	if bucket == "" {
-		return nil, providers.ConnectionCredentials{}, ErrBucketRequired
+		return nil, storage.ConnectionCredentials{}, ErrBucketRequired
 	}
 	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
 	if err != nil {
-		return nil, providers.ConnectionCredentials{}, err
+		return nil, storage.ConnectionCredentials{}, err
 	}
 	if !s.supportsConfig(creds.Provider) {
-		return nil, providers.ConnectionCredentials{}, fmt.Errorf("%w: %s", ErrUnsupportedProvider, creds.Provider)
+		return nil, storage.ConnectionCredentials{}, fmt.Errorf("%w: %s", ErrUnsupportedProvider, creds.Provider)
 	}
-	client, err := s.factory.NewClient(ctx, creds)
+	client, err := s.storageFactory.NewClient(ctx, creds)
 	if err != nil {
-		return nil, providers.ConnectionCredentials{}, err
+		return nil, storage.ConnectionCredentials{}, err
 	}
 	return client, creds, nil
 }
@@ -121,25 +117,29 @@ func (s *BucketConfigService) supportsConfig(provider types.Provider) bool {
 	return false
 }
 
-func (s *BucketConfigService) storageClient(ctx context.Context, accountID, bucket string) (providers.StorageClient, providers.ConnectionCredentials, error) {
+// storageClient is deprecated; use client() instead. Keeping for now if used internally.
+// But wait, client() now returns what storageClient used to return (plus checking supportsConfig).
+// The original storageClient did NOT check supportsConfig.
+// Let's keep a method that strictly follows the original storageClient behavior but uses storage package.
+func (s *BucketConfigService) storageClient(ctx context.Context, accountID, bucket string) (storage.StorageClient, storage.ConnectionCredentials, error) {
 	accountID = strings.TrimSpace(accountID)
 	if accountID == "" {
-		return nil, providers.ConnectionCredentials{}, errors.New("account id is required")
+		return nil, storage.ConnectionCredentials{}, errors.New("account id is required")
 	}
 	bucket = strings.TrimSpace(bucket)
 	if bucket == "" {
-		return nil, providers.ConnectionCredentials{}, ErrBucketRequired
+		return nil, storage.ConnectionCredentials{}, ErrBucketRequired
 	}
 	if s.storageFactory == nil {
-		return nil, providers.ConnectionCredentials{}, errors.New("storage factory not configured")
+		return nil, storage.ConnectionCredentials{}, errors.New("storage factory not configured")
 	}
 	creds, err := s.accounts.ConnectionCredentials(ctx, accountID)
 	if err != nil {
-		return nil, providers.ConnectionCredentials{}, err
+		return nil, storage.ConnectionCredentials{}, err
 	}
 	client, err := s.storageFactory.NewClient(ctx, creds)
 	if err != nil {
-		return nil, providers.ConnectionCredentials{}, err
+		return nil, storage.ConnectionCredentials{}, err
 	}
 	return client, creds, nil
 }

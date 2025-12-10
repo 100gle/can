@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"can/internal/accounts"
-	"can/internal/providers"
+	"can/internal/storage"
 
 	"can/internal/types"
 )
@@ -113,11 +113,11 @@ func TestCreateFolderValidatesInputs(t *testing.T) {
 
 func TestUpdateObjectAttributesUnsupportedOnly(t *testing.T) {
 	driver := newStubObjectDriver()
-	driver.metadataErr = providers.ErrUnsupportedCapability
-	driver.tagsErr = providers.ErrUnsupportedCapability
-	driver.aclErr = providers.ErrUnsupportedCapability
+	driver.metadataErr = storage.ErrUnsupportedCapability
+	driver.tagsErr = storage.ErrUnsupportedCapability
+	driver.aclErr = storage.ErrUnsupportedCapability
 	driver.headResponses[driver.key("docs", "file.txt")] = headResponse{
-		desc: providers.ObjectDescriptor{Key: "file.txt"},
+		desc: storage.ObjectDescriptor{Key: "file.txt"},
 		err:  nil,
 	}
 	svc, accountID := newTestObjectsService(t, driver)
@@ -133,9 +133,9 @@ func TestUpdateObjectAttributesUnsupportedOnly(t *testing.T) {
 
 func TestUpdateObjectAttributesPartialSuccess(t *testing.T) {
 	driver := newStubObjectDriver()
-	driver.metadataErr = providers.ErrUnsupportedCapability
+	driver.metadataErr = storage.ErrUnsupportedCapability
 	driver.headResponses[driver.key("docs", "file.txt")] = headResponse{
-		desc: providers.ObjectDescriptor{Key: "file.txt"},
+		desc: storage.ObjectDescriptor{Key: "file.txt"},
 		err:  nil,
 	}
 	svc, accountID := newTestObjectsService(t, driver)
@@ -179,7 +179,7 @@ func TestCopyObjectPropagatesError(t *testing.T) {
 func TestGetObjectAttributesReturnsMetadata(t *testing.T) {
 	driver := newStubObjectDriver()
 	driver.headResponses[driver.key("docs", "report.pdf")] = headResponse{
-		desc: providers.ObjectDescriptor{
+		desc: storage.ObjectDescriptor{
 			Key:          "report.pdf",
 			Size:         1024,
 			ContentType:  "application/pdf",
@@ -216,10 +216,10 @@ func TestGetObjectAttributesNotFound(t *testing.T) {
 func TestBatchUpdateObjectAttributesPartialFailure(t *testing.T) {
 	driver := newStubObjectDriver()
 	driver.headResponses[driver.key("docs", "a.txt")] = headResponse{
-		desc: providers.ObjectDescriptor{Key: "a.txt"},
+		desc: storage.ObjectDescriptor{Key: "a.txt"},
 	}
 	driver.headResponses[driver.key("docs", "b.txt")] = headResponse{
-		desc: providers.ObjectDescriptor{Key: "b.txt"},
+		desc: storage.ObjectDescriptor{Key: "b.txt"},
 	}
 	// First object will fail tags update
 	driver.tagsErr = errors.New("tags update failed")
@@ -297,7 +297,7 @@ type stubObjectDriver struct {
 }
 
 type headResponse struct {
-	desc providers.ObjectDescriptor
+	desc storage.ObjectDescriptor
 	err  error
 }
 
@@ -324,19 +324,19 @@ func (s *stubObjectDriver) key(bucket, key string) string {
 	return bucket + ":" + key
 }
 
-func (s *stubObjectDriver) ListObjects(context.Context, providers.ListObjectsInput) (providers.ListObjectsResult, error) {
-	return providers.ListObjectsResult{}, nil
+func (s *stubObjectDriver) ListObjects(context.Context, storage.ListObjectsInput) (storage.ListObjectsResult, error) {
+	return storage.ListObjectsResult{}, nil
 }
 
 func (s *stubObjectDriver) UploadObject(context.Context, string, string, io.Reader, int64, string) error {
 	return nil
 }
 
-func (s *stubObjectDriver) DownloadObject(context.Context, providers.DownloadObjectInput) (providers.ObjectDownload, error) {
-	return providers.ObjectDownload{}, nil
+func (s *stubObjectDriver) DownloadObject(context.Context, storage.DownloadObjectInput) (storage.ObjectDownload, error) {
+	return storage.ObjectDownload{}, nil
 }
 
-func (s *stubObjectDriver) PresignURL(_ context.Context, req providers.PresignRequest) (string, error) {
+func (s *stubObjectDriver) PresignURL(_ context.Context, req storage.PresignRequest) (string, error) {
 	method := strings.ToLower(strings.TrimSpace(req.Method))
 	if method == "" {
 		method = "get"
@@ -408,25 +408,25 @@ func (s *stubObjectDriver) PutObjectTags(context.Context, string, string, map[st
 	return nil
 }
 
-func (s *stubObjectDriver) UpdateObjectMetadata(context.Context, string, string, providers.ObjectMetadataUpdate) error {
+func (s *stubObjectDriver) UpdateObjectMetadata(context.Context, string, string, storage.ObjectMetadataUpdate) error {
 	if s.metadataErr != nil {
 		return s.metadataErr
 	}
 	return nil
 }
 
-func (s *stubObjectDriver) GetObjectACL(context.Context, string, string) (providers.ObjectACL, error) {
+func (s *stubObjectDriver) GetObjectACL(context.Context, string, string) (storage.ObjectACL, error) {
 	if s.aclErr != nil {
-		return providers.ObjectACL{}, s.aclErr
+		return storage.ObjectACL{}, s.aclErr
 	}
-	return providers.ObjectACL{}, providers.ErrUnsupportedCapability
+	return storage.ObjectACL{}, storage.ErrUnsupportedCapability
 }
 
 func (s *stubObjectDriver) PutObjectACL(context.Context, string, string, string) error {
 	if s.aclErr != nil {
 		return s.aclErr
 	}
-	return providers.ErrUnsupportedCapability
+	return storage.ErrUnsupportedCapability
 }
 
 func (s *stubObjectDriver) DeleteObject(_ context.Context, bucket, key string) error {
@@ -440,18 +440,18 @@ func (s *stubObjectDriver) DeleteObject(_ context.Context, bucket, key string) e
 	return nil
 }
 
-func (s *stubObjectDriver) DeleteObjects(_ context.Context, bucket string, keys []string) (providers.DeleteObjectsResult, error) {
-	var result providers.DeleteObjectsResult
+func (s *stubObjectDriver) DeleteObjects(_ context.Context, bucket string, keys []string) (storage.DeleteObjectsResult, error) {
+	var result storage.DeleteObjectsResult
 	for _, key := range keys {
 		s.deleteCalls = append(s.deleteCalls, deleteCall{bucket: bucket, key: key})
 		if err, ok := s.deleteErrMap[key]; ok {
-			result.Errors = append(result.Errors, providers.DeleteObjectError{
+			result.Errors = append(result.Errors, storage.DeleteObjectError{
 				Key:     key,
 				Code:    "DeleteError",
 				Message: err.Error(),
 			})
 		} else if s.deleteErr != nil {
-			result.Errors = append(result.Errors, providers.DeleteObjectError{
+			result.Errors = append(result.Errors, storage.DeleteObjectError{
 				Key:     key,
 				Code:    "DeleteError",
 				Message: s.deleteErr.Error(),
@@ -480,39 +480,45 @@ func (s *stubObjectDriver) CreateSymlink(context.Context, string, string, string
 	return nil
 }
 
-func (s *stubObjectDriver) HeadObject(_ context.Context, bucket, key string) (providers.ObjectDescriptor, error) {
+func (s *stubObjectDriver) HeadObject(_ context.Context, bucket, key string) (storage.ObjectDescriptor, error) {
 	resp, ok := s.headResponses[s.key(bucket, key)]
 	if !ok {
-		return providers.ObjectDescriptor{}, errors.New("head response not configured")
+		return storage.ObjectDescriptor{}, errors.New("head response not configured")
 	}
 	return resp.desc, resp.err
 }
 
-func (s *stubObjectDriver) GetObjectLockConfiguration(context.Context, string) (providers.ObjectLockConfiguration, error) {
-	return providers.ObjectLockConfiguration{}, nil
+func (s *stubObjectDriver) GetObjectLockConfiguration(context.Context, string) (storage.ObjectLockConfiguration, error) {
+	return storage.ObjectLockConfiguration{}, nil
 }
 
-func (s *stubObjectDriver) GetObjectRetention(context.Context, string, string, string) (providers.ObjectRetentionState, error) {
-	return providers.ObjectRetentionState{}, nil
+func (s *stubObjectDriver) GetObjectRetention(context.Context, string, string, string) (storage.ObjectRetentionState, error) {
+	return storage.ObjectRetentionState{}, nil
 }
 
-func (s *stubObjectDriver) PutObjectRetention(context.Context, providers.PutObjectRetentionInput) error {
+func (s *stubObjectDriver) PutObjectRetention(context.Context, storage.PutObjectRetentionInput) error {
 	return nil
 }
 
-func (s *stubObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (providers.ObjectLegalHoldState, error) {
-	return providers.ObjectLegalHoldState{}, nil
+func (s *stubObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (storage.ObjectLegalHoldState, error) {
+	return storage.ObjectLegalHoldState{}, nil
 }
 
-func (s *stubObjectDriver) PutObjectLegalHold(context.Context, providers.PutObjectLegalHoldInput) error {
+func (s *stubObjectDriver) PutObjectLegalHold(context.Context, storage.PutObjectLegalHoldInput) error {
+	return nil
+}
+
+type fakeDialer struct{}
+
+func (f *fakeDialer) TestConnection(ctx context.Context, creds storage.ConnectionCredentials) error {
 	return nil
 }
 
 type stubStorageFactory struct {
-	client providers.StorageClient
+	client storage.StorageClient
 }
 
-func (s *stubStorageFactory) NewClient(context.Context, providers.ConnectionCredentials) (providers.StorageClient, error) {
+func (s *stubStorageFactory) NewClient(context.Context, storage.ConnectionCredentials) (storage.StorageClient, error) {
 	if s.client == nil {
 		return nil, errors.New("missing storage client")
 	}
@@ -520,7 +526,7 @@ func (s *stubStorageFactory) NewClient(context.Context, providers.ConnectionCred
 }
 
 type stubStorageClient struct {
-	objects providers.ObjectDriver
+	objects storage.ObjectDriver
 }
 
 func (s *stubStorageClient) Provider() types.Provider {
@@ -531,23 +537,23 @@ func (s *stubStorageClient) Capabilities() []types.ProviderCapability {
 	return nil
 }
 
-func (s *stubStorageClient) Buckets() providers.BucketDriver {
+func (s *stubStorageClient) Buckets() storage.BucketDriver {
 	return nil
 }
 
-func (s *stubStorageClient) Objects() providers.ObjectDriver {
+func (s *stubStorageClient) Objects() storage.ObjectDriver {
 	return s.objects
 }
 
-func (s *stubStorageClient) Security() providers.SecurityDriver {
+func (s *stubStorageClient) Security() storage.SecurityDriver {
 	return nil
 }
 
-func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Service, string) {
+func newTestObjectsService(t *testing.T, driver storage.ObjectDriver) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
 	cipher := accounts.NoopCipher{}
-	dialer := providers.NewStubDialer()
+	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)
 	ctx := context.Background()
@@ -565,7 +571,7 @@ func newTestObjectsService(t *testing.T, driver providers.ObjectDriver) (*Servic
 		t.Fatalf("create account: %v", err)
 	}
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
-	pool := providers.NewClientPool(factory)
+	pool := storage.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
 	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore())
 	return service, account.ID

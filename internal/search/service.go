@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/providers"
+	"can/internal/storage"
 )
 
 const (
@@ -28,7 +28,7 @@ const (
 // Service provides high-level object search and export utilities.
 type Service struct {
 	accounts     *accounts.Service
-	pool         providers.ClientPool
+	pool         storage.ClientPool
 	savedQueries SavedQueryStore
 }
 
@@ -38,7 +38,7 @@ type listTask struct {
 }
 
 // NewService constructs a search service instance.
-func NewService(accounts *accounts.Service, pool providers.ClientPool, store SavedQueryStore) *Service {
+func NewService(accounts *accounts.Service, pool storage.ClientPool, store SavedQueryStore) *Service {
 	if store == nil {
 		store = NewMemorySavedQueryStore()
 	}
@@ -104,7 +104,7 @@ func (s *Service) SearchObjects(ctx context.Context, accountID string, query *Se
 			idx := len(pending) - 1
 			task := pending[idx]
 			pending = pending[:idx]
-			result, err := driver.ListObjects(ctx, providers.ListObjectsInput{
+			result, err := driver.ListObjects(ctx, storage.ListObjectsInput{
 				Bucket: bucket,
 				Prefix: task.prefix,
 				Limit:  1000,
@@ -115,7 +115,7 @@ func (s *Service) SearchObjects(ctx context.Context, accountID string, query *Se
 			}
 			var (
 				directories []string
-				descriptors []providers.ObjectDescriptor
+				descriptors []storage.ObjectDescriptor
 			)
 			for _, descriptor := range result.Objects {
 				if descriptor.IsDir {
@@ -285,11 +285,11 @@ func (s *Service) iterateAll(ctx context.Context, accountID string, query *Searc
 	return nil
 }
 
-func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, error) {
+func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, error) {
 	if s.pool == nil {
 		return nil, errors.New("storage client pool not configured")
 	}
-	supplier := func(ctx context.Context) (providers.ConnectionCredentials, error) {
+	supplier := func(ctx context.Context) (storage.ConnectionCredentials, error) {
 		return s.accounts.ConnectionCredentials(ctx, accountID)
 	}
 	client, _, err := s.pool.Get(ctx, accountID, supplier)
@@ -299,7 +299,7 @@ func (s *Service) client(ctx context.Context, accountID string) (providers.Stora
 	return client, nil
 }
 
-func (s *Service) resolveBuckets(ctx context.Context, client providers.StorageClient, requested string) ([]string, error) {
+func (s *Service) resolveBuckets(ctx context.Context, client storage.StorageClient, requested string) ([]string, error) {
 	if bucket := strings.TrimSpace(requested); bucket != "" {
 		return []string{bucket}, nil
 	}
@@ -316,11 +316,11 @@ func (s *Service) resolveBuckets(ctx context.Context, client providers.StorageCl
 	return names, nil
 }
 
-func (s *Service) populateTags(ctx context.Context, driver providers.ObjectDriver, bucket string, records []objectRecord) {
+func (s *Service) populateTags(ctx context.Context, driver storage.ObjectDriver, bucket string, records []objectRecord) {
 	for i := range records {
 		tags, err := driver.GetObjectTags(ctx, bucket, records[i].Key)
 		if err != nil {
-			if errors.Is(err, providers.ErrUnsupportedCapability) {
+			if errors.Is(err, storage.ErrUnsupportedCapability) {
 				return
 			}
 			continue
@@ -339,7 +339,7 @@ func normalizeLimit(limit int) int {
 	return limit
 }
 
-func convertDescriptors(bucket string, descriptors []providers.ObjectDescriptor) []objectRecord {
+func convertDescriptors(bucket string, descriptors []storage.ObjectDescriptor) []objectRecord {
 	records := make([]objectRecord, 0, len(descriptors))
 	for _, descriptor := range descriptors {
 		if descriptor.IsDir {

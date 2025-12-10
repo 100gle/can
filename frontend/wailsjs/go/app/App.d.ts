@@ -64,6 +64,8 @@ export function DeleteBucketWebsite(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteObject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function DeleteObjectWithOptions(arg1:string,arg2:string,arg3:string,arg4:objects.MutationOptions):Promise<void>;
+
 export function DeleteSavedSearchQuery(arg1:string):Promise<void>;
 
 export function DeleteTransferTask(arg1:string):Promise<void>;
@@ -150,6 +152,8 @@ export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
 
 export function MoveObjects(arg1:string,arg2:Array<objects.MoveObjectRequest>):Promise<objects.MoveObjectsResult>;
 
+export function MoveObjectsWithOptions(arg1:string,arg2:Array<objects.MoveObjectRequest>,arg3:objects.MutationOptions):Promise<objects.MoveObjectsResult>;
+
 export function OnSecondInstance(arg1:options.SecondInstanceData):Promise<void>;
 
 export function OpenDirectoryDialogWithFiles(arg1:string):Promise<app.DirectoryFilesResult>;
@@ -165,6 +169,8 @@ export function PingEndpoint(arg1:string,arg2:number):Promise<system.PingResult>
 export function ProviderCapabilities():Promise<Array<types.ProviderCapability>>;
 
 export function RenameObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function RenameObjectWithOptions(arg1:string,arg2:string,arg3:string,arg4:string,arg5:objects.MutationOptions):Promise<void>;
 
 export function RestoreAppBackup(arg1:string):Promise<void>;
 

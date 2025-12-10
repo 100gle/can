@@ -15,7 +15,6 @@ import { Route as HelpRouteImport } from './routes/help'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsAccountIdRouteImport } from './routes/accounts/$accountId'
 import { Route as AccountsAccountIdTransfersRouteImport } from './routes/accounts/$accountId/transfers'
-import { Route as AccountsAccountIdSecurityRouteImport } from './routes/accounts/$accountId/security'
 import { Route as AccountsAccountIdDashboardRouteImport } from './routes/accounts/$accountId/dashboard'
 import { Route as AccountsAccountIdBucketsBucketIdSettingsRouteImport } from './routes/accounts/$accountId/buckets/$bucketId/settings'
 
@@ -50,12 +49,6 @@ const AccountsAccountIdTransfersRoute =
     path: '/transfers',
     getParentRoute: () => AccountsAccountIdRoute,
   } as any)
-const AccountsAccountIdSecurityRoute =
-  AccountsAccountIdSecurityRouteImport.update({
-    id: '/security',
-    path: '/security',
-    getParentRoute: () => AccountsAccountIdRoute,
-  } as any)
 const AccountsAccountIdDashboardRoute =
   AccountsAccountIdDashboardRouteImport.update({
     id: '/dashboard',
@@ -76,7 +69,6 @@ export interface FileRoutesByFullPath {
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
-  '/accounts/$accountId/security': typeof AccountsAccountIdSecurityRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
   '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
@@ -87,7 +79,6 @@ export interface FileRoutesByTo {
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
-  '/accounts/$accountId/security': typeof AccountsAccountIdSecurityRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
   '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
@@ -99,7 +90,6 @@ export interface FileRoutesById {
   '/transfers': typeof TransfersRoute
   '/accounts/$accountId': typeof AccountsAccountIdRouteWithChildren
   '/accounts/$accountId/dashboard': typeof AccountsAccountIdDashboardRoute
-  '/accounts/$accountId/security': typeof AccountsAccountIdSecurityRoute
   '/accounts/$accountId/transfers': typeof AccountsAccountIdTransfersRoute
   '/accounts/$accountId/buckets/$bucketId/settings': typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
@@ -112,7 +102,6 @@ export interface FileRouteTypes {
     | '/transfers'
     | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
-    | '/accounts/$accountId/security'
     | '/accounts/$accountId/transfers'
     | '/accounts/$accountId/buckets/$bucketId/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -123,7 +112,6 @@ export interface FileRouteTypes {
     | '/transfers'
     | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
-    | '/accounts/$accountId/security'
     | '/accounts/$accountId/transfers'
     | '/accounts/$accountId/buckets/$bucketId/settings'
   id:
@@ -134,7 +122,6 @@ export interface FileRouteTypes {
     | '/transfers'
     | '/accounts/$accountId'
     | '/accounts/$accountId/dashboard'
-    | '/accounts/$accountId/security'
     | '/accounts/$accountId/transfers'
     | '/accounts/$accountId/buckets/$bucketId/settings'
   fileRoutesById: FileRoutesById
@@ -191,13 +178,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountsAccountIdTransfersRouteImport
       parentRoute: typeof AccountsAccountIdRoute
     }
-    '/accounts/$accountId/security': {
-      id: '/accounts/$accountId/security'
-      path: '/security'
-      fullPath: '/accounts/$accountId/security'
-      preLoaderRoute: typeof AccountsAccountIdSecurityRouteImport
-      parentRoute: typeof AccountsAccountIdRoute
-    }
     '/accounts/$accountId/dashboard': {
       id: '/accounts/$accountId/dashboard'
       path: '/dashboard'
@@ -217,14 +197,12 @@ declare module '@tanstack/react-router' {
 
 interface AccountsAccountIdRouteChildren {
   AccountsAccountIdDashboardRoute: typeof AccountsAccountIdDashboardRoute
-  AccountsAccountIdSecurityRoute: typeof AccountsAccountIdSecurityRoute
   AccountsAccountIdTransfersRoute: typeof AccountsAccountIdTransfersRoute
   AccountsAccountIdBucketsBucketIdSettingsRoute: typeof AccountsAccountIdBucketsBucketIdSettingsRoute
 }
 
 const AccountsAccountIdRouteChildren: AccountsAccountIdRouteChildren = {
   AccountsAccountIdDashboardRoute: AccountsAccountIdDashboardRoute,
-  AccountsAccountIdSecurityRoute: AccountsAccountIdSecurityRoute,
   AccountsAccountIdTransfersRoute: AccountsAccountIdTransfersRoute,
   AccountsAccountIdBucketsBucketIdSettingsRoute:
     AccountsAccountIdBucketsBucketIdSettingsRoute,

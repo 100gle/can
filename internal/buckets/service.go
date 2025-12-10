@@ -7,17 +7,17 @@ import (
 	"strings"
 
 	"can/internal/accounts"
-	"can/internal/providers"
+	"can/internal/storage"
 )
 
 // Service orchestrates bucket level operations via the shared S3 factory.
 type Service struct {
 	accounts *accounts.Service
-	pool     providers.ClientPool
+	pool     storage.ClientPool
 }
 
 // NewService wires the dependencies required to manage buckets.
-func NewService(accounts *accounts.Service, pool providers.ClientPool) *Service {
+func NewService(accounts *accounts.Service, pool storage.ClientPool) *Service {
 	return &Service{accounts: accounts, pool: pool}
 }
 
@@ -57,14 +57,13 @@ func (s *Service) CreateBucket(ctx context.Context, accountID string, input Crea
 		return err
 	}
 	bucketName := strings.TrimSpace(input.Name)
-	if bucketName == "" {
-		return errors.New("bucket name is required")
-	}
+	// Manual check for name empty is now redundant but safe to keep or remove.
+	// The validator handles it.
 	region := strings.TrimSpace(input.Region)
 	if region == "" {
 		region = creds.Region
 	}
-	options := providers.BucketCreateInput{
+	options := storage.BucketCreateInput{
 		Name:         bucketName,
 		Region:       region,
 		ACL:          strings.TrimSpace(input.ACL),
@@ -113,10 +112,10 @@ func (s *Service) BucketLocation(ctx context.Context, accountID, name string) (s
 	return client.Buckets().BucketLocation(ctx, bucketName)
 }
 
-func (s *Service) client(ctx context.Context, accountID string) (providers.StorageClient, providers.ConnectionCredentials, error) {
+func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, storage.ConnectionCredentials, error) {
 	client, creds, err := s.accounts.GetStorageClient(ctx, s.pool, accountID)
 	if err != nil {
-		return nil, providers.ConnectionCredentials{}, err
+		return nil, storage.ConnectionCredentials{}, err
 	}
 	return client, creds, nil
 }

@@ -10,8 +10,11 @@ import (
 	"can/internal/buckets"
 	"can/internal/config"
 	"can/internal/objects"
-	"can/internal/providers"
 	"can/internal/search"
+	"can/internal/storage"
+	"can/internal/storage/cos"
+	"can/internal/storage/oss"
+	"can/internal/storage/s3"
 
 	"can/internal/system"
 	"can/internal/system/backup"
@@ -46,10 +49,13 @@ func New() *App {
 
 	// Audit removed
 
-	s3Factory := providers.NewS3ClientFactory()
-	storageFactory := providers.NewStorageFactory(s3Factory)
-	clientPool := providers.NewClientPool(storageFactory)
-	dialer := providers.NewS3Dialer(providers.WithS3ClientFactory(s3Factory))
+	storageFactory := storage.NewStorageFactory(
+		storage.WithDefaultStorageBuilder(s3.NewStorageClient),
+		storage.WithStorageBuilder(types.ProviderOSS, oss.NewStorageClient),
+		storage.WithStorageBuilder(types.ProviderCOS, cos.NewStorageClient),
+	)
+	clientPool := storage.NewClientPool(storageFactory)
+	dialer := s3.NewDialer()
 	sessionStore := bootstrap.InitSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)
 	accountSvc.SetClientPool(clientPool)
@@ -58,7 +64,7 @@ func New() *App {
 	transferSvc := transfer.NewService(accountSvc, clientPool, transferStore)
 	linkHistoryStore := bootstrap.InitLinkHistoryStore()
 	objectSvc := objects.NewService(accountSvc, clientPool, transferSvc, linkHistoryStore)
-	configSvc := config.NewBucketConfigService(accountSvc, s3Factory, storageFactory)
+	configSvc := config.NewBucketConfigService(accountSvc, storageFactory)
 	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 

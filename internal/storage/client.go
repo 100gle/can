@@ -20,6 +20,25 @@ type BucketDriver interface {
 	PutPublicAccessBlock(ctx context.Context, name string, block PublicAccessBlock) error
 	GetBucketReferer(ctx context.Context, name string) (BucketReferer, error)
 	PutBucketReferer(ctx context.Context, name string, referer BucketReferer) error
+
+	// Extended configuration
+	GetBucketEncryption(ctx context.Context, bucket string) (*BucketEncryptionConfiguration, error)
+	PutBucketEncryption(ctx context.Context, bucket string, config BucketEncryptionConfiguration) error
+	DeleteBucketEncryption(ctx context.Context, bucket string) error
+	GetBucketPolicy(ctx context.Context, bucket string) (string, error)
+	PutBucketPolicy(ctx context.Context, bucket, policy string) error
+	DeleteBucketPolicy(ctx context.Context, bucket string) error
+	GetBucketVersioning(ctx context.Context, bucket string) (BucketVersioningStatus, error)
+	PutBucketVersioning(ctx context.Context, bucket string, status BucketVersioningStatus) error
+	GetBucketLifecycleConfiguration(ctx context.Context, bucket string) ([]LifecycleRule, error)
+	PutBucketLifecycleConfiguration(ctx context.Context, bucket string, rules []LifecycleRule) error
+	DeleteBucketLifecycle(ctx context.Context, bucket string) error
+	GetBucketCors(ctx context.Context, bucket string) ([]CORSRule, error)
+	PutBucketCors(ctx context.Context, bucket string, rules []CORSRule) error
+	DeleteBucketCors(ctx context.Context, bucket string) error
+	GetBucketWebsite(ctx context.Context, bucket string) (*BucketWebsiteConfiguration, error)
+	PutBucketWebsite(ctx context.Context, bucket string, config BucketWebsiteConfiguration) error
+	DeleteBucketWebsite(ctx context.Context, bucket string) error
 }
 
 // ObjectDriver exposes object-level operations for a provider.

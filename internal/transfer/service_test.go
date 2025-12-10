@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/providers"
+	"can/internal/storage"
 
 	"can/internal/types"
 )
@@ -379,11 +379,11 @@ func tempFile(t *testing.T, data []byte) string {
 	return file.Name()
 }
 
-func newTestTransferService(t *testing.T, driver providers.ObjectDriver) (*Service, string) {
+func newTestTransferService(t *testing.T, driver storage.ObjectDriver) (*Service, string) {
 	t.Helper()
 	store := accounts.NewMemoryStore()
 	cipher := accounts.NoopCipher{}
-	dialer := providers.NewStubDialer()
+	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)
 	ctx := context.Background()
@@ -401,18 +401,24 @@ func newTestTransferService(t *testing.T, driver providers.ObjectDriver) (*Servi
 		t.Fatalf("create account: %v", err)
 	}
 	factory := &fakeStorageFactory{client: &fakeStorageClient{objects: driver}}
-	pool := providers.NewClientPool(factory)
+	pool := storage.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
 	transferStore := NewMemoryStore()
 	svc := NewService(accountSvc, pool, transferStore, WithWorkerCount(1), WithQueueSize(1))
 	return svc, account.ID
 }
 
-type fakeStorageFactory struct {
-	client providers.StorageClient
+type fakeDialer struct{}
+
+func (f *fakeDialer) TestConnection(ctx context.Context, creds storage.ConnectionCredentials) error {
+	return nil
 }
 
-func (f *fakeStorageFactory) NewClient(context.Context, providers.ConnectionCredentials) (providers.StorageClient, error) {
+type fakeStorageFactory struct {
+	client storage.StorageClient
+}
+
+func (f *fakeStorageFactory) NewClient(context.Context, storage.ConnectionCredentials) (storage.StorageClient, error) {
 	if f.client == nil {
 		return nil, errors.New("missing storage client")
 	}
@@ -420,7 +426,7 @@ func (f *fakeStorageFactory) NewClient(context.Context, providers.ConnectionCred
 }
 
 type fakeStorageClient struct {
-	objects providers.ObjectDriver
+	objects storage.ObjectDriver
 }
 
 func (f *fakeStorageClient) Provider() types.Provider {
@@ -431,22 +437,22 @@ func (f *fakeStorageClient) Capabilities() []types.ProviderCapability {
 	return nil
 }
 
-func (f *fakeStorageClient) Buckets() providers.BucketDriver {
+func (f *fakeStorageClient) Buckets() storage.BucketDriver {
 	return nil
 }
 
-func (f *fakeStorageClient) Objects() providers.ObjectDriver {
+func (f *fakeStorageClient) Objects() storage.ObjectDriver {
 	return f.objects
 }
 
-func (f *fakeStorageClient) Security() providers.SecurityDriver {
+func (f *fakeStorageClient) Security() storage.SecurityDriver {
 	return nil
 }
 
 type fakeObjectDriver struct {
 	mu      sync.Mutex
 	objects map[string][]byte
-	last    providers.DownloadObjectInput
+	last    storage.DownloadObjectInput
 }
 
 func newFakeObjectDriver() *fakeObjectDriver {
@@ -471,8 +477,8 @@ func (d *fakeObjectDriver) setObject(bucket, key string, data []byte) {
 	d.store(bucket, key, data)
 }
 
-func (d *fakeObjectDriver) ListObjects(context.Context, providers.ListObjectsInput) (providers.ListObjectsResult, error) {
-	return providers.ListObjectsResult{}, nil
+func (d *fakeObjectDriver) ListObjects(context.Context, storage.ListObjectsInput) (storage.ListObjectsResult, error) {
+	return storage.ListObjectsResult{}, nil
 }
 
 func (d *fakeObjectDriver) UploadObject(ctx context.Context, bucket, key string, body io.Reader, _ int64, _ string) error {
@@ -484,19 +490,19 @@ func (d *fakeObjectDriver) UploadObject(ctx context.Context, bucket, key string,
 	return nil
 }
 
-func (d *fakeObjectDriver) DownloadObject(ctx context.Context, input providers.DownloadObjectInput) (providers.ObjectDownload, error) {
+func (d *fakeObjectDriver) DownloadObject(ctx context.Context, input storage.DownloadObjectInput) (storage.ObjectDownload, error) {
 	d.mu.Lock()
 	d.last = input
 	d.mu.Unlock()
 	data := d.object(input.Bucket, input.Key)
 	if len(data) == 0 {
-		return providers.ObjectDownload{}, errors.New("object not found")
+		return storage.ObjectDownload{}, errors.New("object not found")
 	}
 	start := int64(0)
 	end := int64(len(data))
 	if input.RangeStart != nil && *input.RangeStart > 0 {
 		if *input.RangeStart >= end {
-			return providers.ObjectDownload{}, errors.New("range exceeds object")
+			return storage.ObjectDownload{}, errors.New("range exceeds object")
 		}
 		start = *input.RangeStart
 	}
@@ -505,7 +511,7 @@ func (d *fakeObjectDriver) DownloadObject(ctx context.Context, input providers.D
 	}
 	slice := data[start:end]
 	reader := io.NopCloser(bytes.NewReader(slice))
-	return providers.ObjectDownload{
+	return storage.ObjectDownload{
 		Body:          reader,
 		ContentLength: int64(len(slice)),
 	}, nil
@@ -515,19 +521,19 @@ func (d *fakeObjectDriver) DeleteObject(context.Context, string, string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) DeleteObjects(_ context.Context, _ string, keys []string) (providers.DeleteObjectsResult, error) {
-	return providers.DeleteObjectsResult{Deleted: keys}, nil
+func (d *fakeObjectDriver) DeleteObjects(_ context.Context, _ string, keys []string) (storage.DeleteObjectsResult, error) {
+	return storage.DeleteObjectsResult{Deleted: keys}, nil
 }
 
 func (d *fakeObjectDriver) CopyObject(context.Context, string, string, string, string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) HeadObject(context.Context, string, string) (providers.ObjectDescriptor, error) {
-	return providers.ObjectDescriptor{}, nil
+func (d *fakeObjectDriver) HeadObject(context.Context, string, string) (storage.ObjectDescriptor, error) {
+	return storage.ObjectDescriptor{}, nil
 }
 
-func (d *fakeObjectDriver) PresignURL(context.Context, providers.PresignRequest) (string, error) {
+func (d *fakeObjectDriver) PresignURL(context.Context, storage.PresignRequest) (string, error) {
 	return "", nil
 }
 
@@ -555,75 +561,75 @@ func (d *fakeObjectDriver) PutObjectTags(context.Context, string, string, map[st
 	return nil
 }
 
-func (d *fakeObjectDriver) UpdateObjectMetadata(context.Context, string, string, providers.ObjectMetadataUpdate) error {
+func (d *fakeObjectDriver) UpdateObjectMetadata(context.Context, string, string, storage.ObjectMetadataUpdate) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) GetObjectACL(context.Context, string, string) (providers.ObjectACL, error) {
-	return providers.ObjectACL{}, providers.ErrUnsupportedCapability
+func (d *fakeObjectDriver) GetObjectACL(context.Context, string, string) (storage.ObjectACL, error) {
+	return storage.ObjectACL{}, storage.ErrUnsupportedCapability
 }
 
 func (d *fakeObjectDriver) PutObjectACL(context.Context, string, string, string) error {
-	return providers.ErrUnsupportedCapability
+	return storage.ErrUnsupportedCapability
 }
 
 func (d *fakeObjectDriver) CreateSymlink(context.Context, string, string, string) error {
-	return providers.ErrUnsupportedCapability
+	return storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetObjectLockConfiguration(context.Context, string) (providers.ObjectLockConfiguration, error) {
-	return providers.ObjectLockConfiguration{}, providers.ErrUnsupportedCapability
+func (d *fakeObjectDriver) GetObjectLockConfiguration(context.Context, string) (storage.ObjectLockConfiguration, error) {
+	return storage.ObjectLockConfiguration{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetObjectRetention(context.Context, string, string, string) (providers.ObjectRetentionState, error) {
-	return providers.ObjectRetentionState{}, providers.ErrUnsupportedCapability
+func (d *fakeObjectDriver) GetObjectRetention(context.Context, string, string, string) (storage.ObjectRetentionState, error) {
+	return storage.ObjectRetentionState{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) PutObjectRetention(context.Context, providers.PutObjectRetentionInput) error {
-	return providers.ErrUnsupportedCapability
+func (d *fakeObjectDriver) PutObjectRetention(context.Context, storage.PutObjectRetentionInput) error {
+	return storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (providers.ObjectLegalHoldState, error) {
-	return providers.ObjectLegalHoldState{}, providers.ErrUnsupportedCapability
+func (d *fakeObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (storage.ObjectLegalHoldState, error) {
+	return storage.ObjectLegalHoldState{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, providers.PutObjectLegalHoldInput) error {
-	return providers.ErrUnsupportedCapability
+func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, storage.PutObjectLegalHoldInput) error {
+	return storage.ErrUnsupportedCapability
 }
 
 func TestWorkerScalingRace(t *testing.T) {
 	driver := newFakeObjectDriver()
 	store := accounts.NewMemoryStore()
 	cipher := accounts.NoopCipher{}
-	dialer := providers.NewStubDialer()
+	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)
-	pool := providers.NewClientPool(&fakeStorageFactory{client: &fakeStorageClient{objects: driver}})
+	pool := storage.NewClientPool(&fakeStorageFactory{client: &fakeStorageClient{objects: driver}})
 	// Start with 100 workers to increase chance of race
 	svc := NewService(accountSvc, pool, NewMemoryStore(), WithWorkerCount(100))
 
-	// Wait for workers to start
-	time.Sleep(100 * time.Millisecond)
-
-	svc.mu.RLock()
-	initial := svc.activeWorkers
-	svc.mu.RUnlock()
-
-	if initial != 100 {
-		t.Fatalf("expected 100 workers, got %d", initial)
-	}
+	waitForActiveWorkers(t, svc, 100, 2*time.Second)
 
 	// Scale down to 1
 	svc.SetWorkerCount(1)
 
-	// Wait for scaling to settle
-	time.Sleep(100 * time.Millisecond)
+	waitForActiveWorkers(t, svc, 1, 2*time.Second)
+}
 
+func waitForActiveWorkers(t *testing.T, svc *Service, expected int, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		svc.mu.RLock()
+		active := svc.activeWorkers
+		svc.mu.RUnlock()
+		if active == expected {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	svc.mu.RLock()
 	active := svc.activeWorkers
 	svc.mu.RUnlock()
-
-	if active != 1 {
-		t.Errorf("race condition detected: expected 1 worker remaining, got %d. This indicates over-scaling or under-scaling.", active)
-	}
+	t.Fatalf("expected %d active workers within %s, but have %d", expected, timeout, active)
 }
