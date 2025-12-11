@@ -1,32 +1,41 @@
+import { Label } from "@/components/ui/label";
+import { RadioGroupItem } from "@/components/ui/radio-group";
+import { type ThemePreference } from "@/state/preferences";
 import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 
 interface ThemeOptionButtonProps {
+  value: ThemePreference;
   isSelected: boolean;
   label: string;
-  onClick: () => void;
   children: ReactNode;
+  onSelect?: () => void;
 }
 
 export function ThemeOptionButton({
+  value,
   isSelected,
   label,
-  onClick,
   children,
+  onSelect,
 }: ThemeOptionButtonProps) {
-  const { t } = useTranslation();
+  const radioId = `theme-${value}`;
+
   return (
-    <button
-      type="button"
-      className={`group cursor-pointer rounded-xl border-2 p-1 transition-all ${
-        isSelected ? "border-primary ring-2 ring-primary/20" : "border-transparent"
-      }`}
-      onClick={onClick}
-      aria-label={t("settings.theme.selectAria", { label })}
-      aria-pressed={isSelected}
-    >
-      {children}
-      <div className="mt-2 text-center text-sm font-medium">{label}</div>
-    </button>
+    <div className="space-y-2">
+      <div
+        onClick={() => onSelect?.()}
+        className={`cursor-pointer rounded-xl border-2 p-1 transition-all ${
+          isSelected ? "border-primary ring-2 ring-primary/20" : "border-transparent"
+        }`}
+      >
+        {children}
+      </div>
+      <div className="flex items-center justify-center gap-2">
+        <RadioGroupItem value={value} id={radioId} />
+        <Label htmlFor={radioId} className="cursor-pointer text-sm font-medium">
+          {label}
+        </Label>
+      </div>
+    </div>
   );
 }

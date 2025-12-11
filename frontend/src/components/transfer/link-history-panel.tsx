@@ -97,9 +97,7 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
                     </div>
 
                     <div className="text-xs text-muted-foreground mb-2">
-                      <div>
-                        {t("linkHistory.label.bucket")}: {link.bucket}
-                      </div>
+                      <div>Bucket: {link.bucket}</div>
                       <div>
                         {t("linkHistory.label.expires")}:{" "}
                         {new Date(link.expiresAt).toLocaleString()}

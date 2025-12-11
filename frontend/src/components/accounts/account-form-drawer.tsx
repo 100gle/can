@@ -426,7 +426,7 @@ export const AccountFormDrawer = ({
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="lg:col-span-2 space-y-2">
                 <Label htmlFor="endpoint">
-                  {t("account.form.field.endpoint.label")}
+                  Endpoint
                   <span className="text-destructive">*</span>
                 </Label>
                 <form.Field name="endpoint">
@@ -504,7 +504,7 @@ export const AccountFormDrawer = ({
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="access-key">
-                  {t("account.form.field.accessKeyId.label")}
+                  Access Key ID
                   {mode === "create" && <span className="text-destructive">*</span>}
                 </Label>
                 <form.Field name="accessKeyId">
@@ -553,7 +553,7 @@ export const AccountFormDrawer = ({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="secret-key">
-                  {t("account.form.field.secretAccessKey.label")}
+                  Secret Access Key
                   {mode === "create" && <span className="text-destructive">*</span>}
                 </Label>
                 <form.Field name="secretAccessKey">

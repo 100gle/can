@@ -197,7 +197,7 @@ export function ExportFileListDialog({
                 <SelectItem value="json">
                   <div className="flex items-center gap-2">
                     {formatIcons.json}
-                    {t("objects.export.format.json")}
+                    JSON
                   </div>
                 </SelectItem>
                 <SelectItem value="txt">

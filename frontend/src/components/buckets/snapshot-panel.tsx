@@ -136,7 +136,7 @@ export function SnapshotPanel() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("bucket.snapshot.table.id")}</TableHead>
+                  <TableHead>ID</TableHead>
                   <TableHead>{t("bucket.snapshot.table.createdAt")}</TableHead>
                   <TableHead>{t("bucket.snapshot.table.objectCount")}</TableHead>
                   <TableHead className="text-right">{t("bucket.snapshot.table.actions")}</TableHead>

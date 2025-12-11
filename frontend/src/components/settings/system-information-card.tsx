@@ -162,9 +162,7 @@ export function SystemInformationCard() {
                 <p className="text-2xl font-bold">{formatBytes(metrics.memorySys)}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  {t("system.metrics.goroutines")}
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Goroutines</p>
                 <p className="text-2xl font-bold">{metrics.numGoroutines}</p>
               </div>
               <div className="space-y-1">

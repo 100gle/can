@@ -29,19 +29,19 @@ const CANNED_OPTIONS = [
 const PERMISSION_OPTIONS = ["FULL_CONTROL", "READ", "WRITE", "READ_ACP", "WRITE_ACP"];
 
 const GRANTEE_TYPES = [
-  { label: "bucket.acl.grantee.canonicalUser", value: "CanonicalUser" },
-  { label: "bucket.acl.grantee.group", value: "Group" },
-  { label: "bucket.acl.grantee.email", value: "AmazonCustomerByEmail" },
+  { label: "Canonical User", value: "CanonicalUser" },
+  { label: "Group", value: "Group" },
+  { label: "Email", value: "AmazonCustomerByEmail" },
 ];
 
 const GROUP_URIS = [
-  { label: "bucket.acl.groups.allUsers", value: "http://acs.amazonaws.com/groups/global/AllUsers" },
+  { label: "AllUsers (Public)", value: "http://acs.amazonaws.com/groups/global/AllUsers" },
   {
-    label: "bucket.acl.groups.authenticatedUsers",
+    label: "AuthenticatedUsers",
     value: "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
   },
   {
-    label: "bucket.acl.groups.logDelivery",
+    label: "LogDelivery",
     value: "http://acs.amazonaws.com/groups/s3/LogDelivery",
   },
 ];
@@ -143,9 +143,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
       <CardContent className="space-y-6">
         <section className="grid gap-4 md:grid-cols-2">
           <div>
-            <Label className="text-xs uppercase text-muted-foreground">
-              {t("bucket.acl.ownerId")}
-            </Label>
+            <Label className="text-xs uppercase text-muted-foreground">Owner ID</Label>
             <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm font-mono">
               {draft.ownerId || t("bucket.acl.ownerUnknown")}
             </p>
@@ -221,18 +219,14 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                         <SelectContent>
                           {GRANTEE_TYPES.map((item) => (
                             <SelectItem key={item.value} value={item.value}>
-                              {t(item.label)}
+                              {item.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>
-                        {grant.granteeType === "Group"
-                          ? t("bucket.acl.grantee.groupUri")
-                          : t("bucket.acl.grantee.id")}
-                      </Label>
+                      <Label>{grant.granteeType === "Group" ? "Group URI" : "ID"}</Label>
                       {grant.granteeType === "Group" ? (
                         <Select
                           value={grant.grantee}
@@ -246,7 +240,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                           <SelectContent>
                             {GROUP_URIS.map((group) => (
                               <SelectItem key={group.value} value={group.value}>
-                                {t(group.label)}
+                                {group.label}
                               </SelectItem>
                             ))}
                           </SelectContent>

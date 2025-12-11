@@ -154,7 +154,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
               <Warehouse className="h-4 w-4" /> {t("objects.batchAttributes.tabs.storage")}
             </TabsTrigger>
             <TabsTrigger value="acl" className="gap-2">
-              <ShieldCheck className="h-4 w-4" /> {t("objects.batchAttributes.tabs.acl")}
+              <ShieldCheck className="h-4 w-4" /> ACL
             </TabsTrigger>
           </TabsList>
 

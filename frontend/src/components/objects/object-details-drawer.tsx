@@ -330,15 +330,15 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
               <div className="my-4 h-[calc(100vh-400px)] overflow-y-auto pr-2">
                 <TabsContent value="general" className="space-y-4">
                   <div className="space-y-2">
-                    <Label>{t("objects.details.general.contentType")}</Label>
+                    <Label>Content-Type</Label>
                     <Input value={contentType} onChange={(e) => setContentType(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t("objects.details.general.storageClass")}</Label>
+                    <Label>Storage Class</Label>
                     <Input value={storageClass} onChange={(e) => setStorageClass(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label>{t("objects.details.general.acl")}</Label>
+                    <Label>ACL</Label>
                     <Select value={acl} onValueChange={setAcl}>
                       <SelectTrigger>
                         <SelectValue />
@@ -497,7 +497,7 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                             htmlFor="bypass-governance"
                             className="text-xs text-muted-foreground"
                           >
-                            {t("objects.details.compliance.bypass")}
+                            Bypass Governance
                           </Label>
                         </div>
                         <Button

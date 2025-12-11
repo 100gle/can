@@ -70,14 +70,14 @@ export const EncryptionPanel = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="AES256">{t("bucket.encryption.algorithm.aes256")}</SelectItem>
-                <SelectItem value="aws:kms">{t("bucket.encryption.algorithm.kms")}</SelectItem>
+                <SelectItem value="AES256">SSE-S3 (AES256)</SelectItem>
+                <SelectItem value="aws:kms">SSE-KMS (aws:kms)</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {algorithm === "aws:kms" && (
             <div className="space-y-2">
-              <Label htmlFor="kms-key">{t("bucket.encryption.kmsKeyId")}</Label>
+              <Label htmlFor="kms-key">KMS Key ID</Label>
               <Input
                 id="kms-key"
                 value={kmsKeyId}

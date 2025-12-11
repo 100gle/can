@@ -37,11 +37,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 space-y-8 bg-muted/30 min-h-screen">
-      <PageHeader
-        title={t("settingsPage.header.title")}
-        description={t("settingsPage.header.description")}
-        showBack
-      />
+      <PageHeader title={t("settings")} description={t("settings.description")} showBack />
 
       <div className="space-y-6">
         <AppearanceCard />

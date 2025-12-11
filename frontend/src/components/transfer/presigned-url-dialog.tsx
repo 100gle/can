@@ -187,7 +187,7 @@ export const PresignedURLDialog = ({
                   <SelectContent>
                     <SelectItem value="GET">{t("presigned.method.get")}</SelectItem>
                     <SelectItem value="PUT">{t("presigned.method.put")}</SelectItem>
-                    <SelectItem value="HEAD">{t("presigned.method.head")}</SelectItem>
+                    <SelectItem value="HEAD">HEAD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -283,9 +283,9 @@ export const PresignedURLDialog = ({
               ) : (
                 <Tabs defaultValue="url" className="w-full">
                   <TabsList className="grid w-full grid-cols-3 mb-4">
-                    <TabsTrigger value="url">{t("presigned.tabs.url")}</TabsTrigger>
-                    <TabsTrigger value="md">{t("presigned.tabs.markdown")}</TabsTrigger>
-                    <TabsTrigger value="html">{t("presigned.tabs.html")}</TabsTrigger>
+                    <TabsTrigger value="url">URL</TabsTrigger>
+                    <TabsTrigger value="md">Markdown</TabsTrigger>
+                    <TabsTrigger value="html">HTML</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="url" className="space-y-4">

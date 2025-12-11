@@ -98,14 +98,14 @@ export const AccountCard = memo(function AccountCard({
               />
               <DetailItem
                 icon={ShieldCheck}
-                label={t("account.card.ssl")}
+                label="SSL"
                 value={
                   account.useSSL ? t("account.card.sslEnabled") : t("account.card.sslDisabled")
                 }
               />
               <DetailItem
                 icon={Server}
-                label={t("account.card.endpoint")}
+                label="Endpoint"
                 value={account.endpoint}
                 className="sm:col-span-3"
               />
@@ -124,16 +124,12 @@ export const AccountCard = memo(function AccountCard({
               />
               <DetailItem
                 icon={ShieldCheck}
-                label={t("account.card.ssl")}
+                label="SSL"
                 value={
                   account.useSSL ? t("account.card.sslEnabled") : t("account.card.sslDisabled")
                 }
               />
-              <DetailItem
-                icon={Server}
-                label={t("account.card.endpoint")}
-                value={account.endpoint}
-              />
+              <DetailItem icon={Server} label="Endpoint" value={account.endpoint} />
             </>
           )}
         </ul>

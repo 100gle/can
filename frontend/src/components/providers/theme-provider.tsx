@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import {
   ADVANCED_SETTINGS_KEY,
   THEME_PREFERENCE_KEY,
   usePreferencesStore,
   type ThemeSelection,
 } from "@/state/preferences";
+import { useEffect } from "react";
 
 export const useResolvedTheme = (): ThemeSelection => {
   const themePreference = usePreferencesStore((state) => state.themePreference);

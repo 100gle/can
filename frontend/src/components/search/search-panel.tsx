@@ -22,8 +22,8 @@ import { showError } from "@/lib/toast";
 import { formatBytes } from "@/lib/utils";
 import { searchStore, useSearchStore } from "@/state/search";
 import { useForm, useStore } from "@tanstack/react-form";
-import { Bookmark, BookmarkPlus, DownloadCloud, Loader2, Search, Trash2 } from "lucide-react";
 import { TFunction } from "i18next";
+import { Bookmark, BookmarkPlus, DownloadCloud, Loader2, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -513,7 +513,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("searchPanel.table.object")}</TableHead>
-                  <TableHead>{t("searchPanel.table.bucket")}</TableHead>
+                  <TableHead>Bucket</TableHead>
                   <TableHead>{t("searchPanel.table.size")}</TableHead>
                   <TableHead>{t("searchPanel.table.updated")}</TableHead>
                   <TableHead>{t("searchPanel.table.storageClass")}</TableHead>
