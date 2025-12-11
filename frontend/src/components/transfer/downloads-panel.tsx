@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 type DownloadsPanelProps = {
   open: boolean;
@@ -24,6 +25,7 @@ type DownloadsPanelProps = {
 };
 
 export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
+  const { t } = useTranslation();
   const tasks = useTransfersStore((state) => state.tasks);
 
   // Filter to only download tasks
@@ -51,7 +53,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
       // This would require a backend call to open file explorer
       // For now just copy path to clipboard
       navigator.clipboard.writeText(folder);
-      showSuccess(`路径已复制: ${folder}`);
+      showSuccess(t("downloads.success.pathCopied", { path: folder }));
     }
   };
 
@@ -61,38 +63,38 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
         return (
           <Badge variant="success" className="gap-1">
             <Check className="h-3 w-3" />
-            已完成
+            {t("downloads.status.completed")}
           </Badge>
         );
       case "running":
         return (
           <Badge variant="default" className="gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
-            下载中
+            {t("downloads.status.downloading")}
           </Badge>
         );
       case "paused":
         return (
           <Badge variant="outline" className="gap-1">
             <Pause className="h-3 w-3" />
-            已暂停
+            {t("downloads.status.paused")}
           </Badge>
         );
       case "failed":
         return (
           <Badge variant="outline" className="gap-1 border-destructive text-destructive">
             <XCircle className="h-3 w-3" />
-            失败
+            {t("downloads.status.failed")}
           </Badge>
         );
       case "canceled":
         return (
           <Badge variant="outline" className="gap-1">
-            已取消
+            {t("downloads.status.canceled")}
           </Badge>
         );
       default:
-        return <Badge variant="outline">等待中</Badge>;
+        return <Badge variant="outline">{t("downloads.status.waiting")}</Badge>;
     }
   };
 
@@ -102,7 +104,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ArrowDownCircle className="h-5 w-5 text-green-500" />
-            下载管理
+            {t("downloads.title")}
           </SheetTitle>
         </SheetHeader>
 
@@ -110,8 +112,8 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
           {downloadTasks.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
               <ArrowDownCircle className="h-12 w-12 text-muted-foreground/40 mb-4" />
-              <p className="text-sm font-medium">暂无下载任务</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">下载文件时任务将在此处显示</p>
+              <p className="text-sm font-medium">{t("downloads.empty")}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t("downloads.emptyDesc")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -147,8 +149,14 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                     {/* Speed and ETA */}
                     {task.status === "running" && (
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>速度: {task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
-                        <span>剩余: {task.eta ? `${task.eta}秒` : "-"}</span>
+                        <span>
+                          {t("downloads.label.speed")}:{" "}
+                          {task.speed ? `${formatBytes(task.speed)}/s` : "-"}
+                        </span>
+                        <span>
+                          {t("downloads.label.eta")}:{" "}
+                          {task.eta ? `${task.eta}${t("downloads.unit.sec")}` : "-"}
+                        </span>
                       </div>
                     )}
 
@@ -166,7 +174,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                             onClick={() => transfersStore.pauseTask(task.id)}
                           >
                             <Pause className="h-4 w-4" />
-                            暂停
+                            {t("downloads.action.pause")}
                           </Button>
                           <Button
                             variant="ghost"
@@ -175,7 +183,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                             onClick={() => transfersStore.cancelTask(task.id)}
                           >
                             <XCircle className="h-4 w-4" />
-                            取消
+                            {t("downloads.action.cancel")}
                           </Button>
                         </>
                       )}
@@ -188,7 +196,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                             onClick={() => transfersStore.resumeTask(task.id)}
                           >
                             <Play className="h-4 w-4" />
-                            继续
+                            {t("downloads.action.resume")}
                           </Button>
                           <Button
                             variant="ghost"
@@ -197,7 +205,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                             onClick={() => transfersStore.cancelTask(task.id)}
                           >
                             <XCircle className="h-4 w-4" />
-                            取消
+                            {t("downloads.action.cancel")}
                           </Button>
                         </>
                       )}
@@ -209,7 +217,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                           onClick={() => handleOpenLocation(task.localPath)}
                         >
                           <FolderOpen className="h-4 w-4" />
-                          打开文件位置
+                          {t("downloads.action.openLocation")}
                         </Button>
                       )}
                       {task.status === "completed" && (
@@ -225,7 +233,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                           }}
                         >
                           <ExternalLink className="h-4 w-4" />
-                          复制路径
+                          {t("downloads.action.copyPath")}
                         </Button>
                       )}
                     </div>

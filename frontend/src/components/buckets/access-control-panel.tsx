@@ -17,28 +17,33 @@ import {
   type BucketACLModel,
 } from "@/state/bucketConfig";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const CANNED_OPTIONS = [
-  { label: "私有 (private)", value: "private" },
-  { label: "公开读取 (public-read)", value: "public-read" },
-  { label: "公开读写 (public-read-write)", value: "public-read-write" },
-  { label: "认证用户可读 (authenticated-read)", value: "authenticated-read" },
+  { label: "bucket.acl.canned.private", value: "private" },
+  { label: "bucket.acl.canned.publicRead", value: "public-read" },
+  { label: "bucket.acl.canned.publicReadWrite", value: "public-read-write" },
+  { label: "bucket.acl.canned.authenticatedRead", value: "authenticated-read" },
 ];
 
 const PERMISSION_OPTIONS = ["FULL_CONTROL", "READ", "WRITE", "READ_ACP", "WRITE_ACP"];
+
 const GRANTEE_TYPES = [
-  { label: "Canonical User", value: "CanonicalUser" },
-  { label: "Group", value: "Group" },
-  { label: "Email", value: "AmazonCustomerByEmail" },
+  { label: "bucket.acl.grantee.canonicalUser", value: "CanonicalUser" },
+  { label: "bucket.acl.grantee.group", value: "Group" },
+  { label: "bucket.acl.grantee.email", value: "AmazonCustomerByEmail" },
 ];
 
 const GROUP_URIS = [
-  { label: "AllUsers (Public)", value: "http://acs.amazonaws.com/groups/global/AllUsers" },
+  { label: "bucket.acl.groups.allUsers", value: "http://acs.amazonaws.com/groups/global/AllUsers" },
   {
-    label: "AuthenticatedUsers",
+    label: "bucket.acl.groups.authenticatedUsers",
     value: "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
   },
-  { label: "LogDelivery", value: "http://acs.amazonaws.com/groups/s3/LogDelivery" },
+  {
+    label: "bucket.acl.groups.logDelivery",
+    value: "http://acs.amazonaws.com/groups/s3/LogDelivery",
+  },
 ];
 
 const createEmptyGrant = (): ACLGrantModel => ({
@@ -52,6 +57,7 @@ type AccessControlPanelProps = {
 };
 
 export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
+  const { t } = useTranslation();
   const acl = useBucketConfigStore((state) => state.acl);
   const saving = useBucketConfigStore((state) => state.saving.acl);
   const error = useBucketConfigStore((state) => state.error);
@@ -67,8 +73,8 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>访问控制</CardTitle>
-          <CardDescription>正在加载 ACL ...</CardDescription>
+          <CardTitle>{t("bucket.acl.title")}</CardTitle>
+          <CardDescription>{t("bucket.acl.loading")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -100,7 +106,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
 
   const handleSave = () => {
     if (!draft.ownerId) {
-      showError("无法保存：缺少 Owner ID，稍后重试。");
+      showError(t("bucket.acl.error.missingOwner"));
       return;
     }
     const cleaned: BucketACLModel = {
@@ -114,15 +120,15 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
     };
     const hasCustomGrant = cleaned.grants.length > 0;
     if (!cleaned.canned && !hasCustomGrant) {
-      showWarning("请选择预设 ACL 或添加至少一个自定义授权。");
+      showWarning(t("bucket.acl.warning.customRequired"));
       return;
     }
     if (hasCustomGrant && cleaned.canned) {
-      showWarning("若要使用自定义授权，请将预设 ACL 设置为“自定义（仅使用下方授权）”。");
+      showWarning(t("bucket.acl.warning.setCustom"));
       return;
     }
     if (!supportsCustomGrant && !cleaned.canned) {
-      showWarning("当前供应商仅支持预设 ACL，请勿切换到自定义模式。");
+      showWarning(t("bucket.acl.warning.unsupported"));
       return;
     }
     void bucketConfigStore.saveBucketACL(cleaned);
@@ -131,29 +137,31 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
   return (
     <Card className="space-y-6">
       <CardHeader>
-        <CardTitle>访问控制列表 (ACL)</CardTitle>
-        <CardDescription>设置预设 ACL 或为特定用户/组授予权限。</CardDescription>
+        <CardTitle>{t("bucket.acl.title")}</CardTitle>
+        <CardDescription>{t("bucket.acl.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="grid gap-4 md:grid-cols-2">
           <div>
-            <Label className="text-xs uppercase text-muted-foreground">Owner ID</Label>
+            <Label className="text-xs uppercase text-muted-foreground">
+              {t("bucket.acl.ownerId")}
+            </Label>
             <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm font-mono">
-              {draft.ownerId || "未知"}
+              {draft.ownerId || t("bucket.acl.ownerUnknown")}
             </p>
           </div>
           <div>
-            <Label className="text-xs uppercase text-muted-foreground">Owner 名称</Label>
+            <Label className="text-xs uppercase text-muted-foreground">
+              {t("bucket.acl.ownerName")}
+            </Label>
             <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-              {draft.ownerDisplayName || "未返回"}
+              {draft.ownerDisplayName || t("bucket.acl.ownerUnreturned")}
             </p>
           </div>
         </section>
         <section>
-          <Label>预设 ACL</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            大多数场景下可直接使用官方预设，复杂场景再配置自定义授权。
-          </p>
+          <Label>{t("bucket.acl.canned.label")}</Label>
+          <p className="text-sm text-muted-foreground mb-2">{t("bucket.acl.canned.description")}</p>
           <Select
             value={draft.canned || ""}
             onValueChange={(value) =>
@@ -161,13 +169,15 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
             }
           >
             <SelectTrigger className="w-full md:w-1/2">
-              <SelectValue placeholder="选择预设 ACL" />
+              <SelectValue placeholder={t("bucket.acl.canned.placeholder")} />
             </SelectTrigger>
             <SelectContent>
-              {supportsCustomGrant && <SelectItem value="">自定义（仅使用下方授权）</SelectItem>}
+              {supportsCustomGrant && (
+                <SelectItem value="">{t("bucket.acl.canned.custom")}</SelectItem>
+              )}
               {CANNED_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -176,24 +186,22 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
         <section>
           <div className="flex items-center justify-between">
             <div>
-              <Label>自定义授权</Label>
-              <p className="text-sm text-muted-foreground">
-                为 Canonical User 或常用 Group 授权，适用于 AWS/COS。
-              </p>
+              <Label>{t("bucket.acl.custom.label")}</Label>
+              <p className="text-sm text-muted-foreground">{t("bucket.acl.custom.description")}</p>
             </div>
             <Button onClick={addGrant} variant="outline" disabled={!supportsCustomGrant}>
-              新增授权
+              {t("bucket.acl.addGrant")}
             </Button>
           </div>
           {!supportsCustomGrant && (
             <p className="mt-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-              当前供应商仅支持预设 ACL。请在控制台修改更细粒度权限。
+              {t("bucket.acl.custom.unsupported")}
             </p>
           )}
           {supportsCustomGrant && (
             <div className="mt-4 space-y-4">
               {draft.grants.length === 0 && (
-                <p className="text-sm text-muted-foreground">尚未添加任何自定义授权。</p>
+                <p className="text-sm text-muted-foreground">{t("bucket.acl.custom.empty")}</p>
               )}
               {draft.grants.map((grant, index) => (
                 <div
@@ -202,7 +210,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                 >
                   <div className="grid gap-3 md:grid-cols-3">
                     <div>
-                      <Label>授权对象类型</Label>
+                      <Label>{t("bucket.acl.grantee.label")}</Label>
                       <Select
                         value={grant.granteeType}
                         onValueChange={(value) => updateGrant(index, { granteeType: value })}
@@ -213,14 +221,18 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                         <SelectContent>
                           {GRANTEE_TYPES.map((item) => (
                             <SelectItem key={item.value} value={item.value}>
-                              {item.label}
+                              {t(item.label)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>{grant.granteeType === "Group" ? "Group URI" : "标识"}</Label>
+                      <Label>
+                        {grant.granteeType === "Group"
+                          ? t("bucket.acl.grantee.groupUri")
+                          : t("bucket.acl.grantee.id")}
+                      </Label>
                       {grant.granteeType === "Group" ? (
                         <Select
                           value={grant.grantee}
@@ -229,12 +241,12 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="选择或手动输入" />
+                            <SelectValue placeholder={t("bucket.acl.grantee.placeholder")} />
                           </SelectTrigger>
                           <SelectContent>
                             {GROUP_URIS.map((group) => (
                               <SelectItem key={group.value} value={group.value}>
-                                {group.label}
+                                {t(group.label)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -252,7 +264,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                       )}
                     </div>
                     <div>
-                      <Label>权限</Label>
+                      <Label>{t("bucket.acl.permission")}</Label>
                       <Select
                         value={grant.permission}
                         onValueChange={(value) => updateGrant(index, { permission: value })}
@@ -272,7 +284,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
                   </div>
                   <div className="flex justify-end">
                     <Button variant="ghost" size="sm" onClick={() => removeGrant(index)}>
-                      移除
+                      {t("bucket.acl.remove")}
                     </Button>
                   </div>
                 </div>
@@ -287,10 +299,10 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
             variant="outline"
             disabled={saving || draft === acl}
           >
-            重置
+            {t("bucket.acl.reset")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "保存中..." : "保存 ACL"}
+            {saving ? t("bucket.acl.saving") : t("bucket.acl.save")}
           </Button>
         </div>
       </CardContent>

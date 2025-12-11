@@ -15,6 +15,7 @@ import { showError, showSuccess } from "@/lib/toast";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { usePreferencesStore } from "@/state/preferences";
 import { useSessionStore } from "@/state/session";
+import { useTranslation } from "react-i18next";
 
 interface DataSecurityCardProps {
   onRequestEncryptedBackup: () => void;
@@ -25,6 +26,7 @@ export function DataSecurityCard({
   onRequestEncryptedBackup,
   onRequestRestoreWithPassword,
 }: DataSecurityCardProps) {
+  const { t } = useTranslation();
   const accounts = useAccountsStore((state) => state.accounts);
   const backupEncryptionEnabled = usePreferencesStore((state) => state.backupEncryptionEnabled);
   const setBackupEncryptionEnabled = usePreferencesStore(
@@ -37,19 +39,20 @@ export function DataSecurityCard({
 
   const handleExport = () => {
     if (!accounts.length) {
-      showError("暂无可导出的账户");
+      showError(t("settings.data.exportEmpty"));
       return;
     }
     void accountsStore
       .exportAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        const message = [
-          `已导出 ${summary.count} 个账户`,
-          summary.filePath ? `保存位置：${summary.filePath}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n");
+        // Use manual construction or simple formatting?
+        // Let's use simple string concatenation or t with interpolation if structure permits.
+        // But here we need newlines.
+        const message = t("settings.data.exportSuccess", {
+          count: summary.count,
+          path: summary.filePath || "",
+        });
         showSuccess(message);
       })
       .catch(() => {
@@ -62,16 +65,23 @@ export function DataSecurityCard({
       .importAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        const message = [
-          `成功导入 ${summary.imported}/${summary.total} 个账户`,
-          summary.skipped ? `跳过 ${summary.skipped} 个` : null,
-          summary.failed ? `失败 ${summary.failed} 个` : null,
-        ].filter(Boolean);
-        if (summary.issues?.length) {
-          message.push("详情：");
-          summary.issues.forEach((issue) => message.push(`- ${issue}`));
+        let message = t("settings.data.importSuccess", {
+          imported: summary.imported,
+          total: summary.total,
+        });
+        if (summary.skipped > 0 || summary.failed > 0) {
+          message +=
+            "\n" +
+            t("settings.data.importSuccessDetails", {
+              skipped: summary.skipped,
+              failed: summary.failed,
+            });
         }
-        showSuccess(message.join("\n"));
+        if (summary.issues?.length) {
+          message += "\nDetails:";
+          summary.issues.forEach((issue) => (message += `\n- ${issue}`));
+        }
+        showSuccess(message);
       })
       .catch(() => {
         /* handled */
@@ -84,7 +94,7 @@ export function DataSecurityCard({
     } else {
       const result = await backupService.createBackup();
       if (!result.success) {
-        showError(`备份失败: ${result.error}`);
+        showError(`Backup failed: ${result.error}`);
       }
     }
   };
@@ -100,7 +110,7 @@ export function DataSecurityCard({
     if (result.error.includes("encrypted") || result.error.includes("wrong password")) {
       onRequestRestoreWithPassword();
     } else {
-      showError(`恢复失败: ${result.error}`);
+      showError(`Restore failed: ${result.error}`);
     }
   };
 
@@ -112,29 +122,38 @@ export function DataSecurityCard({
     setLockStrategy(value);
   };
 
-  const idleTimeoutLabel = idleTimeoutMinutes === 0 ? "从不" : `${idleTimeoutMinutes} 分钟`;
+  const displayIdleLabel =
+    idleTimeoutMinutes === 0
+      ? t("settings.session.never")
+      : idleTimeoutMinutes === 60
+        ? t("settings.session.time.1hour")
+        : t("settings.session.time.15min");
 
   return (
     <Card>
       <CardHeader className="pb-4">
         <div className="flex items-baseline gap-2">
-          <CardTitle className="text-lg font-semibold">数据安全</CardTitle>
-          <CardDescription className="text-sm">账户导入导出、系统备份与会话安全</CardDescription>
+          <CardTitle className="text-lg font-semibold">
+            {t("settings.header.dataSecurity")}
+          </CardTitle>
+          <CardDescription className="text-sm">
+            {t("settings.header.dataSecurityDesc")}
+          </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
         {/* Data Management Section */}
         <div className="space-y-5">
           <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">数据管理</h3>
-            <p className="text-xs text-muted-foreground">在不同设备间同步或备份你的账户配置</p>
+            <h3 className="text-base font-semibold tracking-tight">{t("settings.data.title")}</h3>
+            <p className="text-xs text-muted-foreground">{t("settings.data.desc")}</p>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row">
             <Button variant="outline" onClick={handleImport} className="w-full sm:w-auto">
-              导入账户
+              {t("settings.data.import")}
             </Button>
             <Button onClick={handleExport} disabled={!accounts.length} className="w-full sm:w-auto">
-              导出账户 ({accounts.length})
+              {t("settings.data.export")} ({accounts.length})
             </Button>
           </div>
         </div>
@@ -144,10 +163,8 @@ export function DataSecurityCard({
         {/* System Backup Section */}
         <div className="space-y-5">
           <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">系统备份</h3>
-            <p className="text-xs text-muted-foreground">
-              创建包含应用设置、账户配置和偏好设置的完整备份
-            </p>
+            <h3 className="text-base font-semibold tracking-tight">{t("settings.backup.title")}</h3>
+            <p className="text-xs text-muted-foreground">{t("settings.backup.subtitle")}</p>
           </div>
           <div className="flex items-center space-x-2">
             <Switch
@@ -156,20 +173,20 @@ export function DataSecurityCard({
               onCheckedChange={setBackupEncryptionEnabled}
             />
             <Label htmlFor="backup-encryption" className="cursor-pointer">
-              启用备份加密 (AES-256-GCM)
+              {t("settings.backup.enableEncryption")}
             </Label>
           </div>
           {backupEncryptionEnabled && (
             <p className="text-xs text-muted-foreground border-l-2 border-amber-500 pl-3">
-              启用加密后，备份文件将使用密码保护。请务必牢记密码，丢失密码将无法恢复数据。
+              {t("settings.backup.encryptionWarning")}
             </p>
           )}
           <div className="flex flex-col gap-4 sm:flex-row">
             <Button variant="outline" onClick={handleRestoreBackup} className="w-full sm:w-auto">
-              从文件恢复
+              {t("settings.backup.restore")}
             </Button>
             <Button onClick={handleCreateBackup} className="w-full sm:w-auto">
-              创建完整备份
+              {t("settings.backup.create")}
             </Button>
           </div>
         </div>
@@ -179,41 +196,41 @@ export function DataSecurityCard({
         {/* Session Security Section */}
         <div className="space-y-5">
           <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">会话安全</h3>
-            <p className="text-xs text-muted-foreground">
-              配置空闲锁屏/自动注销策略，保护控制台无人值守时的安全
-            </p>
+            <h3 className="text-base font-semibold tracking-tight">
+              {t("settings.session.title")}
+            </h3>
+            <p className="text-xs text-muted-foreground">{t("settings.session.desc")}</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-3">
-              <Label htmlFor="idle-timeout">空闲时长</Label>
+              <Label htmlFor="idle-timeout">{t("settings.session.idleTimeout")}</Label>
               <Select value={String(idleTimeoutMinutes)} onValueChange={handleIdleTimeoutChange}>
                 <SelectTrigger id="idle-timeout">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="15">15 分钟</SelectItem>
-                  <SelectItem value="60">1 小时</SelectItem>
-                  <SelectItem value="0">从不</SelectItem>
+                  <SelectItem value="15">{t("settings.session.time.15min")}</SelectItem>
+                  <SelectItem value="60">{t("settings.session.time.1hour")}</SelectItem>
+                  <SelectItem value="0">{t("settings.session.never")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                当前策略：{idleTimeoutLabel} 无操作后触发。
+                {t("settings.session.currentPolicy", { policy: displayIdleLabel })}
               </p>
             </div>
             <div className="space-y-3">
-              <Label htmlFor="lock-strategy">触发后操作</Label>
+              <Label htmlFor="lock-strategy">{t("settings.session.action")}</Label>
               <Select value={lockStrategy} onValueChange={handleLockStrategyChange}>
                 <SelectTrigger id="lock-strategy">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="lock">锁屏，手动解锁后继续</SelectItem>
-                  <SelectItem value="logout">自动注销并刷新应用</SelectItem>
+                  <SelectItem value="lock">{t("settings.session.lock")}</SelectItem>
+                  <SelectItem value="logout">{t("settings.session.logout")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                推荐选择"锁屏"，只有在高敏环境下才使用"自动注销"。
+                {t("settings.session.recommendation")}
               </p>
             </div>
           </div>

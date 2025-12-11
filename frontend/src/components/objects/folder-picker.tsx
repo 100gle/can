@@ -10,6 +10,7 @@ import { ListBuckets, ListObjects } from "@wailsjs/go/app/App";
 import type { buckets } from "@wailsjs/go/models";
 import { ChevronRight, Folder, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type FolderPickerProps = {
   accountId: string;
@@ -29,6 +30,7 @@ export function FolderPicker({
   initialPrefix = "",
   onSelect,
 }: FolderPickerProps) {
+  const { t } = useTranslation();
   const [buckets, setBuckets] = useState<buckets.BucketInfo[]>([]);
   const [selectedBucket, setSelectedBucket] = useState(initialBucket);
   const [currentPrefix, setCurrentPrefix] = useState(initialPrefix);
@@ -114,7 +116,7 @@ export function FolderPicker({
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="选择 Bucket" />
+            <SelectValue placeholder={t("objects.folderPicker.bucket.placeholder")} />
           </SelectTrigger>
           <SelectContent>
             {buckets.map((b) => (
@@ -136,7 +138,7 @@ export function FolderPicker({
               onClick={() => setCurrentPrefix("")}
               disabled={!currentPrefix}
             >
-              根目录
+              {t("objects.folderPicker.nav.root")}
             </Button>
             {currentPrefix
               .split("/")
@@ -150,7 +152,7 @@ export function FolderPicker({
           </div>
           {currentPrefix && (
             <Button variant="ghost" size="sm" className="h-6" onClick={handleGoUp}>
-              返回上级
+              {t("objects.folderPicker.nav.parent")}
             </Button>
           )}
         </div>
@@ -162,7 +164,7 @@ export function FolderPicker({
             </div>
           ) : folders.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              空文件夹
+              {t("objects.folderPicker.empty")}
             </div>
           ) : (
             <div className="space-y-1">
@@ -184,12 +186,16 @@ export function FolderPicker({
 
       <div className="flex items-center justify-between bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
         <span>
-          当前: {selectedBucket}/{currentPrefix || "(根目录)"}
+          {t("objects.folderPicker.current", {
+            path: selectedBucket
+              ? `${selectedBucket}/${currentPrefix || t("objects.folderPicker.current.root")}`
+              : "",
+          })}
         </span>
       </div>
 
       <Button onClick={handleConfirm} disabled={!selectedBucket}>
-        确认选择此目录
+        {t("objects.folderPicker.button.select")}
       </Button>
     </div>
   );

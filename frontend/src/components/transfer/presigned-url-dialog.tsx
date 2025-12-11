@@ -16,6 +16,7 @@ import { GenerateAccessLinks } from "@wailsjs/go/app/App";
 import { objects } from "@wailsjs/go/models";
 import { Clipboard, History, Loader2, QrCode, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { LinkHistoryPanel } from "./link-history-panel";
 import { SecurityTips } from "./security-tips";
 
@@ -37,13 +38,6 @@ type PresignedURLDialogProps = {
   onClose: () => void;
 };
 
-const presets = [
-  { label: "1 小时", minutes: 60 },
-  { label: "1 天", minutes: 60 * 24 },
-  { label: "7 天", minutes: 60 * 24 * 7 },
-  { label: "30 天", minutes: 60 * 24 * 30 },
-];
-
 export const PresignedURLDialog = ({
   open,
   mode,
@@ -52,6 +46,7 @@ export const PresignedURLDialog = ({
   objectKey,
   onClose,
 }: PresignedURLDialogProps) => {
+  const { t } = useTranslation();
   const [minutes, setMinutes] = useState(60);
   const [custom, setCustom] = useState("");
   // AccessLinkRequest has: ExpiryMinutes, CustomHeaders, ContentDisposition, Method. No password yet.
@@ -119,7 +114,7 @@ export const PresignedURLDialog = ({
         setGeneratedLink(result as any);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "生成链接失败");
+      setError(err instanceof Error ? err.message : t("presigned.error.failed"));
     } finally {
       setLoading(false);
     }
@@ -129,15 +124,22 @@ export const PresignedURLDialog = ({
     navigator.clipboard.writeText(text);
   };
 
+  const presets = [
+    { label: t("presigned.duration.1hour"), minutes: 60 },
+    { label: t("presigned.duration.1day"), minutes: 60 * 24 },
+    { label: t("presigned.duration.7days"), minutes: 60 * 24 * 7 },
+    { label: t("presigned.duration.30days"), minutes: 60 * 24 * 30 },
+  ];
+
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle>分享与访问链接</DialogTitle>
+              <DialogTitle>{t("presigned.title")}</DialogTitle>
               <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)}>
-                <History className="mr-1 h-4 w-4" /> 历史记录
+                <History className="mr-1 h-4 w-4" /> {t("presigned.button.history")}
               </Button>
             </div>
             <div className="text-sm text-muted-foreground truncate max-w-lg">
@@ -149,7 +151,7 @@ export const PresignedURLDialog = ({
             {/* Left Column: Settings */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>过期时间</Label>
+                <Label>{t("presigned.label.expiry")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {presets.map((preset) => (
                     <Button
@@ -167,7 +169,7 @@ export const PresignedURLDialog = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
-                    placeholder="自定义分钟数"
+                    placeholder={t("presigned.label.customDuration")}
                     type="number"
                     value={custom}
                     onChange={(e) => setCustom(e.target.value)}
@@ -177,24 +179,24 @@ export const PresignedURLDialog = ({
               </div>
 
               <div className="space-y-2">
-                <Label>HTTP 方法</Label>
+                <Label>{t("presigned.label.method")}</Label>
                 <Select value={method} onValueChange={setMethod}>
                   <SelectTrigger className="h-8">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="GET">GET (下载/访问)</SelectItem>
-                    <SelectItem value="PUT">PUT (上传)</SelectItem>
-                    <SelectItem value="HEAD">HEAD</SelectItem>
+                    <SelectItem value="GET">{t("presigned.method.get")}</SelectItem>
+                    <SelectItem value="PUT">{t("presigned.method.put")}</SelectItem>
+                    <SelectItem value="HEAD">{t("presigned.method.head")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {mode === "download" && (
                 <div className="space-y-2">
-                  <Label>下载文件名 (可选)</Label>
+                  <Label>{t("presigned.label.filename")}</Label>
                   <Input
-                    placeholder="例如: report.pdf"
+                    placeholder={t("presigned.placeholder.filename")}
                     value={filename}
                     onChange={(e) => setFilename(e.target.value)}
                     className="h-8"
@@ -204,7 +206,7 @@ export const PresignedURLDialog = ({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>自定义响应头</Label>
+                  <Label>{t("presigned.label.headers")}</Label>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -215,17 +217,15 @@ export const PresignedURLDialog = ({
                       ])
                     }
                   >
-                    添加
+                    {t("presigned.button.addHeader")}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  可用于覆盖 Content-Type、Content-Disposition 等 HTTP 响应头。
-                </p>
+                <p className="text-xs text-muted-foreground">{t("presigned.headers.desc")}</p>
                 <div className="space-y-2">
                   {headerEntries.map((entry, index) => (
                     <div key={entry.id} className="flex items-center gap-2">
                       <Input
-                        placeholder="Header 名"
+                        placeholder={t("presigned.placeholder.headerKey")}
                         value={entry.key}
                         onChange={(e) =>
                           setHeaderEntries((entries) =>
@@ -236,7 +236,7 @@ export const PresignedURLDialog = ({
                         }
                       />
                       <Input
-                        placeholder="Header 值"
+                        placeholder={t("presigned.placeholder.headerValue")}
                         value={entry.value}
                         onChange={(e) =>
                           setHeaderEntries((entries) =>
@@ -268,7 +268,7 @@ export const PresignedURLDialog = ({
 
               <Button className="w-full" onClick={handleGenerate} disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                生成链接
+                {t("presigned.button.generate")}
               </Button>
               {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
@@ -278,14 +278,14 @@ export const PresignedURLDialog = ({
               {!generatedLink ? (
                 <div className="flex h-full flex-col items-center justify-center text-muted-foreground gap-2">
                   <QrCode className="h-12 w-12 opacity-20" />
-                  <span className="text-sm">配置并在左侧生成链接</span>
+                  <span className="text-sm">{t("presigned.empty")}</span>
                 </div>
               ) : (
                 <Tabs defaultValue="url" className="w-full">
                   <TabsList className="grid w-full grid-cols-3 mb-4">
-                    <TabsTrigger value="url">URL</TabsTrigger>
-                    <TabsTrigger value="md">Markdown</TabsTrigger>
-                    <TabsTrigger value="html">HTML</TabsTrigger>
+                    <TabsTrigger value="url">{t("presigned.tabs.url")}</TabsTrigger>
+                    <TabsTrigger value="md">{t("presigned.tabs.markdown")}</TabsTrigger>
+                    <TabsTrigger value="html">{t("presigned.tabs.html")}</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="url" className="space-y-4">
@@ -352,7 +352,7 @@ export const PresignedURLDialog = ({
                   </TabsContent>
 
                   <div className="text-xs text-muted-foreground text-center mt-2">
-                    链接将在 {resolvedMinutes} 分钟后失效
+                    {t("presigned.expiry.notice", { minutes: resolvedMinutes })}
                   </div>
                 </Tabs>
               )}

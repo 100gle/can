@@ -37,6 +37,7 @@ import { objectsStore, type ObjectModel } from "@/state/objects";
 import { searchStore } from "@/state/search";
 import { Folder, FolderPlus, Loader2, RefreshCcw, Upload } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BrowserToolbar } from "./browser-toolbar";
 import { BucketItem } from "./bucket-item";
@@ -53,6 +54,7 @@ type FileExplorerProps = {
 };
 
 export function FileExplorer({ accountId, onOpenBucketSettings, className }: FileExplorerProps) {
+  const { t } = useTranslation();
   // Use controller hook for state and navigation
   const controller = useFileBrowserController(accountId);
 
@@ -77,7 +79,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
       return (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          加载中...
+          {t("loading")}
         </div>
       );
     }
@@ -88,10 +90,10 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           <Folder className="h-12 w-12 text-muted-foreground/40" />
           <p className="mt-4 text-muted-foreground">
             {controller.hasActiveFilters
-              ? "没有匹配的项目"
+              ? t("explorer.empty.noMatch")
               : controller.level === "buckets"
-                ? "暂无存储桶"
-                : "文件夹为空"}
+                ? t("explorer.empty.noBuckets")
+                : t("explorer.empty.folder")}
           </p>
           {controller.hasActiveFilters && (
             <Button
@@ -102,7 +104,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                 controller.setTypeFilter("all");
               }}
             >
-              清除过滤
+              {t("explorer.action.clearFilter")}
             </Button>
           )}
         </div>
@@ -277,7 +279,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                             {controller.loadingMore && (
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
-                            加载更多
+                            {t("explorer.action.loadMore")}
                           </Button>
                         </div>
                       )}
@@ -287,24 +289,24 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                   {controller.level === "buckets" ? (
                     <ContextMenuItem onClick={() => actions.setCreateBucketOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" />
-                      新建存储桶
+                      {t("contextMenu.newBucket")}
                     </ContextMenuItem>
                   ) : (
                     <>
                       <ContextMenuItem onClick={actions.handleUploadClick}>
                         <Upload className="mr-2 h-4 w-4" />
-                        上传文件
+                        {t("contextMenu.upload")}
                       </ContextMenuItem>
                       <ContextMenuItem onClick={actions.handleUploadFolder}>
                         <FolderPlus className="mr-2 h-4 w-4" />
-                        上传文件夹
+                        {t("contextMenu.uploadFolder")}
                       </ContextMenuItem>
                     </>
                   )}
                   <ContextMenuSeparator />
                   <ContextMenuItem onClick={controller.refresh}>
                     <RefreshCcw className="mr-2 h-4 w-4" />
-                    刷新
+                    {t("contextMenu.refresh")}
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
@@ -342,14 +344,18 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>删除存储桶</AlertDialogTitle>
+              <AlertDialogTitle>{t("explorer.dialog.deleteBucket.title")}</AlertDialogTitle>
               <AlertDialogDescription>
-                确定删除 "{actions.pendingDeleteBucket}"？此操作不可恢复。
+                {t("explorer.dialog.deleteBucket.description", {
+                  name: actions.pendingDeleteBucket,
+                })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={actions.handleDeleteBucket}>删除</AlertDialogAction>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={actions.handleDeleteBucket}>
+                {t("delete")}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -361,14 +367,16 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>删除文件</AlertDialogTitle>
+              <AlertDialogTitle>{t("explorer.dialog.deleteFile.title")}</AlertDialogTitle>
               <AlertDialogDescription>
-                确定删除 "{actions.pendingDeleteObject}"？此操作不可恢复。
+                {t("explorer.dialog.deleteFile.description", { name: actions.pendingDeleteObject })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={actions.handleDeleteObject}>删除</AlertDialogAction>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={actions.handleDeleteObject}>
+                {t("delete")}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -402,12 +410,12 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         <AlertDialog open={actions.errorDialogOpen} onOpenChange={actions.setErrorDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>操作失败</AlertDialogTitle>
+              <AlertDialogTitle>{t("error.title")}</AlertDialogTitle>
               <AlertDialogDescription>{actions.errorMessage}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogAction onClick={() => actions.setErrorDialogOpen(false)}>
-                确定
+                {t("confirm")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -417,27 +425,32 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         <AlertDialog open={deleteSelectedDialogOpen} onOpenChange={setDeleteSelectedDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>批量删除</AlertDialogTitle>
+              <AlertDialogTitle>{t("explorer.dialog.batchDelete.title")}</AlertDialogTitle>
               <AlertDialogDescription>
-                确定要删除选中的 {controller.selectedKeys.size} 个项目吗？此操作不可恢复。
+                {t("explorer.dialog.batchDelete.description", {
+                  count: controller.selectedKeys.size,
+                })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={async () => {
                   try {
                     await objectsStore.deleteSelected();
-                    toast.success(`已删除 ${controller.selectedKeys.size} 个项目`);
+                    toast.success(
+                      t("explorer.message.deleteSuccess", { count: controller.selectedKeys.size }),
+                    );
                   } catch (error) {
-                    const message = error instanceof Error ? error.message : "删除失败";
+                    const message =
+                      error instanceof Error ? error.message : t("explorer.message.deleteFailed");
                     toast.error(message);
                   } finally {
                     setDeleteSelectedDialogOpen(false);
                   }
                 }}
               >
-                删除
+                {t("delete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

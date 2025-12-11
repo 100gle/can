@@ -24,11 +24,13 @@ import { useParams } from "@tanstack/react-router";
 import { backup } from "@wailsjs/go/models";
 import { AlertCircle, Camera, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function SnapshotPanel() {
   const { accountId, bucketId } = useParams({
     from: "/accounts/$accountId/buckets/$bucketId/settings",
   });
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [snapshots, setSnapshots] = useState<backup.BackupHeader[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -96,32 +98,29 @@ export function SnapshotPanel() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            Bucket 快照
+            {t("bucket.snapshot.title")}
           </CardTitle>
-          <CardDescription>
-            创建 Bucket 的元数据快照，用于追踪变更或恢复已删除的文件引用。
-          </CardDescription>
+          <CardDescription>{t("bucket.snapshot.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>错误</AlertTitle>
+                <AlertTitle>{t("bucket.snapshot.error")}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
             <div className="bg-muted/50 p-4 rounded-md text-sm text-neutral-600 dark:text-neutral-400">
-              快照记录 Bucket
-              在特定时间点的状态（对象键、大小、哈希值），不复制实际数据，因此轻量快速。
+              {t("bucket.snapshot.hint")}
             </div>
             <div className="flex justify-between items-center">
               <Button variant="outline" size="sm" onClick={loadSnapshots} disabled={listLoading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${listLoading ? "animate-spin" : ""}`} />
-                刷新列表
+                {t("bucket.snapshot.refresh")}
               </Button>
               <Button onClick={handleCreateSnapshot} disabled={loading}>
-                {loading ? "创建中..." : "创建新快照"}
+                {loading ? t("bucket.snapshot.creating") : t("bucket.snapshot.create")}
               </Button>
             </div>
           </div>
@@ -131,16 +130,16 @@ export function SnapshotPanel() {
       {snapshots.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">快照列表</CardTitle>
+            <CardTitle className="text-base">{t("bucket.snapshot.listTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>创建时间</TableHead>
-                  <TableHead>对象数量</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead>{t("bucket.snapshot.table.id")}</TableHead>
+                  <TableHead>{t("bucket.snapshot.table.createdAt")}</TableHead>
+                  <TableHead>{t("bucket.snapshot.table.objectCount")}</TableHead>
+                  <TableHead className="text-right">{t("bucket.snapshot.table.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,24 +164,26 @@ export function SnapshotPanel() {
       {snapshots.length === 0 && !listLoading && (
         <div className="text-center py-8 text-muted-foreground">
           <Camera className="h-10 w-10 mx-auto mb-3 opacity-50" />
-          <p>暂无快照记录</p>
-          <p className="text-sm">点击「创建新快照」保存当前 Bucket 状态</p>
+          <p>{t("bucket.snapshot.empty")}</p>
+          <p className="text-sm">{t("bucket.snapshot.emptyHint")}</p>
         </div>
       )}
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>确认要删除该快照吗？</AlertDialogDescription>
+            <AlertDialogTitle>{t("bucket.snapshot.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("bucket.snapshot.deleteConfirmDesc")}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{t("actions.cancel", "取消")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive hover:bg-destructive/90"
             >
-              删除
+              {t("actions.delete", "删除")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

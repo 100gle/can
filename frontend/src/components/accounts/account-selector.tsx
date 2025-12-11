@@ -22,6 +22,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AccountCardGrid } from "./account-card-grid";
 
 type AccountSelectorProps = {
@@ -37,6 +38,7 @@ export const AccountSelector = ({
   onImportAccount,
   onExportAccount,
 }: AccountSelectorProps) => {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
   const accounts = useAccountsStore((state) => state.accounts);
   const loading = useAccountsStore((state) => state.loading);
@@ -77,7 +79,7 @@ export const AccountSelector = ({
       return (
         <div className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>正在加载账户列表...</span>
+          <span>{t("account.selector.loading")}</span>
         </div>
       );
     }
@@ -88,7 +90,7 @@ export const AccountSelector = ({
           <p>{error}</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
             <RefreshCcw className="mr-2 h-4 w-4" />
-            重试
+            {t("retry")}
           </Button>
         </div>
       );
@@ -119,10 +121,8 @@ export const AccountSelector = ({
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-8">
             <div>
-              <h2 className="text-2xl font-semibold">选择你的云存储账户</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                集中管理 S3 兼容服务，快速切换并查看连接状态。
-              </p>
+              <h2 className="text-2xl font-semibold">{t("account.selector.title")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("account.selector.subtitle")}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -133,11 +133,11 @@ export const AccountSelector = ({
                 <div className="flex items-center gap-1">
                   <Button variant="outline" size="sm" className="gap-2" onClick={onImportAccount}>
                     <UploadCloud className="h-4 w-4" />
-                    导入
+                    {t("account.selector.action.import")}
                   </Button>
                   <Button variant="outline" size="sm" className="gap-2" onClick={onExportAccount}>
                     <DownloadCloud className="h-4 w-4" />
-                    导出
+                    {t("account.selector.action.export")}
                   </Button>
                 </div>
 
@@ -145,7 +145,7 @@ export const AccountSelector = ({
 
                 <Button size="sm" className="gap-2" onClick={onCreateAccount}>
                   <Plus className="h-4 w-4" />
-                  新建账户
+                  {t("nav.newAccount")}
                 </Button>
               </>
             )}
@@ -156,19 +156,19 @@ export const AccountSelector = ({
             <TabsList className="flex rounded-lg border border-border/60 bg-muted/20 p-1 text-muted-foreground shadow-inner shadow-black/5 backdrop-blur-sm">
               <TabsTrigger
                 value="cards"
-                aria-label="卡片视图"
+                aria-label={t("account.selector.view.cardsLabel")}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
               >
                 <LayoutGrid className="h-4 w-4" />
-                <span className="hidden sm:inline">卡片</span>
+                <span className="hidden sm:inline">{t("account.selector.view.cards")}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="list"
-                aria-label="列表视图"
+                aria-label={t("account.selector.view.listLabel")}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:shadow-primary/30 data-[state=active]:ring-1 data-[state=active]:ring-primary/40"
               >
                 <Rows className="h-4 w-4" />
-                <span className="hidden sm:inline">列表</span>
+                <span className="hidden sm:inline">{t("account.selector.view.list")}</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -180,14 +180,14 @@ export const AccountSelector = ({
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确定删除账户？</AlertDialogTitle>
+            <AlertDialogTitle>{t("account.deleteConfirmTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              即将删除账户"{pendingDelete?.name}"，此操作不可恢复。
+              {t("account.deleteConfirmDesc", { name: pendingDelete?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>删除</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>{t("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -195,21 +195,24 @@ export const AccountSelector = ({
   );
 };
 
-const EmptyState = ({ onCreate, onImport }: { onCreate: () => void; onImport?: () => void }) => (
-  <div className="rounded-xl border border-dashed border-border/60 p-10 text-center">
-    <h3 className="text-xl font-semibold">欢迎使用 CAN</h3>
-    <p className="mt-2 text-sm text-muted-foreground">
-      当前还没有配置任何账户，立即新建一个开始浏览 Bucket 与对象。
-    </p>
-    <div className="mt-6 flex items-center justify-center gap-4">
-      <Button variant="outline" className="gap-2" onClick={onImport}>
-        <UploadCloud className="h-4 w-4" />
-        导入配置
-      </Button>
-      <Button className="gap-2" onClick={onCreate}>
-        <Plus className="h-4 w-4" />
-        新建账户
-      </Button>
+const EmptyState = ({ onCreate, onImport }: { onCreate: () => void; onImport?: () => void }) => {
+  const { t } = useTranslation("common");
+  return (
+    <div className="rounded-xl border border-dashed border-border/60 p-10 text-center">
+      <h3 className="text-xl font-semibold">{t("account.selector.empty.title")}</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {t("account.selector.empty.description")}
+      </p>
+      <div className="mt-6 flex items-center justify-center gap-4">
+        <Button variant="outline" className="gap-2" onClick={onImport}>
+          <UploadCloud className="h-4 w-4" />
+          {t("account.selector.empty.import")}
+        </Button>
+        <Button className="gap-2" onClick={onCreate}>
+          <Plus className="h-4 w-4" />
+          {t("account.selector.empty.create")}
+        </Button>
+      </div>
     </div>
-  </div>
-);
+  );
+};

@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Download, Eye, Folder, Link2, Trash2 } from "lucide-react";
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 
 interface TableRowContextMenuProps {
   itemKey: string;
@@ -25,26 +26,28 @@ export const TableRowContextMenu = memo(function TableRowContextMenu({
   onCopyLink,
   onDelete,
 }: TableRowContextMenuProps) {
+  const { t } = useTranslation("common");
+
   return (
     <ContextMenuContent>
       {isDir ? (
         <ContextMenuItem onClick={() => onEnterFolder(itemKey)}>
           <Folder className="mr-2 h-4 w-4" />
-          进入
+          {t("contextMenu.enter")}
         </ContextMenuItem>
       ) : (
         <>
           <ContextMenuItem onClick={() => onPreview(itemKey)}>
             <Eye className="mr-2 h-4 w-4" />
-            预览
+            {t("contextMenu.preview")}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onDownload(itemKey)}>
             <Download className="mr-2 h-4 w-4" />
-            下载
+            {t("contextMenu.download")}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onCopyLink(itemKey)}>
             <Link2 className="mr-2 h-4 w-4" />
-            复制链接
+            {t("contextMenu.copyLink")}
           </ContextMenuItem>
         </>
       )}
@@ -54,7 +57,7 @@ export const TableRowContextMenu = memo(function TableRowContextMenu({
         className="text-destructive focus:text-destructive"
       >
         <Trash2 className="mr-2 h-4 w-4" />
-        删除
+        {t("contextMenu.delete")}
       </ContextMenuItem>
     </ContextMenuContent>
   );

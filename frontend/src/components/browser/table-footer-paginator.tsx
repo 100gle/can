@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const DEFAULT_PAGE_SIZES = [30, 50, 100];
 
@@ -55,6 +56,7 @@ export function TableFooterPaginator({
   onPageSizeChange,
   pageSizeOptions = DEFAULT_PAGE_SIZES,
 }: TableFooterPaginatorProps) {
+  const { t } = useTranslation();
   const options = pageSizeOptions.length ? pageSizeOptions : DEFAULT_PAGE_SIZES;
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages || hasMore;
@@ -87,7 +89,10 @@ export function TableFooterPaginator({
     <div className="flex items-center justify-between border-t px-4 py-4">
       {/* Left: Selection count (shadcn pattern) */}
       <div className="text-sm text-muted-foreground whitespace-nowrap">
-        已选择 {selectedCount} / {totalRowCount} 行
+        {t("table.pagination.selection", {
+          selected: selectedCount,
+          total: totalRowCount,
+        })}
       </div>
 
       {/* Right: Page size selector + Pagination buttons */}
@@ -95,15 +100,17 @@ export function TableFooterPaginator({
         {/* Page size selector */}
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">每页</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              {t("table.pagination.perPage")}
+            </span>
             <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
               <SelectTrigger className="h-8 w-full">
-                <SelectValue placeholder="Page size" />
+                <SelectValue placeholder={t("table.pagination.pageSizePlaceholder")} />
               </SelectTrigger>
               <SelectContent align="start">
                 {options.map((option) => (
                   <SelectItem key={option} value={String(option)}>
-                    {option} 条
+                    {t("table.pagination.items", { count: option })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -122,7 +129,7 @@ export function TableFooterPaginator({
             onClick={handlePrev}
             disabled={!canGoPrev || loadingMore}
           >
-            上一页
+            {t("table.pagination.previous")}
           </Button>
           <Button
             variant="outline"
@@ -130,7 +137,7 @@ export function TableFooterPaginator({
             onClick={handleNext}
             disabled={!canGoNext || loadingMore}
           >
-            下一页
+            {t("table.pagination.next")}
           </Button>
         </div>
       </div>

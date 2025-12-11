@@ -15,8 +15,10 @@ import {
   type DatabaseDriver,
   type LogLevel,
 } from "@/state/preferences";
+import { useTranslation } from "react-i18next";
 
 export function AdvancedSettingsCard() {
+  const { t } = useTranslation();
   const advancedOptions = usePreferencesStore((state) => state.advancedOptions);
   const setAdvancedOptions = usePreferencesStore((state) => state.setAdvancedOptions);
   const resetAdvancedOptions = usePreferencesStore((state) => state.resetAdvancedOptions);
@@ -35,18 +37,16 @@ export function AdvancedSettingsCard() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-baseline gap-2">
-          <CardTitle>高级设置</CardTitle>
-          <CardDescription className="text-xs">
-            调整底层行为和日志级别，这些设置仅对当前设备生效
-          </CardDescription>
+          <CardTitle>{t("settings.advanced.title")}</CardTitle>
+          <CardDescription className="text-xs">{t("settings.advanced.desc")}</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-6">
+      <CardContent className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="driver-select">数据库驱动</Label>
+          <div className="space-y-3">
+            <Label htmlFor="driver-select">{t("settings.advanced.driver")}</Label>
             <Select
               value={advancedOptions.databaseDriver}
               onValueChange={(val) =>
@@ -56,24 +56,26 @@ export function AdvancedSettingsCard() {
               }
             >
               <SelectTrigger id="driver-select">
-                <SelectValue placeholder="选择驱动" />
+                <SelectValue placeholder={t("settings.advanced.selectDriver")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sqlite">SQLite (持久化)</SelectItem>
-                <SelectItem value="memory">Memory (临时会话)</SelectItem>
+                <SelectItem value="sqlite">{t("settings.advanced.driverSqlite")}</SelectItem>
+                <SelectItem value="memory">{t("settings.advanced.driverMemory")}</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-[0.8rem] text-muted-foreground">Memory 模式下数据将在重启后丢失。</p>
+            <p className="text-[0.8rem] text-muted-foreground">
+              {t("settings.advanced.driverWarn")}
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="log-select">日志级别</Label>
+          <div className="space-y-3">
+            <Label htmlFor="log-select">{t("settings.advanced.logLevel")}</Label>
             <Select
               value={advancedOptions.logLevel}
               onValueChange={(val) => updateAdvancedOptions({ logLevel: val as LogLevel })}
             >
               <SelectTrigger id="log-select">
-                <SelectValue placeholder="选择级别" />
+                <SelectValue placeholder={t("settings.advanced.selectLevel")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="debug">Debug</SelectItem>
@@ -82,9 +84,7 @@ export function AdvancedSettingsCard() {
                 <SelectItem value="error">Error</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-[0.8rem] text-muted-foreground">
-              通常无需更改，Debug 模式会产生大量日志。
-            </p>
+            <p className="text-[0.8rem] text-muted-foreground">{t("settings.advanced.logWarn")}</p>
           </div>
         </div>
 
@@ -96,7 +96,7 @@ export function AdvancedSettingsCard() {
             onClick={handleResetAdvanced}
             disabled={isDefaultAdvanced}
           >
-            恢复默认设置
+            {t("settings.advanced.reset")}
           </Button>
         </div>
       </CardContent>

@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
 import type { ProviderCapability } from "@/state/accounts";
+import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 type CapabilityGateProps = {
   capability?: ProviderCapability;
@@ -7,13 +8,16 @@ type CapabilityGateProps = {
 };
 
 export const CapabilityGate = ({ capability, children }: CapabilityGateProps) => {
+  const { t } = useTranslation();
   if (!capability || capability.supported !== false) {
     return <>{children}</>;
   }
   return (
     <div className="space-y-4 text-sm text-muted-foreground">
-      <p className="font-medium text-foreground">{capability.name || "此功能"}暂不可用</p>
-      <p>{capability.message || "供应商限制导致该配置暂未开放。"}</p>
+      <p className="font-medium text-foreground">
+        {capability.name || t("bucket.capability.defaultName")} {t("bucket.capability.unavailable")}
+      </p>
+      <p>{capability.message || t("bucket.capability.defaultReason")}</p>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { DashboardBreadcrumb } from "./dashboard-breadcrumb";
 
 type DashboardLayoutProps = {
@@ -21,6 +22,7 @@ export const DashboardLayout = ({
   accountMeta: _accountMeta,
   showSettingsShortcut = true,
 }: DashboardLayoutProps) => {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -61,7 +63,9 @@ export const DashboardLayout = ({
               size="icon"
               className="hidden lg:inline-flex"
               onClick={handleToggleSidebar}
-              aria-label={isSidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              aria-label={
+                isSidebarCollapsed ? t("layout.expandSidebar") : t("layout.collapseSidebar")
+              }
             >
               {isSidebarCollapsed ? (
                 <PanelLeftOpen className="h-4 w-4" />
@@ -80,12 +84,12 @@ export const DashboardLayout = ({
               onClick={handleOpenSettings}
             >
               <Settings2 className="h-4 w-4" />
-              系统设置
+              {t("settings")}
             </Button>
           )}
         </div>
         <div className="lg:hidden border-b border-border/40 bg-card/40 px-4 py-3 text-sm text-muted-foreground">
-          请在桌面端展开侧边栏以获得完整体验
+          {t("layout.mobileWarning")}
         </div>
         <div className="flex-1 overflow-y-auto">{children}</div>
       </div>

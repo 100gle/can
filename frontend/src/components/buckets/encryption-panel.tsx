@@ -12,8 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const EncryptionPanel = () => {
+  const { t } = useTranslation();
   const encryption = useBucketConfigStore((state) => state.encryption);
   const saving = useBucketConfigStore((state) => state.saving.encryption);
   const [enabled, setEnabled] = useState(false);
@@ -42,22 +44,24 @@ export const EncryptionPanel = () => {
   return (
     <div className="space-y-4">
       <header>
-        <h3 className="text-xl font-semibold">默认加密</h3>
-        <p className="text-sm text-muted-foreground">
-          为所有新对象启用默认的服务器端加密。可以选择 S3 托管密钥或 KMS 自定义密钥。
-        </p>
+        <h3 className="text-xl font-semibold">{t("bucket.encryption.title")}</h3>
+        <p className="text-sm text-muted-foreground">{t("bucket.encryption.description")}</p>
       </header>
       <div className="flex items-center justify-between rounded-xl border border-border/60 p-4">
         <div>
-          <p className="font-medium">启用默认加密</p>
-          <p className="text-sm text-muted-foreground">为所有新对象自动应用服务器端加密。</p>
+          <p className="font-medium">{t("bucket.encryption.enable")}</p>
+          <p className="text-sm text-muted-foreground">{t("bucket.encryption.enableDesc")}</p>
         </div>
-        <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="切换默认加密" />
+        <Switch
+          checked={enabled}
+          onCheckedChange={setEnabled}
+          aria-label={t("bucket.encryption.switchAria")}
+        />
       </div>
       {enabled && (
         <div className="space-y-3 rounded-lg border border-border/50 p-4">
           <div className="space-y-2">
-            <Label>算法</Label>
+            <Label>{t("bucket.encryption.algorithm")}</Label>
             <Select
               value={algorithm}
               onValueChange={(value) => setAlgorithm(value as "AES256" | "aws:kms")}
@@ -66,19 +70,19 @@ export const EncryptionPanel = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="AES256">SSE-S3 (AES256)</SelectItem>
-                <SelectItem value="aws:kms">SSE-KMS (aws:kms)</SelectItem>
+                <SelectItem value="AES256">{t("bucket.encryption.algorithm.aes256")}</SelectItem>
+                <SelectItem value="aws:kms">{t("bucket.encryption.algorithm.kms")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {algorithm === "aws:kms" && (
             <div className="space-y-2">
-              <Label htmlFor="kms-key">KMS Key ID</Label>
+              <Label htmlFor="kms-key">{t("bucket.encryption.kmsKeyId")}</Label>
               <Input
                 id="kms-key"
                 value={kmsKeyId}
                 onChange={(event) => setKmsKeyId(event.target.value)}
-                placeholder="arn:aws:kms:region:acct:key/..."
+                placeholder={t("bucket.encryption.kmsKeyIdPlaceholder")}
               />
             </div>
           )}
@@ -86,7 +90,7 @@ export const EncryptionPanel = () => {
       )}
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-        保存
+        {t("bucket.encryption.save")}
       </Button>
     </div>
   );

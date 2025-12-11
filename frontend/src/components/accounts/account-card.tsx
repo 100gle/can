@@ -7,6 +7,7 @@ import type { AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
 import { Cloud, MapPin, Pencil, Server, ShieldCheck, Trash2, type LucideIcon } from "lucide-react";
 import { memo, MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 type AccountCardProps = {
   account: AccountModel;
@@ -25,6 +26,7 @@ export const AccountCard = memo(function AccountCard({
   onDelete,
   layout = "cards",
 }: AccountCardProps) {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
   const isList = layout === "list";
 
@@ -84,30 +86,54 @@ export const AccountCard = memo(function AccountCard({
         >
           {isList ? (
             <>
-              <DetailItem icon={Cloud} label="Provider" value={account.providerLabel} />
-              <DetailItem icon={MapPin} label="Region" value={account.region || "未设置"} />
+              <DetailItem
+                icon={Cloud}
+                label={t("account.card.provider")}
+                value={account.providerLabel}
+              />
+              <DetailItem
+                icon={MapPin}
+                label={t("account.card.region")}
+                value={account.region || t("account.card.regionNotSet")}
+              />
               <DetailItem
                 icon={ShieldCheck}
-                label="SSL"
-                value={account.useSSL ? "已启用" : "关闭"}
+                label={t("account.card.ssl")}
+                value={
+                  account.useSSL ? t("account.card.sslEnabled") : t("account.card.sslDisabled")
+                }
               />
               <DetailItem
                 icon={Server}
-                label="Endpoint"
+                label={t("account.card.endpoint")}
                 value={account.endpoint}
                 className="sm:col-span-3"
               />
             </>
           ) : (
             <>
-              <DetailItem icon={Cloud} label="Provider" value={account.providerLabel} />
-              <DetailItem icon={MapPin} label="Region" value={account.region || "未设置"} />
+              <DetailItem
+                icon={Cloud}
+                label={t("account.card.provider")}
+                value={account.providerLabel}
+              />
+              <DetailItem
+                icon={MapPin}
+                label={t("account.card.region")}
+                value={account.region || t("account.card.regionNotSet")}
+              />
               <DetailItem
                 icon={ShieldCheck}
-                label="SSL"
-                value={account.useSSL ? "已启用" : "关闭"}
+                label={t("account.card.ssl")}
+                value={
+                  account.useSSL ? t("account.card.sslEnabled") : t("account.card.sslDisabled")
+                }
               />
-              <DetailItem icon={Server} label="Endpoint" value={account.endpoint} />
+              <DetailItem
+                icon={Server}
+                label={t("account.card.endpoint")}
+                value={account.endpoint}
+              />
             </>
           )}
         </ul>
@@ -130,10 +156,10 @@ export const AccountCard = memo(function AccountCard({
                   !isList && "rounded-full border-0 bg-transparent shadow-none",
                 )}
                 onClick={handleEdit}
-                aria-label="编辑账户"
+                aria-label={t("account.card.editAria")}
               >
                 <Pencil className="h-4 w-4" />
-                {isList && <span>编辑</span>}
+                {isList && <span>{t("account.card.edit")}</span>}
               </Button>
             )}
             {onDelete && (
@@ -145,10 +171,10 @@ export const AccountCard = memo(function AccountCard({
                   !isList && "rounded-full",
                 )}
                 onClick={handleDelete}
-                aria-label="删除账户"
+                aria-label={t("account.card.deleteAria")}
               >
                 <Trash2 className="h-4 w-4" />
-                {isList && <span>删除</span>}
+                {isList && <span>{t("account.card.delete")}</span>}
               </Button>
             )}
           </div>

@@ -8,8 +8,10 @@ import { objectsStore } from "@/state/objects";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { RefreshCcw, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   // params are strictly typed, but we know we are under /accounts/$accountId
   const { accountId } = useParams({ from: "/accounts/$accountId/dashboard" });
@@ -34,7 +36,7 @@ export default function DashboardPage() {
       ]);
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("刷新超时")), 30000),
+        setTimeout(() => reject(new Error(t("dashboard.refreshTimeout"))), 30000),
       );
 
       await Promise.race([refreshPromise, timeoutPromise]);
@@ -75,31 +77,37 @@ export default function DashboardPage() {
               <PopoverContent className="w-96" align="start">
                 <div className="grid gap-4">
                   <div className="space-y-2">
-                    <h4 className="font-medium leading-none">凭证详情</h4>
-                    <p className="text-sm text-muted-foreground">当前连接的账户配置信息。</p>
+                    <h4 className="font-medium leading-none">{t("dashboard.credentialDetails")}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {t("dashboard.credentialDetailsDesc")}
+                    </p>
                   </div>
                   <div className="grid gap-2 text-sm">
                     <div className="flex items-start justify-between gap-4">
-                      <span className="text-muted-foreground shrink-0">Endpoint:</span>
+                      <span className="text-muted-foreground shrink-0">
+                        {t("dashboard.label.endpoint")}
+                      </span>
                       <span className="font-mono text-xs break-all text-right">
                         {activeAccount.endpoint}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">SSL:</span>
+                      <span className="text-muted-foreground">{t("dashboard.label.ssl")}</span>
                       <span
                         className={activeAccount.useSSL ? "text-emerald-500" : "text-amber-500"}
                       >
-                        {activeAccount.useSSL ? "已开启" : "未启用"}
+                        {activeAccount.useSSL
+                          ? t("dashboard.status.enabled")
+                          : t("dashboard.status.disabled")}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Region:</span>
-                      <span>{activeAccount.region || "自动/未设置"}</span>
+                      <span className="text-muted-foreground">{t("dashboard.label.region")}</span>
+                      <span>{activeAccount.region || t("dashboard.region.auto")}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Port:</span>
-                      <span>{activeAccount.port || "Default"}</span>
+                      <span className="text-muted-foreground">{t("dashboard.label.port")}</span>
+                      <span>{activeAccount.port || t("dashboard.label.default")}</span>
                     </div>
                   </div>
                 </div>
@@ -116,7 +124,7 @@ export default function DashboardPage() {
               disabled={refreshing}
             >
               <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? "刷新中..." : "刷新"}
+              {refreshing ? t("dashboard.refreshing") : t("dashboard.refresh")}
             </Button>
           </div>
 
@@ -128,7 +136,7 @@ export default function DashboardPage() {
               disabled={!activeAccount}
               onClick={() => openDrawer("edit", activeAccount)}
             >
-              编辑账户
+              {t("dashboard.editAccount")}
             </Button>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}

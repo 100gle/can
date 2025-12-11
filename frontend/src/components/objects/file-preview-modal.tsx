@@ -20,6 +20,7 @@ import {
 import { objects as ObjectModels } from "@wailsjs/go/models";
 import { AlertTriangle, Eye, Loader2, Maximize2, Minimize2, Pencil, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
@@ -123,6 +124,7 @@ export function FilePreviewModal({
   bucket,
   object,
 }: FilePreviewModalProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -160,15 +162,15 @@ export function FilePreviewModal({
       return;
     }
     if (!isDesktopMode()) {
-      setError("Bridge 未就绪，无法生成预览链接");
+      setError(t("objects.preview.error.bridge"));
       return;
     }
     if (!accountId || !bucket || !object) {
-      setError("请选择账户与对象后再尝试预览");
+      setError(t("objects.preview.error.target"));
       return;
     }
     if (object.isDir) {
-      setError("暂不支持预览文件夹");
+      setError(t("objects.preview.error.folder"));
       return;
     }
     if (
@@ -177,13 +179,15 @@ export function FilePreviewModal({
       (previewKind === "text" || previewKind === "markdown")
     ) {
       setTextTooLarge(true);
-      setError(`文件超过 ${(MAX_INLINE_SIZE / (1024 * 1024)).toFixed(0)}MB，建议直接下载查看。`);
+      setError(
+        t("objects.preview.error.size", { size: (MAX_INLINE_SIZE / (1024 * 1024)).toFixed(0) }),
+      );
       return;
     }
     void loadPreview(accountId, bucket, object.key);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, accountId, bucket, object?.key]);
+  }, [open, accountId, bucket, object?.key, t]);
 
   const resetState = () => {
     setPreviewUrl(null);
@@ -219,7 +223,7 @@ export function FilePreviewModal({
             latestUrl = url;
             const response = await fetch(url);
             if (!response.ok) {
-              throw new Error("加载文本内容失败");
+              throw new Error(t("objects.preview.error.load"));
             }
             const text = await response.text();
             const contentTypeValue =
@@ -266,7 +270,7 @@ export function FilePreviewModal({
       if (previewKind === "text" || previewKind === "markdown") {
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error("加载文本内容失败");
+          throw new Error(t("objects.preview.error.load"));
         }
         const text = await response.text();
         setTextContent(text);
@@ -274,7 +278,7 @@ export function FilePreviewModal({
       }
     } catch (err) {
       console.error("Preview load failed:", err);
-      const message = err instanceof Error ? err.message : "加载预览失败";
+      const message = err instanceof Error ? err.message : t("objects.preview.error.preview");
       setError(message);
     } finally {
       setLoading(false);
@@ -284,11 +288,11 @@ export function FilePreviewModal({
   const handleSave = async () => {
     if (!accountId || !bucket || !object) return;
     if (!attributesLoaded) {
-      toast.error("尚未加载对象元数据，无法保存。");
+      toast.error(t("objects.preview.error.noMetadata"));
       return;
     }
     if (isFromCache) {
-      toast.error("离线副本无法保存，请恢复网络后重试。");
+      toast.error(t("objects.preview.error.offlineSave"));
       return;
     }
     if (mode !== "edit") {
@@ -296,7 +300,7 @@ export function FilePreviewModal({
       return;
     }
     if (textTooLarge) {
-      toast.error("文件过大，暂不支持在线保存。");
+      toast.error(t("objects.preview.error.saveSize"));
       return;
     }
     try {
@@ -304,7 +308,7 @@ export function FilePreviewModal({
       // Conflict detection
       const latest = await GetObjectAttributes(accountId, bucket, object.key);
       if (etag && latest.object.etag && etag !== latest.object.etag) {
-        toast.error("对象已被其他人修改，请刷新后再试。");
+        toast.error(t("objects.preview.error.conflict"));
         setEtag(latest.object.etag || null);
         setContentType(latest.object.contentType || contentTypeFromExtension(extension));
         await loadPreview(accountId, bucket, object.key);
@@ -318,7 +322,7 @@ export function FilePreviewModal({
         body: payload,
       });
       if (!response.ok) {
-        throw new Error(`保存失败，状态码 ${response.status}`);
+        throw new Error(t("objects.preview.error.save", { status: response.status }));
       }
 
       // Try to restore original content-type if available
@@ -330,11 +334,12 @@ export function FilePreviewModal({
         } as ObjectModels.ObjectAttributesPatch);
       }
       await loadPreview(accountId, bucket, object.key);
-      toast.success("保存成功");
+      toast.success(t("objects.preview.success.save"));
       setMode("preview");
       void objectsStore.refresh();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "保存失败，请稍后重试";
+      const message =
+        err instanceof Error ? err.message : t("objects.preview.error.save", { status: "unknown" });
       toast.error(message);
     } finally {
       setSaving(false);
@@ -346,7 +351,7 @@ export function FilePreviewModal({
       return (
         <div className="flex h-64 items-center justify-center text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          加载预览中...
+          {t("objects.preview.loading")}
         </div>
       );
     }
@@ -363,7 +368,7 @@ export function FilePreviewModal({
       return (
         <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground bg-muted/10 rounded-md border border-border/40">
           <div className="h-10 w-10 animate-pulse rounded-full bg-muted/20" />
-          <p className="text-sm animate-pulse">准备预览中...</p>
+          <p className="text-sm animate-pulse">{t("objects.preview.preparing")}</p>
         </div>
       );
     }
@@ -371,7 +376,7 @@ export function FilePreviewModal({
     if (!previewUrl) {
       return (
         <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-          暂无可用预览。
+          {t("objects.preview.empty")}
         </div>
       );
     }
@@ -398,7 +403,9 @@ export function FilePreviewModal({
               size="icon"
               className="absolute right-2 top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
               onClick={() => setIsFullscreen(!isFullscreen)}
-              title={isFullscreen ? "退出全屏" : "全屏预览"}
+              title={
+                isFullscreen ? t("objects.preview.exitFullscreen") : t("objects.preview.fullscreen")
+              }
             >
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
@@ -446,8 +453,8 @@ export function FilePreviewModal({
         return (
           <Tabs defaultValue="rendered" className="w-full">
             <TabsList className="grid w-60 grid-cols-2">
-              <TabsTrigger value="rendered">渲染</TabsTrigger>
-              <TabsTrigger value="source">源代码</TabsTrigger>
+              <TabsTrigger value="rendered">{t("objects.preview.tabs.render")}</TabsTrigger>
+              <TabsTrigger value="source">{t("objects.preview.tabs.source")}</TabsTrigger>
             </TabsList>
             <TabsContent value="rendered">
               <div className="h-[55vh] overflow-y-auto rounded-md border border-border/60 bg-card p-4">
@@ -489,7 +496,7 @@ export function FilePreviewModal({
         return (
           <div className="flex flex-col items-center gap-2 rounded-md border border-border/60 p-10 text-center text-sm text-muted-foreground">
             <Eye className="h-6 w-6 text-muted-foreground/80" />
-            暂不支持此文件类型的内联预览，请直接下载。
+            {t("objects.preview.unsupported")}
           </div>
         );
     }
@@ -514,7 +521,7 @@ export function FilePreviewModal({
 
         {!isDesktopMode() ? (
           <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border/70 p-6 text-sm text-muted-foreground">
-            桌面 Bridge 未就绪，无法生成预览。请启动核心应用或在桌面模式下使用。
+            {t("objects.preview.bridgeError")}
           </div>
         ) : (
           <>
@@ -523,16 +530,20 @@ export function FilePreviewModal({
             <div className="grid gap-4 rounded-md border border-border/60 p-4 text-sm relative">
               {isFromCache && (
                 <Badge variant="default" className="absolute right-2 top-2">
-                  离线副本
+                  {t("objects.preview.offlineParams")}
                 </Badge>
               )}
               <div className="grid gap-2 md:grid-cols-2">
                 <div>
-                  <Label className="text-xs text-muted-foreground">存储桶</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    {t("objects.preview.bucket")}
+                  </Label>
                   <Input value={bucket ?? ""} readOnly />
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">完整 Key</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    {t("objects.preview.fullKey")}
+                  </Label>
                   <Input value={object?.key ?? ""} readOnly className="font-mono text-xs" />
                 </div>
               </div>
@@ -558,12 +569,16 @@ export function FilePreviewModal({
               </span>
             )}
             {object?.lastModified && (
-              <span>更新于 {new Date(object.lastModified).toLocaleString()}</span>
+              <span>
+                {t("objects.preview.updatedAt", {
+                  time: new Date(object.lastModified).toLocaleString(),
+                })}
+              </span>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              关闭
+              {t("objects.preview.close")}
             </Button>
             {(previewKind === "text" || previewKind === "markdown") && (
               <Button
@@ -573,15 +588,15 @@ export function FilePreviewModal({
               >
                 {saving ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 保存中
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("objects.preview.saving")}
                   </>
                 ) : mode === "edit" ? (
                   <>
-                    <Save className="mr-2 h-4 w-4" /> 保存修改
+                    <Save className="mr-2 h-4 w-4" /> {t("objects.preview.saveChanges")}
                   </>
                 ) : (
                   <>
-                    <Pencil className="mr-2 h-4 w-4" /> 进入编辑
+                    <Pencil className="mr-2 h-4 w-4" /> {t("objects.preview.edit")}
                   </>
                 )}
               </Button>
@@ -589,7 +604,7 @@ export function FilePreviewModal({
             {previewUrl && (
               <Button asChild>
                 <a href={previewUrl} target="_blank" rel="noreferrer">
-                  下载原文件
+                  {t("objects.preview.downloadOriginal")}
                 </a>
               </Button>
             )}

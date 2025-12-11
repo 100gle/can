@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 import { Loader2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type EditableCORSRule = {
   allowedOrigins: string;
@@ -23,6 +24,7 @@ const parseList = (value: string) =>
 const formatList = (items?: string[]) => (items?.length ? items.join(", ") : "");
 
 export const CORSPanel = () => {
+  const { t } = useTranslation();
   const cors = useBucketConfigStore((state) => state.cors);
   const saving = useBucketConfigStore((state) => state.saving.cors);
   const [rules, setRules] = useState<EditableCORSRule[]>([]);
@@ -84,23 +86,23 @@ export const CORSPanel = () => {
   return (
     <div className="space-y-4">
       <header>
-        <h3 className="text-xl font-semibold">CORS 规则</h3>
-        <p className="text-sm text-muted-foreground">
-          管控跨域请求来源、方法和头部，保障对象访问安全。
-        </p>
+        <h3 className="text-xl font-semibold">{t("bucket.cors.title")}</h3>
+        <p className="text-sm text-muted-foreground">{t("bucket.cors.description")}</p>
       </header>
       <div className="space-y-4">
         {rules.map((rule, index) => (
           <div key={index} className="space-y-4 rounded-lg border border-border/50 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">规则 #{index + 1}</p>
+              <p className="text-sm font-semibold">
+                {t("bucket.cors.ruleTitle", { index: index + 1 })}
+              </p>
               <Button variant="ghost" size="icon" onClick={() => handleDelete(index)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <Label>允许域名</Label>
+                <Label>{t("bucket.cors.allowedOrigins")}</Label>
                 <Textarea
                   rows={2}
                   value={rule.allowedOrigins}
@@ -109,7 +111,7 @@ export const CORSPanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>允许方法</Label>
+                <Label>{t("bucket.cors.allowedMethods")}</Label>
                 <Input
                   value={rule.allowedMethods}
                   onChange={(event) => updateRule(index, "allowedMethods", event.target.value)}
@@ -117,7 +119,7 @@ export const CORSPanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>允许头</Label>
+                <Label>{t("bucket.cors.allowedHeaders")}</Label>
                 <Input
                   value={rule.allowedHeaders}
                   onChange={(event) => updateRule(index, "allowedHeaders", event.target.value)}
@@ -125,7 +127,7 @@ export const CORSPanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>暴露头</Label>
+                <Label>{t("bucket.cors.exposeHeaders")}</Label>
                 <Input
                   value={rule.exposeHeaders}
                   onChange={(event) => updateRule(index, "exposeHeaders", event.target.value)}
@@ -133,7 +135,7 @@ export const CORSPanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Max-Age (秒)</Label>
+                <Label>{t("bucket.cors.maxAge")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -145,15 +147,15 @@ export const CORSPanel = () => {
           </div>
         ))}
         {rules.length === 0 && (
-          <p className="text-sm text-muted-foreground">暂未配置 CORS 规则。</p>
+          <p className="text-sm text-muted-foreground">{t("bucket.cors.empty")}</p>
         )}
         <Button variant="outline" onClick={handleAdd}>
-          添加规则
+          {t("bucket.cors.addRule")}
         </Button>
       </div>
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-        保存 CORS
+        {t("bucket.cors.save")}
       </Button>
     </div>
   );

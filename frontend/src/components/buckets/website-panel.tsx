@@ -9,11 +9,13 @@ import { GetBucketWebsite, SetBucketWebsite } from "@wailsjs/go/app/App";
 import { config } from "@wailsjs/go/models";
 import { AlertCircle, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function WebsitePanel() {
   const { accountId, bucketId } = useParams({
     from: "/accounts/$accountId/buckets/$bucketId/settings",
   });
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [indexKey, setIndexKey] = useState("index.html");
@@ -53,7 +55,7 @@ export function WebsitePanel() {
       });
       await SetBucketWebsite(accountId, bucketId, cfg);
     } catch (err) {
-      setError("Failed to update website configuration: " + String(err));
+      setError(t("bucket.website.errorUpdate", { error: String(err) }));
     } finally {
       setLoading(false);
     }
@@ -64,23 +66,23 @@ export function WebsitePanel() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Globe className="h-5 w-5" />
-          静态网站托管
+          {t("bucket.website.title")}
         </CardTitle>
-        <CardDescription>将 Bucket 配置为托管静态网站 (HTML, CSS, JS)。</CardDescription>
+        <CardDescription>{t("bucket.website.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>{t("bucket.website.error")}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
         <div className="flex items-center justify-between space-x-2">
           <Label htmlFor="website-mode" className="flex flex-col space-y-1">
-            <span>启用网站托管</span>
+            <span>{t("bucket.website.enable")}</span>
             <span className="font-normal text-muted-foreground">
-              启用后，Bucket 内容将可以通过 HTTP 访问。
+              {t("bucket.website.enableDesc")}
             </span>
           </Label>
           <Switch
@@ -94,7 +96,7 @@ export function WebsitePanel() {
         {enabled && (
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="index-doc">首页文档 (Index Document)</Label>
+              <Label htmlFor="index-doc">{t("bucket.website.indexDoc")}</Label>
               <Input
                 id="index-doc"
                 value={indexKey}
@@ -104,7 +106,7 @@ export function WebsitePanel() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="error-doc">错误页面 (Error Document)</Label>
+              <Label htmlFor="error-doc">{t("bucket.website.errorDoc")}</Label>
               <Input
                 id="error-doc"
                 value={errorKey}
@@ -118,7 +120,7 @@ export function WebsitePanel() {
 
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={loading}>
-            保存更改
+            {t("bucket.website.save")}
           </Button>
         </div>
       </CardContent>

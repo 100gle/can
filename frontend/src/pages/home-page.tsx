@@ -4,6 +4,7 @@ import { HomeLayout } from "@/components/layouts/home-layout";
 import { showError, showSuccess } from "@/lib/toast";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 
 type DrawerState =
@@ -17,6 +18,7 @@ type DrawerState =
 const CLOSED_DRAWER: DrawerState = { open: false };
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const { accounts, providers } = useAccountsStore(
     useShallow((state) => ({ accounts: state.accounts, providers: state.providers })),
   );
@@ -30,7 +32,7 @@ export default function HomePage() {
 
   const handleExportAccounts = () => {
     if (!accounts.length) {
-      showError("暂无可导出的账户");
+      showError(t("home.export.noAccounts"));
       return;
     }
     void accountsStore
@@ -38,15 +40,15 @@ export default function HomePage() {
       .then((summary) => {
         if (!summary || summary.cancelled) return;
         const message = [
-          `已导出 ${summary.count} 个账户`,
-          summary.filePath ? `保存位置：${summary.filePath}` : null,
+          t("home.export.success", { count: summary.count }),
+          summary.filePath ? t("home.export.savePath", { path: summary.filePath }) : null,
         ]
           .filter(Boolean)
           .join("\n");
         showSuccess(message);
       })
       .catch((err: Error) => {
-        showError(`导出失败: ${err?.message ?? "未知错误"}`);
+        showError(t("home.export.error", { error: err?.message ?? "Unknown error" }));
       });
   };
 
@@ -56,18 +58,18 @@ export default function HomePage() {
       .then((summary) => {
         if (!summary || summary.cancelled) return;
         const message = [
-          `成功导入 ${summary.imported}/${summary.total} 个账户`,
-          summary.skipped ? `跳过 ${summary.skipped} 个` : null,
-          summary.failed ? `失败 ${summary.failed} 个` : null,
+          t("home.import.success", { imported: summary.imported, total: summary.total }),
+          summary.skipped ? t("home.import.skipped", { skipped: summary.skipped }) : null,
+          summary.failed ? t("home.import.failed", { failed: summary.failed }) : null,
         ].filter(Boolean);
         if (summary.issues?.length) {
-          message.push("详情：");
+          message.push(t("home.import.details"));
           summary.issues.forEach((issue) => message.push(`- ${issue}`));
         }
         showSuccess(message.join("\n"));
       })
       .catch((err: Error) => {
-        showError(`导入失败: ${err?.message ?? "未知错误"}`);
+        showError(t("home.import.error", { error: err?.message ?? "Unknown error" }));
       });
   };
 

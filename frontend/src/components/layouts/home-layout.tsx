@@ -1,5 +1,6 @@
 import logo from "@/assets/images/logo-universal.png";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 type HomeLayoutProps = {
   children: ReactNode;
@@ -7,6 +8,7 @@ type HomeLayoutProps = {
 };
 
 export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
+  const { t } = useTranslation("common");
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-background/95 text-foreground">
       <div className="w-full px-4 py-8 sm:px-8">
@@ -25,7 +27,7 @@ export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
                     CAN Object Studio
                   </p>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                    多账户连接中心
+                    {t("home.title")}
                   </h1>
                 </div>
               </div>

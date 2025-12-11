@@ -38,7 +38,8 @@ export const formatSize = (size?: number): string => {
 export const formatDate = (value: any) => {
   if (!value) return "-";
   try {
-    return new Date(value).toLocaleString("zh-CN", {
+    const locale = typeof navigator !== "undefined" ? navigator.language : "en-US";
+    return new Date(value).toLocaleString(locale, {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

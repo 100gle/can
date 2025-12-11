@@ -5,11 +5,19 @@
  * Uses Wails OnFileDrop API to capture files and upload via backend queue.
  */
 
+/**
+ * DropOverlay
+ *
+ * Fullscreen overlay for native file drops from OS.
+ * Uses Wails OnFileDrop API to capture files and upload via backend queue.
+ */
+
 import { useFileDrop } from "@/hooks/useFileDrop";
 import { useObjectsStore } from "@/state/objects";
 import { transfersStore } from "@/state/transfers";
 import { useParams } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import "./drop-overlay.css";
 
@@ -52,6 +60,7 @@ function computeCommonBasePath(paths: string[]): string {
  * Automatically uploads dropped files to the current bucket/prefix.
  */
 export function DropOverlay() {
+  const { t } = useTranslation();
   const { droppedPaths, clearDroppedPaths, isActive } = useFileDrop();
   const { accountId } = useParams({ strict: false });
 
@@ -68,7 +77,7 @@ export function DropOverlay() {
 
     // Need account and bucket context
     if (!accountId || !bucket) {
-      toast.error("请先选择账户和存储桶后再拖拽上传");
+      toast.error(t("dropOverlay.error.noContext"));
       clearDroppedPaths();
       return;
     }
@@ -82,9 +91,9 @@ export function DropOverlay() {
     });
     transfersStore.syncBackendTasks();
 
-    toast.success(`已添加 ${droppedPaths.length} 个文件到上传队列`);
+    toast.success(t("dropOverlay.success.queued", { count: droppedPaths.length }));
     clearDroppedPaths();
-  }, [droppedPaths, accountId, bucket, prefix, basePath, clearDroppedPaths]);
+  }, [droppedPaths, accountId, bucket, prefix, basePath, clearDroppedPaths, t]); // Added t to deps
 
   // Only show overlay when files are being dragged
   if (!isActive) {
@@ -110,8 +119,8 @@ export function DropOverlay() {
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
         </div>
-        <h2 className="drop-overlay-title">拖拽上传</h2>
-        <p className="drop-overlay-subtitle">释放文件以添加到上传队列</p>
+        <h2 className="drop-overlay-title">{t("dropOverlay.title")}</h2>
+        <p className="drop-overlay-subtitle">{t("dropOverlay.subtitle")}</p>
       </div>
     </div>
   );

@@ -14,8 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const PolicyPanel = () => {
+  const { t } = useTranslation();
   const policy = useBucketConfigStore((state) => state.policy);
   const saving = useBucketConfigStore((state) => state.saving.policy);
   const storeError = useBucketConfigStore((state) => state.error);
@@ -63,16 +65,16 @@ export const PolicyPanel = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Bucket 策略</h3>
-          <p className="text-sm text-muted-foreground">使用 JSON 格式定义 Bucket 的访问策略。</p>
+          <h3 className="text-lg font-medium">{t("bucket.policy.title")}</h3>
+          <p className="text-sm text-muted-foreground">{t("bucket.policy.description")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowDeleteConfirm(true)} disabled={!!saving}>
-            清空
+            {t("bucket.policy.clear")}
           </Button>
           <Button onClick={handleSave} disabled={!!saving} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            保存更改
+            {t("bucket.policy.save")}
           </Button>
         </div>
       </div>
@@ -84,7 +86,7 @@ export const PolicyPanel = () => {
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="policy-editor">策略 JSON</Label>
+        <Label htmlFor="policy-editor">{t("bucket.policy.editorLabel")}</Label>
         <Textarea
           id="policy-editor"
           value={json}
@@ -92,20 +94,20 @@ export const PolicyPanel = () => {
           className="font-mono text-sm min-h-[300px]"
           placeholder='{"Version": "2012-10-17", "Statement": []}'
         />
-        <p className="text-xs text-muted-foreground">确保 JSON 格式正确且符合提供商的策略规范。</p>
+        <p className="text-xs text-muted-foreground">{t("bucket.policy.hint")}</p>
       </div>
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确定要删除策略？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，删除后 Bucket 将恢复默认访问权限。
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("bucket.policy.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("bucket.policy.deleteConfirmDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClear}>删除</AlertDialogAction>
+            <AlertDialogCancel>{t("actions.cancel", "取消")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClear}>
+              {t("actions.delete", "删除")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

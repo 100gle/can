@@ -20,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 type ObjectContextMenuProps = {
   object: ObjectModel;
@@ -52,6 +53,8 @@ export function ObjectContextMenu({
   children,
   className,
 }: ObjectContextMenuProps) {
+  const { t } = useTranslation();
+
   const handle = (callback?: () => void) => (event: Event) => {
     event.preventDefault();
     if (!callback) return;
@@ -70,31 +73,31 @@ export function ObjectContextMenu({
           ) : (
             <Square className="mr-2 h-4 w-4" />
           )}
-          {isSelected ? "取消选择" : "选择"}
+          {isSelected ? t("objects.context.deselect") : t("objects.context.select")}
         </ContextMenuItem>
         <ContextMenuItem inset onSelect={handle(onSelectOnly)}>
           <Focus className="mr-2 h-4 w-4" />
-          仅选择此项
+          {t("objects.context.selectOnly")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem inset disabled={!onDownload} onSelect={handle(onDownload)}>
-          <DownloadCloud className="mr-2 h-4 w-4" /> 下载
+          <DownloadCloud className="mr-2 h-4 w-4" /> {t("objects.context.download")}
         </ContextMenuItem>
         <ContextMenuItem inset disabled={!onCopyLink} onSelect={handle(onCopyLink)}>
-          <Link2 className="mr-2 h-4 w-4" /> 复制直链
+          <Link2 className="mr-2 h-4 w-4" /> {t("objects.context.copyLink")}
         </ContextMenuItem>
         <ContextMenuItem inset disabled={!onShare} onSelect={handle(onShare)}>
-          <Share2 className="mr-2 h-4 w-4" /> 分享链接
+          <Share2 className="mr-2 h-4 w-4" /> {t("objects.context.shareLink")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem inset onSelect={handle(onDetails)}>
-          <Info className="mr-2 h-4 w-4" /> 查看详情
+          <Info className="mr-2 h-4 w-4" /> {t("objects.context.details")}
         </ContextMenuItem>
         <ContextMenuItem inset onSelect={handle(onRename)}>
-          <Edit3 className="mr-2 h-4 w-4" /> 重命名
+          <Edit3 className="mr-2 h-4 w-4" /> {t("objects.context.rename")}
         </ContextMenuItem>
         <ContextMenuItem inset disabled={!onMoveCopy} onSelect={handle(onMoveCopy)}>
-          <MoveRight className="mr-2 h-4 w-4" /> 复制 / 移动
+          <MoveRight className="mr-2 h-4 w-4" /> {t("objects.context.moveCopy")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -103,7 +106,7 @@ export function ObjectContextMenu({
           disabled={!onDelete}
           onSelect={handle(onDelete)}
         >
-          <Trash2 className="mr-2 h-4 w-4" /> 删除
+          <Trash2 className="mr-2 h-4 w-4" /> {t("objects.context.delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

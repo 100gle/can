@@ -2,6 +2,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { Download, Eye, Folder, Link2, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { BaseItem } from "./base-item";
 import { deriveLabel, getFileIcon } from "./file-utils";
 
@@ -38,6 +39,7 @@ export function FileItem({
   onCopyLink,
   onDelete,
 }: FileItemProps) {
+  const { t } = useTranslation("common");
   const label = deriveLabel(object.key, prefix);
   const isDir = object.isDir;
 
@@ -57,21 +59,21 @@ export function FileItem({
       {isDir ? (
         <ContextMenuItem onClick={() => onEnterFolder(object.key)}>
           <Folder className="mr-2 h-4 w-4" />
-          进入
+          {t("contextMenu.enter")}
         </ContextMenuItem>
       ) : (
         <>
           <ContextMenuItem onClick={() => onPreview(object.key)}>
             <Eye className="mr-2 h-4 w-4" />
-            预览
+            {t("contextMenu.preview")}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onDownload(object.key)}>
             <Download className="mr-2 h-4 w-4" />
-            下载
+            {t("contextMenu.download")}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onCopyLink(object.key)}>
             <Link2 className="mr-2 h-4 w-4" />
-            复制链接
+            {t("contextMenu.copyLink")}
           </ContextMenuItem>
         </>
       )}
@@ -81,7 +83,7 @@ export function FileItem({
         className="text-destructive focus:text-destructive"
       >
         <Trash2 className="mr-2 h-4 w-4" />
-        删除
+        {t("contextMenu.delete")}
       </ContextMenuItem>
     </>
   );
@@ -102,7 +104,7 @@ export function FileItem({
             "h-5 w-5 border-2 bg-background/95 shadow-md backdrop-blur-sm",
             selected && "opacity-100",
           )}
-          aria-label="Select item"
+          aria-label={t("table.selectItem", "Select item")}
         />
       </div>
     ) : undefined;

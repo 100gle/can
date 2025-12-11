@@ -7,6 +7,7 @@ import {
   type PublicAccessBlockModel,
 } from "@/state/bucketConfig";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type BlockPublicAccessPanelProps = {
   provider: string;
@@ -14,32 +15,23 @@ type BlockPublicAccessPanelProps = {
 
 const TOGGLES: Array<{
   key: keyof PublicAccessBlockModel;
-  label: string;
-  description: string;
 }> = [
   {
     key: "blockPublicAcls",
-    label: "阻止公共 ACL",
-    description: "拒绝继续将 Objects/Bucket ACL 设为 public-read/public-read-write。",
   },
   {
     key: "ignorePublicAcls",
-    label: "忽略公共 ACL",
-    description: "即便历史上存在公共 ACL，也在评估权限时直接忽略。",
   },
   {
     key: "blockPublicPolicy",
-    label: "阻止公共策略",
-    description: "禁止通过 Bucket Policy 暴露匿名访问。",
   },
   {
     key: "restrictPublicBuckets",
-    label: "限制公共 Bucket",
-    description: "即使策略允许，也仅允许受信任的 AWS 账户访问。",
   },
 ];
 
 export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps) => {
+  const { t } = useTranslation();
   const block = useBucketConfigStore((state) => state.publicAccessBlock);
   const saving = useBucketConfigStore((state) => state.saving.publicAccess);
   const [draft, setDraft] = useState<PublicAccessBlockModel | undefined>(block);
@@ -52,8 +44,8 @@ export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps
     return (
       <Card>
         <CardHeader>
-          <CardTitle>阻止公共访问</CardTitle>
-          <CardDescription>正在加载配置...</CardDescription>
+          <CardTitle>{t("bucket.publicAccess.title")}</CardTitle>
+          <CardDescription>{t("bucket.publicAccess.loading")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -70,10 +62,8 @@ export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle>阻止公共访问</CardTitle>
-        <CardDescription>
-          统一关闭公共访问入口，避免因策略/ACL 配置错误导致的数据外泄。
-        </CardDescription>
+        <CardTitle>{t("bucket.publicAccess.title")}</CardTitle>
+        <CardDescription>{t("bucket.publicAccess.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {TOGGLES.map((item) => (
@@ -82,8 +72,10 @@ export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps
             className="flex items-center justify-between gap-4 rounded-xl border p-4"
           >
             <div>
-              <p className="font-medium">{item.label}</p>
-              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <p className="font-medium">{t(`bucket.publicAccess.${item.key}`)}</p>
+              <p className="text-sm text-muted-foreground">
+                {t(`bucket.publicAccess.${item.key}Desc`)}
+              </p>
             </div>
             <Switch
               checked={draft[item.key]}
@@ -93,12 +85,12 @@ export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps
         ))}
         {provider !== "aws" && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            当前供应商为 {provider.toUpperCase()}，部分开关可能由 API 模拟，实际效果以云厂商为准。
+            {t("bucket.publicAccess.providerHint", { provider: provider.toUpperCase() })}
           </p>
         )}
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "保存中..." : "保存设置"}
+            {saving ? t("bucket.publicAccess.saving") : t("bucket.publicAccess.save")}
           </Button>
         </div>
       </CardContent>

@@ -9,6 +9,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ObjectModel } from "@/state/objects";
 import { ColumnDef } from "@tanstack/react-table";
+import { TFunction } from "i18next";
 import {
   ArrowDown,
   ArrowUp,
@@ -39,6 +40,7 @@ export interface FileTableColumnConfig {
   onDownload?: (key: string) => void;
   onCopyLink?: (key: string) => void;
   onDelete?: (key: string) => void;
+  t: TFunction;
 }
 
 export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef<ObjectModel>[] {
@@ -54,6 +56,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
     onDownload,
     onCopyLink,
     onDelete,
+    t,
   } = config;
 
   return [
@@ -72,7 +75,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                 onClearSelection();
               }
             }}
-            ariaLabel="Select all"
+            ariaLabel={t("table.selectAll", "Select all")}
           />
         );
       },
@@ -82,7 +85,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
           <CheckboxCell
             checked={selectedKeys.has(row.original.key)}
             onCheckedChange={() => onToggleSelect(row.original.key)}
-            ariaLabel="Select row"
+            ariaLabel={t("table.selectRow", "Select row")}
             onClick={(e) => e.stopPropagation()}
           />
         );
@@ -102,7 +105,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            名称
+            {t("table.name", "Name")}
             {column.getIsSorted() === "asc" ? (
               <ArrowUp className="h-3.5 w-3.5" />
             ) : column.getIsSorted() === "desc" ? (
@@ -145,7 +148,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            修改日期
+            {t("table.lastModified", "Last Modified")}
             {column.getIsSorted() === "asc" ? (
               <ArrowUp className="h-3.5 w-3.5" />
             ) : column.getIsSorted() === "desc" ? (
@@ -174,7 +177,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            类型
+            {t("table.type", "Type")}
             {column.getIsSorted() === "asc" ? (
               <ArrowUp className="h-3.5 w-3.5" />
             ) : column.getIsSorted() === "desc" ? (
@@ -186,13 +189,18 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
         );
       },
       cell: ({ row }) => {
-        if (row.original.isDir) return <span className="text-muted-foreground">文件夹</span>;
+        if (row.original.isDir)
+          return <span className="text-muted-foreground">{t("table.folder", "Folder")}</span>;
         const filename = row.original.key.split("/").pop() || "";
         const parts = filename.split(".");
 
         if (parts.length > 1) {
           const ext = parts.pop()?.toUpperCase();
-          return <span className="text-muted-foreground">{ext} 文件</span>;
+          return (
+            <span className="text-muted-foreground">
+              {t("table.fileType", "{{ext}} File", { ext })}
+            </span>
+          );
         }
         return <span className="text-muted-foreground">-</span>;
       },
@@ -209,7 +217,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            大小
+            {t("table.size", "Size")}
             {column.getIsSorted() === "asc" ? (
               <ArrowUp className="h-3.5 w-3.5" />
             ) : column.getIsSorted() === "desc" ? (
@@ -233,7 +241,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
     },
     {
       id: "actions",
-      header: () => <span className="text-muted-foreground">操作</span>,
+      header: () => <span className="text-muted-foreground">{t("table.actions", "Actions")}</span>,
       cell: ({ row }) => {
         const item = row.original;
         const isDir = item.isDir;
@@ -255,7 +263,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>预览</TooltipContent>
+                <TooltipContent>{t("actions.preview", "Preview")}</TooltipContent>
               </Tooltip>
             )}
             {!isDir && onDownload && (
@@ -273,7 +281,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>下载</TooltipContent>
+                <TooltipContent>{t("actions.download", "Download")}</TooltipContent>
               </Tooltip>
             )}
             <DropdownMenu>
@@ -285,7 +293,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                     </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>更多操作</TooltipContent>
+                <TooltipContent>{t("actions.more", "More Actions")}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
                 {!isDir && onCopyLink && (
@@ -296,7 +304,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                     }}
                   >
                     <Link2 className="mr-2 h-4 w-4" />
-                    复制链接
+                    {t("actions.copyLink", "Copy Link")}
                   </DropdownMenuItem>
                 )}
                 {onDelete && (
@@ -310,7 +318,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                       }}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      删除
+                      {t("actions.delete", "Delete")}
                     </DropdownMenuItem>
                   </>
                 )}

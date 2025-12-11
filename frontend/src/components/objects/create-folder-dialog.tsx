@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { FolderPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type CreateFolderDialogProps = {
   open: boolean;
@@ -19,6 +20,7 @@ type CreateFolderDialogProps = {
 };
 
 export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogProps) {
+  const { t } = useTranslation();
   const [folderName, setFolderName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -34,9 +36,9 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
 
   const validate = (name: string): string | undefined => {
     const trimmed = name.trim();
-    if (!trimmed) return "文件夹名称不能为空";
-    if (trimmed.includes("/")) return "文件夹名称不能包含斜杠";
-    if (trimmed === "." || trimmed === "..") return "无效的文件夹名称";
+    if (!trimmed) return t("objects.createFolder.error.empty");
+    if (trimmed.includes("/")) return t("objects.createFolder.error.slash");
+    if (trimmed === "." || trimmed === "..") return t("objects.createFolder.error.invalid");
     const normalized = trimmed.replace(/\/$/, "");
     const duplicateExists = objects.some((object) => {
       if (!object.isDir) return false;
@@ -44,7 +46,7 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
       const relative = object.key.slice(prefix.length).replace(/\/$/, "");
       return relative === normalized;
     });
-    if (duplicateExists) return "当前目录已存在同名文件夹";
+    if (duplicateExists) return t("objects.createFolder.error.exists");
     return undefined;
   };
 
@@ -62,7 +64,7 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
       await objectsStore.createFolder(folderName.trim());
       handleClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "创建文件夹失败");
+      setError(e instanceof Error ? e.message : t("objects.createFolder.error.failed"));
     } finally {
       setLoading(false);
     }
@@ -74,14 +76,14 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderPlus className="h-5 w-5" />
-            新建文件夹
+            {t("objects.createFolder.title")}
           </DialogTitle>
-          <DialogDescription>在当前目录下创建一个新文件夹（虚拟目录）</DialogDescription>
+          <DialogDescription>{t("objects.createFolder.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="folder-name">文件夹名称</Label>
+            <Label htmlFor="folder-name">{t("objects.createFolder.label.name")}</Label>
             <Input
               id="folder-name"
               value={folderName}
@@ -89,7 +91,7 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
                 setFolderName(e.target.value);
                 setError(undefined);
               }}
-              placeholder="输入文件夹名称"
+              placeholder={t("objects.createFolder.placeholder.name")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !loading) {
                   handleSubmit();
@@ -103,11 +105,11 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            取消
+            {t("objects.createFolder.button.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !folderName.trim()}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            创建
+            {t("objects.createFolder.button.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

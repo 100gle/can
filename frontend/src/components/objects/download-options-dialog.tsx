@@ -17,6 +17,7 @@ import { SelectLocalFolder } from "@wailsjs/go/app/App";
 import { objects as ObjectModels } from "@wailsjs/go/models";
 import { FolderSearch2, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type DownloadOptionsDialogProps = {
   open: boolean;
@@ -47,6 +48,7 @@ export function DownloadOptionsDialog({
   objects,
   prefix,
 }: DownloadOptionsDialogProps) {
+  const { t } = useTranslation();
   const bucket = useObjectsStore((s) => s.bucket);
   const [targetDir, setTargetDir] = useState<string>("");
   const [archiveName, setArchiveName] = useState<string>("");
@@ -73,13 +75,13 @@ export function DownloadOptionsDialog({
 
   const handlePickDirectory = async () => {
     try {
-      const dir = await SelectLocalFolder("选择保存目录");
+      const dir = await SelectLocalFolder(t("objects.downloadOptions.dialog.selectDir"));
       if (dir) {
         setTargetDir(dir);
       }
     } catch (err) {
       console.error(err);
-      showWarning("当前环境不支持选择本地目录，请手动输入路径");
+      showWarning(t("objects.downloadOptions.warning.noLocalSelect"));
     }
   };
 
@@ -107,7 +109,7 @@ export function DownloadOptionsDialog({
       objectsStore.clearSelection();
       handleClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "发起下载失败");
+      setError(e instanceof Error ? e.message : t("objects.downloadOptions.error.failed"));
     } finally {
       setSubmitting(false);
     }
@@ -119,52 +121,53 @@ export function DownloadOptionsDialog({
     <Dialog open={open} onOpenChange={(value) => (!value ? handleClose() : onOpenChange(value))}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>批量下载</DialogTitle>
+          <DialogTitle>{t("objects.downloadOptions.title")}</DialogTitle>
           <DialogDescription>
-            将 {objects.length} 个对象打包为单个归档并落地到本地目录。
+            {t("objects.downloadOptions.description", { count: objects.length })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="rounded-md border p-3 text-sm">
             <div className="flex items-center justify-between">
-              <span>选择的对象</span>
+              <span>{t("objects.downloadOptions.label.selected")}</span>
               <span className="font-medium">{objects.length}</span>
             </div>
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>预估总大小</span>
+              <span>{t("objects.downloadOptions.label.totalSize")}</span>
               <span>{formatSize(totalSize)}</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>保存目录</Label>
+            <Label>{t("objects.downloadOptions.label.targetDir")}</Label>
             <div className="flex items-center gap-2">
               <Input
                 value={targetDir}
                 onChange={(e) => setTargetDir(e.target.value)}
-                placeholder="例如 /Users/me/Downloads"
+                placeholder={t("objects.downloadOptions.placeholder.targetDir")}
               />
               <Button variant="outline" onClick={handlePickDirectory}>
-                <FolderSearch2 className="mr-2 h-4 w-4" /> 浏览
+                <FolderSearch2 className="mr-2 h-4 w-4" />{" "}
+                {t("objects.downloadOptions.button.browse")}
               </Button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>归档文件名</Label>
+            <Label>{t("objects.downloadOptions.label.archiveName")}</Label>
             <Input
               value={archiveName}
               onChange={(e) => setArchiveName(e.target.value)}
-              placeholder="可选，默认自动生成"
+              placeholder={t("objects.downloadOptions.placeholder.archiveName")}
             />
             <p className="text-xs text-muted-foreground">
-              留空将以“download-时间戳.zip”的格式生成。
+              {t("objects.downloadOptions.hint.archiveName")}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label>冲突策略</Label>
+            <Label>{t("objects.downloadOptions.label.conflict")}</Label>
             <RadioGroup
               value={conflictStrategy}
               onValueChange={(value) => setConflictStrategy(value as typeof conflictStrategy)}
@@ -176,9 +179,11 @@ export function DownloadOptionsDialog({
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="overwrite" id="overwrite" />
-                  覆盖
+                  {t("objects.downloadOptions.conflict.overwrite")}
                 </div>
-                <p className="text-xs text-muted-foreground">目标存在同名文件时直接覆盖。</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("objects.downloadOptions.conflict.overwriteDesc")}
+                </p>
               </Label>
               <Label
                 className="flex cursor-pointer flex-col gap-1 rounded-md border p-3"
@@ -186,9 +191,11 @@ export function DownloadOptionsDialog({
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="rename" id="rename" />
-                  自动重命名
+                  {t("objects.downloadOptions.conflict.rename")}
                 </div>
-                <p className="text-xs text-muted-foreground">保留原文件，并为新文件追加后缀。</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("objects.downloadOptions.conflict.renameDesc")}
+                </p>
               </Label>
             </RadioGroup>
           </div>
@@ -198,11 +205,11 @@ export function DownloadOptionsDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={submitting}>
-            取消
+            {t("objects.downloadOptions.button.cancel")}
           </Button>
           <Button onClick={handleDownload} disabled={disableSubmit}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            开始下载
+            {t("objects.downloadOptions.button.start")}
           </Button>
         </DialogFooter>
       </DialogContent>

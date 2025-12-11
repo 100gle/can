@@ -38,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 export interface BrowserToolbarProps {
@@ -95,6 +96,7 @@ export function BrowserToolbar({
   onMoveCopyClick,
   onDeleteSelectedClick,
 }: BrowserToolbarProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex h-14 items-center border-b border-border/40 px-4">
       {/* Breadcrumbs - 1/2 Width */}
@@ -103,7 +105,7 @@ export function BrowserToolbar({
           {level === "search" ? (
             <span className="flex items-center gap-2 text-muted-foreground">
               <Search className="h-4 w-4" />
-              高级搜索
+              {t("toolbar.search.advanced")}
             </span>
           ) : (
             <Breadcrumb>
@@ -143,7 +145,7 @@ export function BrowserToolbar({
           <div className="w-full flex justify-end">
             <Button variant="ghost" size="sm" className="gap-1" onClick={onCloseSearch}>
               <X className="h-4 w-4" />
-              关闭搜索
+              {t("toolbar.search.close")}
             </Button>
           </div>
         ) : (
@@ -154,7 +156,11 @@ export function BrowserToolbar({
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={level === "buckets" ? "搜索存储桶..." : "搜索文件..."}
+                  placeholder={
+                    level === "buckets"
+                      ? t("toolbar.search.placeholder.buckets")
+                      : t("toolbar.search.placeholder.files")
+                  }
                   value={searchTerm}
                   onChange={(e) => onSearchTermChange(e.target.value)}
                   className="h-8 pl-8 pr-8 w-full"
@@ -180,7 +186,7 @@ export function BrowserToolbar({
                           <SlidersHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>高级搜索</TooltipContent>
+                      <TooltipContent>{t("toolbar.search.advanced")}</TooltipContent>
                     </Tooltip>
                   )}
                 </div>
@@ -192,11 +198,13 @@ export function BrowserToolbar({
                   <TooltipTrigger asChild>
                     <Badge variant="default" className="h-8 gap-1 px-2 whitespace-nowrap shrink-0">
                       <WifiOff className="h-3.5 w-3.5" />
-                      <span className="hidden xl:inline">离线缓存</span>
+                      <span className="hidden xl:inline">{t("toolbar.badge.offline")}</span>
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
-                    数据来自离线缓存 · 上次同步: {new Date(lastSync || 0).toLocaleString()}
+                    {t("toolbar.badge.offlineTooltip", {
+                      time: new Date(lastSync || 0).toLocaleString(),
+                    })}
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -209,7 +217,7 @@ export function BrowserToolbar({
                   className="h-8 w-8 rounded-r-none"
                   onClick={() => onViewModeChange("grid")}
                   aria-pressed={viewMode === "grid"}
-                  title="网格视图 (默认)"
+                  title={t("toolbar.viewMode.grid")}
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
@@ -219,7 +227,7 @@ export function BrowserToolbar({
                   className="h-8 w-8 rounded-none border-x border-border/20"
                   onClick={() => onViewModeChange("list")}
                   aria-pressed={viewMode === "list"}
-                  title="平铺列表"
+                  title={t("toolbar.viewMode.list")}
                 >
                   <List className="h-4 w-4" />
                 </Button>
@@ -229,7 +237,7 @@ export function BrowserToolbar({
                   className="h-8 w-8 rounded-l-none"
                   onClick={() => onViewModeChange("tree")}
                   aria-pressed={viewMode === "tree"}
-                  title="树形视图"
+                  title={t("toolbar.viewMode.tree")}
                 >
                   <FolderTree className="h-4 w-4" />
                 </Button>
@@ -241,7 +249,7 @@ export function BrowserToolbar({
               {level === "objects" && canCreateSymlink && (
                 <Button variant="outline" size="sm" className="h-8 gap-1" onClick={onSymlinkClick}>
                   <Link2 className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline truncate">软链接</span>
+                  <span className="hidden lg:inline truncate">{t("toolbar.action.symlink")}</span>
                 </Button>
               )}
               {level === "objects" && (
@@ -257,7 +265,7 @@ export function BrowserToolbar({
                   ) : (
                     <Upload className="h-3.5 w-3.5" />
                   )}
-                  <span className="hidden lg:inline truncate">上传</span>
+                  <span className="hidden lg:inline truncate">{t("toolbar.action.upload")}</span>
                 </Button>
               )}
               {selectedKeys.size > 0 && level === "objects" && (
@@ -265,7 +273,9 @@ export function BrowserToolbar({
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 gap-1.5">
                       <MoreHorizontal className="h-3.5 w-3.5" />
-                      <span className="text-sm">已选 {selectedKeys.size} 项</span>
+                      <span className="text-sm">
+                        {t("toolbar.action.selected", { count: selectedKeys.size })}
+                      </span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-48 p-1" align="end">
@@ -275,18 +285,18 @@ export function BrowserToolbar({
                       className="w-full justify-start gap-2 h-9"
                       onClick={() => {
                         if (selectedKeys.size === 0) {
-                          toast.error("请选择至少一个项目");
+                          toast.error(t("explorer.message.selectAtLeastOne"));
                           return;
                         }
                         if (isDesktopMode()) {
                           onDownloadClick();
                         } else {
-                          toast.error("Web 端暂不支持批量下载");
+                          toast.error(t("explorer.message.webBatchDownloadUnsupported"));
                         }
                       }}
                     >
                       <Download className="h-4 w-4" />
-                      <span>下载</span>
+                      <span>{t("toolbar.action.download")}</span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -295,7 +305,7 @@ export function BrowserToolbar({
                       onClick={onMoveCopyClick}
                     >
                       <Move className="h-4 w-4" />
-                      <span>移动</span>
+                      <span>{t("toolbar.action.move")}</span>
                     </Button>
                     <div className="h-px bg-border my-1" />
                     <Button
@@ -309,7 +319,7 @@ export function BrowserToolbar({
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
-                      <span>删除</span>
+                      <span>{t("toolbar.action.delete")}</span>
                     </Button>
                   </PopoverContent>
                 </Popover>
@@ -322,7 +332,7 @@ export function BrowserToolbar({
                   onClick={onCreateBucketClick}
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  <span className="truncate">新建桶</span>
+                  <span className="truncate">{t("toolbar.action.createBucket")}</span>
                 </Button>
               )}
             </div>

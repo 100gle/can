@@ -1,10 +1,9 @@
 "use client";
 
-import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon } from "lucide-react";
+import * as React from "react";
 
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -26,9 +26,11 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
   );
 }
 
+import { useTranslation } from "react-i18next";
+
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title,
+  description,
   children,
   className,
   showCloseButton = true,
@@ -39,11 +41,15 @@ function CommandDialog({
   className?: string;
   showCloseButton?: boolean;
 }) {
+  const { t } = useTranslation();
+  const safeTitle = title || t("ui.command.title");
+  const safeDesc = description || t("ui.command.description");
+
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>{safeTitle}</DialogTitle>
+        <DialogDescription>{safeDesc}</DialogDescription>
       </DialogHeader>
       <DialogContent
         className={cn("overflow-hidden p-0", className)}
@@ -151,11 +157,11 @@ function CommandShortcut({ className, ...props }: React.ComponentProps<"span">) 
 export {
   Command,
   CommandDialog,
-  CommandInput,
-  CommandList,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
-  CommandShortcut,
+  CommandList,
   CommandSeparator,
+  CommandShortcut,
 };

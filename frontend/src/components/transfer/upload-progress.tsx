@@ -1,9 +1,10 @@
-import { useMemo } from "react";
-import { Pause, Play, X } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useTransfersStore, transfersStore } from "@/state/transfers";
+import { transfersStore, useTransfersStore } from "@/state/transfers";
+import { Pause, Play, X } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 const activeStatuses = new Set<TaskStatus>(["pending", "running", "paused"]);
 
@@ -18,6 +19,7 @@ const formatBytes = (bytes: number) => {
 };
 
 export const UploadProgress = () => {
+  const { t } = useTranslation();
   const taskMap = useTransfersStore((state) => state.tasks);
   const tasks = useMemo(() => Object.values(taskMap), [taskMap]);
   const summary = useMemo(() => {
@@ -38,9 +40,11 @@ export const UploadProgress = () => {
     <Card className="p-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">传输队列</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">
+            {t("transfer.queue")}
+          </p>
           <h3 className="text-lg font-semibold">
-            {running.length} 个任务 · {percent}%
+            {t("transfer.tasksSummary", { count: running.length, percent })}
           </h3>
           <p className="text-sm text-muted-foreground">
             {formatBytes(progress)} / {formatBytes(total)}
@@ -48,13 +52,13 @@ export const UploadProgress = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => transfersStore.syncBackendTasks()}>
-            刷新
+            {t("transfer.refresh")}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => transfersStore.clearCompleted()}
-            title="清除已完成任务"
+            title={t("transfer.clearCompleted")}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -74,7 +78,10 @@ export const UploadProgress = () => {
                 <div>
                   <p className="font-semibold">{task.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {task.type === "upload" ? "上传" : "下载"} · {task.bucket}
+                    {task.type === "upload"
+                      ? t("transfer.type.upload")
+                      : t("transfer.type.download")}{" "}
+                    · {task.bucket}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -83,7 +90,7 @@ export const UploadProgress = () => {
                       size="icon"
                       variant="ghost"
                       onClick={() => transfersStore.resumeTask(task.id)}
-                      title="继续"
+                      title={t("transfer.resume")}
                     >
                       <Play className="h-4 w-4" />
                     </Button>
@@ -92,7 +99,7 @@ export const UploadProgress = () => {
                       size="icon"
                       variant="ghost"
                       onClick={() => transfersStore.pauseTask(task.id)}
-                      title="暂停"
+                      title={t("transfer.pause")}
                     >
                       <Pause className="h-4 w-4" />
                     </Button>
@@ -101,7 +108,7 @@ export const UploadProgress = () => {
                     size="icon"
                     variant="ghost"
                     onClick={() => transfersStore.cancelTask(task.id)}
-                    title="取消"
+                    title={t("transfer.cancel")}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -116,10 +123,10 @@ export const UploadProgress = () => {
                 </span>
                 <span>
                   {task.status === "paused"
-                    ? "已暂停"
+                    ? t("transfer.status.paused")
                     : task.speed
                       ? `${formatBytes(task.speed)}/s`
-                      : "准备中"}
+                      : t("transfer.status.preparing")}
                 </span>
               </div>
             </div>

@@ -13,6 +13,7 @@ import { objectsStore, useObjectsStore } from "@/state/objects";
 import { ListObjects } from "@wailsjs/go/app/App";
 import { Copy, FolderInput, Loader2, MoveRight } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FolderPicker } from "./folder-picker";
 
 type MoveCopyDialogProps = {
@@ -22,6 +23,7 @@ type MoveCopyDialogProps = {
 };
 
 export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: MoveCopyDialogProps) {
+  const { t } = useTranslation();
   const { accountId, bucket: currentBucket, selectedKeys } = useObjectsStore((s) => s);
   const [mode, setMode] = useState<"move" | "copy">(defaultMode);
   const [targetBucket, setTargetBucket] = useState<string>("");
@@ -50,6 +52,8 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
       return new Set(result.objects.filter((object) => !object.isDir).map((object) => object.key));
     } catch (e) {
       console.warn("加载目标目录失败", e);
+      // We don't show error to user here, just return empty set to fallback to safe behavior or just fail later
+      // But we can log it or show a toast if we wanted, but the original code just console.warn
       return new Set<string>();
     }
   };
@@ -121,7 +125,7 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
 
   const handleConfirm = async () => {
     if (!accountId || !currentBucket || !targetBucket) {
-      setError("请选择目标 Bucket");
+      setError(t("objects.moveCopy.error.noTarget"));
       return;
     }
     setLoading(true);
@@ -164,7 +168,7 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
           }
         }
         if (requests.length === 0) {
-          setError("没有可执行的移动任务，可能全部因冲突被跳过。");
+          setError(t("objects.moveCopy.error.noTasks"));
           return;
         }
         await objectsStore.moveObjects(requests);
@@ -187,14 +191,17 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
       await objectsStore.refresh();
       if (skipped.length > 0) {
         setError(
-          `以下 ${skipped.length} 个对象因冲突策略被跳过：${skipped.slice(0, 3).join(", ")}`,
+          t("objects.moveCopy.error.skipped", {
+            count: skipped.length,
+            files: skipped.slice(0, 3).join(", "),
+          }),
         );
         return;
       }
       objectsStore.clearSelection();
       handleClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "操作失败");
+      setError(e instanceof Error ? e.message : t("objects.moveCopy.error.failed"));
     } finally {
       setLoading(false);
     }
@@ -207,12 +214,14 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>批量{mode === "copy" ? "复制" : "移动"}</DialogTitle>
+          <DialogTitle>
+            {mode === "copy" ? t("objects.moveCopy.title.copy") : t("objects.moveCopy.title.move")}
+          </DialogTitle>
         </DialogHeader>
 
         {pickingFolder ? (
           <div className="py-2">
-            <div className="mb-4 text-sm font-medium">请选择目标位置：</div>
+            <div className="mb-4 text-sm font-medium">{t("objects.moveCopy.picker.title")}</div>
             <FolderPicker
               accountId={accountId || ""}
               initialBucket={targetBucket}
@@ -225,7 +234,7 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
             />
             <div className="mt-4 flex justify-end">
               <Button variant="ghost" onClick={() => setPickingFolder(false)}>
-                返回
+                {t("objects.moveCopy.picker.back")}
               </Button>
             </div>
           </div>
@@ -238,10 +247,10 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
             >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="copy" className="gap-2">
-                  <Copy className="h-4 w-4" /> 复制
+                  <Copy className="h-4 w-4" /> {t("objects.moveCopy.tabs.copy")}
                 </TabsTrigger>
                 <TabsTrigger value="move" className="gap-2">
-                  <MoveRight className="h-4 w-4" /> 移动
+                  <MoveRight className="h-4 w-4" /> {t("objects.moveCopy.tabs.move")}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -249,24 +258,26 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
             <div className="space-y-4 rounded-lg border p-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <Label>已选对象</Label>
-                  <div className="text-sm text-muted-foreground">{selectedCount} 个文件/文件夹</div>
+                  <Label>{t("objects.moveCopy.label.selected")}</Label>
+                  <div className="text-sm text-muted-foreground">
+                    {t("objects.moveCopy.label.count", { count: selectedCount })}
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>目标位置</Label>
+                <Label>{t("objects.moveCopy.label.target")}</Label>
                 <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
                   <FolderInput className="h-4 w-4 text-muted-foreground" />
                   <span className="flex-1 truncate font-mono">{targetPathDisplay}</span>
                   <Button variant="link" size="sm" onClick={() => setPickingFolder(true)}>
-                    更改
+                    {t("objects.moveCopy.button.change")}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <Label>冲突策略</Label>
+                <Label>{t("objects.moveCopy.label.conflict")}</Label>
                 <RadioGroup
                   value={conflictStrategy}
                   onValueChange={(v) => setConflictStrategy(v as any)}
@@ -274,20 +285,19 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="skip" id="skip" />
-                    <Label htmlFor="skip">跳过</Label>
+                    <Label htmlFor="skip">{t("objects.moveCopy.conflict.skip")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="overwrite" id="overwrite" />
-                    <Label htmlFor="overwrite">覆盖</Label>
+                    <Label htmlFor="overwrite">{t("objects.moveCopy.conflict.overwrite")}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="rename" id="rename" />
-                    <Label htmlFor="rename">自动重命名</Label>
+                    <Label htmlFor="rename">{t("objects.moveCopy.conflict.rename")}</Label>
                   </div>
                 </RadioGroup>
                 <p className="text-xs text-muted-foreground">
-                  当目标位置存在同名文件时的处理方式
-                  (当前版本后端API可能暂不支持策略参数，默认行为取决于后端实现)
+                  {t("objects.moveCopy.conflict.hint")}
                 </p>
               </div>
             </div>
@@ -299,11 +309,11 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
         {!pickingFolder && (
           <DialogFooter>
             <Button variant="outline" onClick={handleClose} disabled={loading}>
-              取消
+              {t("objects.details.button.cancel")}
             </Button>
             <Button onClick={handleConfirm} disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              确定
+              {t("objects.moveCopy.button.confirm")}
             </Button>
           </DialogFooter>
         )}

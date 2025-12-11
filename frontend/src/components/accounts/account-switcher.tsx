@@ -6,20 +6,15 @@ import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 type ConnectionStatus = "ok" | "error" | "pending" | "connecting";
 
-const statusConfig: Record<ConnectionStatus, { dot: string; pulse?: boolean; label: string }> = {
-  ok: { dot: "bg-emerald-500", pulse: true, label: "连接正常" },
-  error: { dot: "bg-red-500", label: "连接异常" },
-  pending: { dot: "bg-muted-foreground/50", label: "未检测" },
-  connecting: { dot: "bg-amber-500", pulse: true, label: "连接中..." },
-};
-
 const CONNECTION_CHECK_INTERVAL = 30_000; // 30 seconds
 
 export const AccountSwitcher = () => {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
   const accounts = useAccountsStore((state) => state.accounts);
   const activeAccountId = useAccountsStore((state) => state.activeAccountId);
@@ -98,16 +93,23 @@ export const AccountSwitcher = () => {
     }
 
     void accountsStore.testConnection(accountId).catch((error) => {
-      const description = error instanceof Error ? error.message : "连接测试失败";
-      toast.error("连接测试失败", { description });
+      const description = error instanceof Error ? error.message : t("account.switcher.testFailed");
+      toast.error(t("account.switcher.testFailed"), { description });
     });
+  };
+
+  const statusConfig: Record<ConnectionStatus, { dot: string; pulse?: boolean; label: string }> = {
+    ok: { dot: "bg-emerald-500", pulse: true, label: t("account.status.ok") },
+    error: { dot: "bg-red-500", label: t("account.status.error") },
+    pending: { dot: "bg-muted-foreground/50", label: t("account.switcher.idle") },
+    connecting: { dot: "bg-amber-500", pulse: true, label: t("account.switcher.connecting") },
   };
 
   if (!accounts.length) {
     return (
       <div className="rounded-lg border border-dashed border-border/50 p-4 text-sm text-muted-foreground">
-        <p>暂无账户</p>
-        <p>从首页或顶部按钮创建一个账户。</p>
+        <p>{t("account.switcher.noAccounts")}</p>
+        <p>{t("account.switcher.createHint")}</p>
       </div>
     );
   }

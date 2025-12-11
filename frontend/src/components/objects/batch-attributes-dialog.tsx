@@ -22,6 +22,7 @@ import { objectsStore, useObjectsStore } from "@/state/objects";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { Loader2, ShieldCheck, Tags, Warehouse } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type KeyValue = { key: string; value: string; id: string };
 
@@ -50,6 +51,7 @@ const buildRecord = (entries: KeyValue[]) => {
 };
 
 export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttributesDialogProps) {
+  const { t } = useTranslation();
   const bucket = useObjectsStore((s) => s.bucket);
   const [activeTab, setActiveTab] = useState<"tags" | "storage" | "acl">("tags");
   const [tagEntries, setTagEntries] = useState<KeyValue[]>([
@@ -111,7 +113,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
       const outcome = await objectsStore.batchUpdateAttributes(patches);
       setResult(outcome);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "批量更新失败");
+      setError(e instanceof Error ? e.message : t("objects.batchAttributes.error.general"));
     } finally {
       setSubmitting(false);
     }
@@ -137,40 +139,42 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
     <Dialog open={open} onOpenChange={(value) => (!value ? handleClose() : onOpenChange(value))}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>批量编辑属性</DialogTitle>
+          <DialogTitle>{t("objects.batchAttributes.title")}</DialogTitle>
           <DialogDescription>
-            一次性更新 {selectedCount} 个对象的标签、存储类型或 ACL。
+            {t("objects.batchAttributes.description", { count: selectedCount })}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="tags" className="gap-2">
-              <Tags className="h-4 w-4" /> 标签
+              <Tags className="h-4 w-4" /> {t("objects.batchAttributes.tabs.tags")}
             </TabsTrigger>
             <TabsTrigger value="storage" className="gap-2">
-              <Warehouse className="h-4 w-4" /> 存储类型
+              <Warehouse className="h-4 w-4" /> {t("objects.batchAttributes.tabs.storage")}
             </TabsTrigger>
             <TabsTrigger value="acl" className="gap-2">
-              <ShieldCheck className="h-4 w-4" /> ACL
+              <ShieldCheck className="h-4 w-4" /> {t("objects.batchAttributes.tabs.acl")}
             </TabsTrigger>
           </TabsList>
 
           <div className="mt-4 space-y-4">
             <TabsContent value="tags" className="space-y-4">
-              <p className="text-sm text-muted-foreground">为所有选中对象设置统一的标签键值对。</p>
+              <p className="text-sm text-muted-foreground">
+                {t("objects.batchAttributes.tags.description")}
+              </p>
               <div className="space-y-2">
                 {tagEntries.map((entry) => (
                   <div key={entry.id} className="grid grid-cols-10 gap-2">
                     <Input
                       className="col-span-4"
-                      placeholder="Key"
+                      placeholder={t("objects.batchAttributes.tags.placeholder.key")}
                       value={entry.key}
                       onChange={(e) => updateTagRow(entry.id, { key: e.target.value })}
                     />
                     <Input
                       className="col-span-5"
-                      placeholder="Value"
+                      placeholder={t("objects.batchAttributes.tags.placeholder.value")}
                       value={entry.value}
                       onChange={(e) => updateTagRow(entry.id, { value: e.target.value })}
                     />
@@ -181,22 +185,22 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
                       onClick={() => removeTagRow(entry.id)}
                       disabled={tagEntries.length === 1}
                     >
-                      删除
+                      {t("objects.batchAttributes.tags.delete")}
                     </Button>
                   </div>
                 ))}
               </div>
               <Button variant="outline" size="sm" onClick={addTagRow}>
-                添加标签
+                {t("objects.batchAttributes.tags.add")}
               </Button>
             </TabsContent>
 
             <TabsContent value="storage" className="space-y-4">
               <div className="space-y-2">
-                <Label>存储类型</Label>
+                <Label>{t("objects.batchAttributes.storage.label")}</Label>
                 <Select value={storageClass} onValueChange={setStorageClass}>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择存储类型" />
+                    <SelectValue placeholder={t("objects.batchAttributes.storage.placeholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="STANDARD">STANDARD</SelectItem>
@@ -207,16 +211,16 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
                 </Select>
               </div>
               <p className="text-xs text-muted-foreground">
-                注意：部分供应商可能不支持所有存储类型，失败项会在结果中列出。
+                {t("objects.batchAttributes.storage.note")}
               </p>
             </TabsContent>
 
             <TabsContent value="acl" className="space-y-4">
               <div className="space-y-2">
-                <Label>ACL 权限</Label>
+                <Label>{t("objects.batchAttributes.acl.label")}</Label>
                 <Select value={acl} onValueChange={setAcl}>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择 ACL" />
+                    <SelectValue placeholder={t("objects.batchAttributes.acl.placeholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="private">private</SelectItem>
@@ -227,7 +231,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
                 </Select>
               </div>
               <p className="text-xs text-muted-foreground">
-                对公共读/写务必谨慎，可能导致数据暴露。
+                {t("objects.batchAttributes.acl.note")}
               </p>
             </TabsContent>
           </div>
@@ -237,7 +241,10 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
         {result && (
           <div className="rounded-md border border-border/50 bg-muted/40 px-3 py-2 text-sm">
             <p>
-              已应用：{result.succeeded}/{result.total} 项
+              {t("objects.batchAttributes.result.applied", {
+                succeeded: result.succeeded,
+                total: result.total,
+              })}
             </p>
             {result.failed?.length && (
               <div className="mt-2 space-y-1 text-xs text-muted-foreground">
@@ -253,11 +260,11 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={submitting}>
-            取消
+            {t("objects.batchAttributes.button.cancel")}
           </Button>
           <Button onClick={handleApply} disabled={!canSubmit || submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            应用到 {selectedCount} 项
+            {t("objects.batchAttributes.button.apply", { count: selectedCount })}
           </Button>
         </DialogFooter>
       </DialogContent>

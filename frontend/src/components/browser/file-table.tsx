@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createFileTableColumns } from "./table-columns";
 import { TableFooterPaginator } from "./table-footer-paginator";
 import { TableRowContextMenu } from "./table-row-context-menu";
@@ -69,6 +70,7 @@ export function FileTable({
   const [columnResizeMode] = useState<ColumnResizeMode>("onChange");
   const [currentPage, setCurrentPage] = useState(1);
   const parentRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation("common");
 
   // Reset to page 1 when data changes significantly (e.g., navigation)
   useEffect(() => {
@@ -162,6 +164,7 @@ export function FileTable({
         onDownload,
         onCopyLink,
         onDelete,
+        t,
       }),
     [
       // Only depend on callback functions, not on state values
@@ -172,6 +175,7 @@ export function FileTable({
       onDownload,
       onCopyLink,
       onDelete,
+      t,
     ],
   );
 
@@ -331,7 +335,7 @@ export function FileTable({
               </div>
             ) : (
               <div className="flex h-full min-h-[200px] items-center justify-center text-muted-foreground">
-                No results.
+                {t("table.noResults", "No results.")}
               </div>
             )}
           </div>

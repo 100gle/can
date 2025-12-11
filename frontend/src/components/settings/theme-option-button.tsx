@@ -1,8 +1,7 @@
-import type { ThemePreference } from "@/state/preferences";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ThemeOptionButtonProps {
-  value: ThemePreference;
   isSelected: boolean;
   label: string;
   onClick: () => void;
@@ -10,12 +9,12 @@ interface ThemeOptionButtonProps {
 }
 
 export function ThemeOptionButton({
-  value,
   isSelected,
   label,
   onClick,
   children,
 }: ThemeOptionButtonProps) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -23,7 +22,7 @@ export function ThemeOptionButton({
         isSelected ? "border-primary ring-2 ring-primary/20" : "border-transparent"
       }`}
       onClick={onClick}
-      aria-label={`Select ${label} theme`}
+      aria-label={t("settings.theme.selectAria", { label })}
       aria-pressed={isSelected}
     >
       {children}

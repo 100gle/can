@@ -11,6 +11,7 @@ import {
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 import { Loader2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type EditableRule = {
   id: string;
@@ -31,6 +32,7 @@ const createRule = (): EditableRule => ({
 });
 
 export const LifecyclePanel = () => {
+  const { t } = useTranslation();
   const lifecycle = useBucketConfigStore((state) => state.lifecycle);
   const saving = useBucketConfigStore((state) => state.saving.lifecycle);
   const [rules, setRules] = useState<EditableRule[]>([]);
@@ -76,38 +78,38 @@ export const LifecyclePanel = () => {
   return (
     <div className="space-y-4">
       <header>
-        <h3 className="text-xl font-semibold">生命周期管理</h3>
-        <p className="text-sm text-muted-foreground">
-          定义对象的过期策略和存储级别转换，以降低存储成本。
-        </p>
+        <h3 className="text-xl font-semibold">{t("bucket.lifecycle.title")}</h3>
+        <p className="text-sm text-muted-foreground">{t("bucket.lifecycle.description")}</p>
       </header>
       <div className="space-y-4">
         {rules.map((rule, index) => (
           <div key={rule.id} className="space-y-4 rounded-lg border border-border/50 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">规则 #{index + 1}</p>
+              <p className="text-sm font-semibold">
+                {t("bucket.lifecycle.ruleTitle", { index: index + 1 })}
+              </p>
               <Button variant="ghost" size="icon" onClick={() => handleDelete(index)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>规则 ID</Label>
+                <Label>{t("bucket.lifecycle.id")}</Label>
                 <Input
                   value={rule.id}
                   onChange={(event) => updateRule(index, "id", event.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>前缀匹配</Label>
+                <Label>{t("bucket.lifecycle.prefix")}</Label>
                 <Input
-                  placeholder="logs/ 或留空"
+                  placeholder={t("bucket.lifecycle.prefixPlaceholder")}
                   value={rule.prefix}
                   onChange={(event) => updateRule(index, "prefix", event.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>过期天数</Label>
+                <Label>{t("bucket.lifecycle.expirationDays")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -116,7 +118,7 @@ export const LifecyclePanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>转换为低频（天）</Label>
+                <Label>{t("bucket.lifecycle.transitionDays")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -125,7 +127,7 @@ export const LifecyclePanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>非当前版本保留天数</Label>
+                <Label>{t("bucket.lifecycle.noncurrentDays")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -134,7 +136,7 @@ export const LifecyclePanel = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>状态</Label>
+                <Label>{t("bucket.lifecycle.status")}</Label>
                 <Select
                   value={rule.status}
                   onValueChange={(value) => updateRule(index, "status", value)}
@@ -143,8 +145,10 @@ export const LifecyclePanel = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Enabled">启用</SelectItem>
-                    <SelectItem value="Disabled">禁用</SelectItem>
+                    <SelectItem value="Enabled">{t("bucket.lifecycle.status.enabled")}</SelectItem>
+                    <SelectItem value="Disabled">
+                      {t("bucket.lifecycle.status.disabled")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -152,15 +156,15 @@ export const LifecyclePanel = () => {
           </div>
         ))}
         {rules.length === 0 && (
-          <p className="text-sm text-muted-foreground">当前尚未配置生命周期规则。</p>
+          <p className="text-sm text-muted-foreground">{t("bucket.lifecycle.empty")}</p>
         )}
         <Button variant="outline" onClick={handleAdd}>
-          添加规则
+          {t("bucket.lifecycle.addRule")}
         </Button>
       </div>
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-        保存生命周期
+        {t("bucket.lifecycle.save")}
       </Button>
     </div>
   );

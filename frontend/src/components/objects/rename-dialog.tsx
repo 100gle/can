@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { objectsStore } from "@/state/objects";
 import { Edit3, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type RenameDialogProps = {
   open: boolean;
@@ -21,6 +22,7 @@ type RenameDialogProps = {
 };
 
 export function RenameDialog({ open, objectKey, prefix, onOpenChange }: RenameDialogProps) {
+  const { t } = useTranslation();
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -46,9 +48,9 @@ export function RenameDialog({ open, objectKey, prefix, onOpenChange }: RenameDi
 
   const validate = (name: string): string | undefined => {
     const trimmed = name.trim();
-    if (!trimmed) return "名称不能为空";
-    if (trimmed.includes("/")) return "名称不能包含斜杠";
-    if (trimmed === getBasename(objectKey || "")) return "新名称与原名称相同";
+    if (!trimmed) return t("objects.rename.error.empty");
+    if (trimmed.includes("/")) return t("objects.rename.error.slash");
+    if (trimmed === getBasename(objectKey || "")) return t("objects.rename.error.same");
     return undefined;
   };
 
@@ -69,7 +71,7 @@ export function RenameDialog({ open, objectKey, prefix, onOpenChange }: RenameDi
       await objectsStore.renameObject(objectKey, newKey);
       handleClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "重命名失败");
+      setError(e instanceof Error ? e.message : t("objects.rename.error.failed"));
     } finally {
       setLoading(false);
     }
@@ -81,16 +83,16 @@ export function RenameDialog({ open, objectKey, prefix, onOpenChange }: RenameDi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Edit3 className="h-5 w-5" />
-            重命名
+            {t("objects.rename.title")}
           </DialogTitle>
           <DialogDescription className="truncate">
-            将 "{objectKey && getBasename(objectKey)}" 重命名为新名称
+            {t("objects.rename.description", { name: objectKey && getBasename(objectKey) })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="new-name">新名称</Label>
+            <Label htmlFor="new-name">{t("objects.rename.label.newName")}</Label>
             <Input
               id="new-name"
               value={newName}
@@ -98,7 +100,7 @@ export function RenameDialog({ open, objectKey, prefix, onOpenChange }: RenameDi
                 setNewName(e.target.value);
                 setError(undefined);
               }}
-              placeholder="输入新名称"
+              placeholder={t("objects.rename.placeholder.newName")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !loading) {
                   handleSubmit();
@@ -112,11 +114,11 @@ export function RenameDialog({ open, objectKey, prefix, onOpenChange }: RenameDi
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            取消
+            {t("objects.rename.button.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !newName.trim()}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            重命名
+            {t("objects.rename.button.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

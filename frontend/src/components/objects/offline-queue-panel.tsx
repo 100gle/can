@@ -5,6 +5,7 @@ import type { OfflineAction } from "@/lib/offline/types";
 import { offlineQueueStore, useOfflineQueueStore } from "@/state/offlineQueue";
 import { AlertCircle, CheckCircle2, Clock, Loader2, RotateCw, X } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -21,48 +22,16 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case "pending":
-      return "等待中";
-    case "running":
-      return "执行中";
-    case "completed":
-      return "已完成";
-    case "failed":
-      return "失败";
-    default:
-      return status;
-  }
-};
-
-const getActionLabel = (type: string) => {
-  switch (type) {
-    case "upload":
-      return "上传";
-    case "delete":
-      return "删除";
-    case "rename":
-      return "重命名";
-    case "move":
-      return "移动";
-    case "create-folder":
-      return "创建文件夹";
-    default:
-      return type;
-  }
-};
-
-const formatTime = (timestamp: number) => {
+const formatTime = (timestamp: number, t: (key: string, options?: any) => string) => {
   const date = new Date(timestamp);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
 
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes} 分钟前`;
+  if (minutes < 1) return t("objects.offlineQueue.row.time.justNow");
+  if (minutes < 60) return t("objects.offlineQueue.row.time.minutesAgo", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
+  if (hours < 24) return t("objects.offlineQueue.row.time.hoursAgo", { count: hours });
   return date.toLocaleString();
 };
 
@@ -71,12 +40,46 @@ type ActionRowProps = {
 };
 
 const ActionRow = ({ action }: ActionRowProps) => {
+  const { t } = useTranslation();
+
   const handleRetry = async () => {
     await offlineQueueStore.retryAction(action.id);
   };
 
   const handleCancel = async () => {
     await offlineQueueStore.cancelAction(action.id);
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending":
+        return t("objects.offlineQueue.status.pending");
+      case "running":
+        return t("objects.offlineQueue.status.running");
+      case "completed":
+        return t("objects.offlineQueue.status.completed");
+      case "failed":
+        return t("objects.offlineQueue.status.failed");
+      default:
+        return status;
+    }
+  };
+
+  const getActionLabel = (type: string) => {
+    switch (type) {
+      case "upload":
+        return t("objects.offlineQueue.action.upload");
+      case "delete":
+        return t("objects.offlineQueue.action.delete");
+      case "rename":
+        return t("objects.offlineQueue.action.rename");
+      case "move":
+        return t("objects.offlineQueue.action.move");
+      case "create-folder":
+        return t("objects.offlineQueue.action.createFolder");
+      default:
+        return type;
+    }
   };
 
   const getObjectName = () => {
@@ -111,18 +114,22 @@ const ActionRow = ({ action }: ActionRowProps) => {
             <span className="truncate text-sm font-medium">{getObjectName()}</span>
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Bucket: {action.bucket}</span>
+            <span>{t("objects.offlineQueue.row.bucket", { bucket: action.bucket })}</span>
             <span>•</span>
-            <span>{formatTime(action.createdAt)}</span>
+            <span>{formatTime(action.createdAt, t)}</span>
             {action.retries > 0 && (
               <>
                 <span>•</span>
-                <span className="text-yellow-600">重试: {action.retries} 次</span>
+                <span className="text-yellow-600">
+                  {t("objects.offlineQueue.row.retries", { count: action.retries })}
+                </span>
               </>
             )}
           </div>
           {action.lastError && (
-            <div className="mt-1 text-xs text-red-600">错误: {action.lastError}</div>
+            <div className="mt-1 text-xs text-red-600">
+              {t("objects.offlineQueue.row.error", { error: action.lastError })}
+            </div>
           )}
         </div>
       </div>
@@ -130,13 +137,13 @@ const ActionRow = ({ action }: ActionRowProps) => {
         {action.status === "failed" && (
           <Button variant="outline" size="sm" onClick={handleRetry} className="gap-1">
             <RotateCw className="h-3 w-3" />
-            重试
+            {t("objects.offlineQueue.row.retry")}
           </Button>
         )}
         {(action.status === "pending" || action.status === "failed") && (
           <Button variant="ghost" size="sm" onClick={handleCancel} className="gap-1">
             <X className="h-3 w-3" />
-            取消
+            {t("objects.offlineQueue.row.cancel")}
           </Button>
         )}
       </div>
@@ -145,6 +152,7 @@ const ActionRow = ({ action }: ActionRowProps) => {
 };
 
 export const OfflineQueuePanel = () => {
+  const { t } = useTranslation();
   const actions = useOfflineQueueStore((s) => s.actions);
   const syncing = useOfflineQueueStore((s) => s.syncing);
   useEffect(() => {
@@ -178,23 +186,26 @@ export const OfflineQueuePanel = () => {
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              队列接近容量上限 ({actions.length}/{MAX_QUEUE_SIZE})，
-              {failedCount > 0 && `其中 ${failedCount} 个失败。`}
-              请及时处理或清理已完成项。
+              {t("objects.offlineQueue.warning.capacity", {
+                current: actions.length,
+                max: MAX_QUEUE_SIZE,
+                failed: failedCount,
+              })}
             </AlertDescription>
           </Alert>
         )}
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">离线待办队列</h2>
+            <h2 className="text-lg font-semibold">{t("objects.offlineQueue.title")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              待处理: {pendingCount} 个 · 已完成: {completedCount} 个
+              {t("objects.offlineQueue.stats.pending", { count: pendingCount })} ·{" "}
+              {t("objects.offlineQueue.stats.completed", { count: completedCount })}
             </p>
           </div>
           <div className="flex items-center gap-2">
             {completedCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleClearCompleted}>
-                清理已完成
+                {t("objects.offlineQueue.button.clearCompleted")}
               </Button>
             )}
             <Button
@@ -207,12 +218,12 @@ export const OfflineQueuePanel = () => {
               {syncing ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  同步中...
+                  {t("objects.offlineQueue.button.syncing")}
                 </>
               ) : (
                 <>
                   <RotateCw className="h-3 w-3" />
-                  立即同步
+                  {t("objects.offlineQueue.button.syncNow")}
                 </>
               )}
             </Button>
@@ -221,7 +232,7 @@ export const OfflineQueuePanel = () => {
 
         {actions.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/40 bg-muted/20 py-12 text-center">
-            <p className="text-sm text-muted-foreground">暂无离线队列项</p>
+            <p className="text-sm text-muted-foreground">{t("objects.offlineQueue.empty")}</p>
           </div>
         ) : (
           <div className="space-y-2">

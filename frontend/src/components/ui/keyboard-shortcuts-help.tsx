@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { KEYBOARD_SHORTCUTS, getShortcutKey } from "@/hooks/use-keyboard-shortcuts";
 import { Keyboard } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type KeyboardShortcutsHelpProps = {
   open?: boolean;
@@ -21,14 +22,16 @@ export function KeyboardShortcutsHelp({
   onOpenChange,
   triggerButton = true,
 }: KeyboardShortcutsHelpProps) {
+  const { t } = useTranslation();
+
   const content = (
     <DialogContent className="max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Keyboard className="h-5 w-5" />
-          键盘快捷键
+          {t("ui.shortcuts.title")}
         </DialogTitle>
-        <DialogDescription>使用快捷键可以更高效地操作文件。</DialogDescription>
+        <DialogDescription>{t("ui.shortcuts.description")}</DialogDescription>
       </DialogHeader>
 
       <div className="space-y-1 py-2">
@@ -49,11 +52,11 @@ export function KeyboardShortcutsHelp({
       </div>
 
       <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
-        提示：按{" "}
+        {t("ui.shortcuts.hintPrefix")}{" "}
         <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
           ?
         </kbd>{" "}
-        可随时打开此帮助。
+        {t("ui.shortcuts.hintSuffix")}
       </p>
     </DialogContent>
   );
@@ -64,7 +67,7 @@ export function KeyboardShortcutsHelp({
         <DialogTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-1.5">
             <Keyboard className="h-4 w-4" />
-            快捷键
+            {t("ui.shortcuts.title")}
           </Button>
         </DialogTrigger>
         {content}

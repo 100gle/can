@@ -16,6 +16,7 @@ import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { bucketConfigStore, type BucketFeature } from "@/state/bucketConfig";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const FEATURE_CAPABILITY_IDS: Record<BucketFeature, string> = {
   versioning: "bucket.versioning",
@@ -30,6 +31,7 @@ const FEATURE_CAPABILITY_IDS: Record<BucketFeature, string> = {
 };
 
 export const BucketSettingsPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const params = useParams({ from: "/accounts/$accountId/buckets/$bucketId/settings" });
   const { accounts, activeAccountId, loading } = useAccountsStore((state) => state);
@@ -76,7 +78,7 @@ export const BucketSettingsPage = () => {
   if (!account && (loading || !accounts.length)) {
     return (
       <main className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        正在加载账户...
+        {t("bucket.settings.page.loadingAccount")}
       </main>
     );
   }
@@ -84,7 +86,7 @@ export const BucketSettingsPage = () => {
   if (!account) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-        <p>未找到目标账户，请返回仪表盘。</p>
+        <p>{t("bucket.settings.page.accountNotFound")}</p>
         <Button
           onClick={() =>
             navigate({
@@ -93,7 +95,7 @@ export const BucketSettingsPage = () => {
             })
           }
         >
-          返回
+          {t("bucket.settings.page.backToDashboard")}
         </Button>
       </main>
     );
@@ -102,7 +104,7 @@ export const BucketSettingsPage = () => {
   const sections: BucketSettingsSection[] = [
     {
       id: "acl",
-      label: "访问控制 (ACL)",
+      label: t("bucket.acl.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.acl}>
           <AccessControlPanel provider={account.provider} />
@@ -111,7 +113,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "public-access",
-      label: "阻止公共访问",
+      label: t("bucket.publicAccess.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.publicAccess}>
           <BlockPublicAccessPanel provider={account.provider} />
@@ -120,7 +122,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "versioning",
-      label: "版本控制",
+      label: t("bucket.versioning.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.versioning}>
           <VersioningPanel />
@@ -129,7 +131,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "encryption",
-      label: "默认加密",
+      label: t("bucket.encryption.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.encryption}>
           <EncryptionPanel />
@@ -138,7 +140,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "lifecycle",
-      label: "生命周期",
+      label: t("bucket.lifecycle.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.lifecycle}>
           <LifecyclePanel />
@@ -147,7 +149,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "cors",
-      label: "CORS 规则",
+      label: t("bucket.cors.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.cors}>
           <CORSPanel />
@@ -156,7 +158,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "policy",
-      label: "访问策略",
+      label: t("bucket.policy.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.policy}>
           <PolicyPanel />
@@ -165,7 +167,7 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "referer",
-      label: "防盗链",
+      label: t("bucket.referer.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.referer}>
           <RefererProtectionPanel provider={account.provider} />
@@ -174,12 +176,12 @@ export const BucketSettingsPage = () => {
     },
     {
       id: "snapshot",
-      label: "快照备份",
+      label: t("bucket.snapshot.title"),
       render: () => <SnapshotPanel />,
     },
     {
       id: "website",
-      label: "静态网站",
+      label: t("bucket.website.title"),
       render: () => (
         <CapabilityGate capability={featureMatrix.website}>
           <WebsitePanel />
@@ -192,12 +194,10 @@ export const BucketSettingsPage = () => {
     <main className="flex-1 overflow-auto p-6 space-y-6">
       <div>
         <p className="text-xs uppercase tracking-widest text-muted-foreground">
-          {account.name} · Bucket 设置
+          {account.name} · {t("bucket.settings.page.subHeader")}
         </p>
         <h2 className="mt-2 text-2xl font-semibold">{params.bucketId}</h2>
-        <p className="text-sm text-muted-foreground">
-          这里可以管理版本控制、默认加密以及跨域策略。
-        </p>
+        <p className="text-sm text-muted-foreground">{t("bucket.settings.page.description")}</p>
       </div>
       <BucketSettings sections={sections} activeSection={section} onSectionChange={setSection} />
     </main>

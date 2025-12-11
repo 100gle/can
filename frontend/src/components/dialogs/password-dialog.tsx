@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { showError, showWarning } from "@/lib/toast";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface PasswordDialogProps {
   open: boolean;
@@ -29,21 +30,25 @@ export function PasswordDialog({
   title,
   description,
   onConfirm,
-  confirmText = "确认",
+  confirmText,
   requireConfirmation = false,
 }: PasswordDialogProps) {
+  const { t } = useTranslation("common");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Default confirm text if not provided
+  const finalConfirmText = confirmText || t("confirm");
+
   const handleConfirm = () => {
     if (!password) {
-      showWarning("请输入密码");
+      showWarning(t("passwordDialog.enterPassword"));
       return;
     }
     if (requireConfirmation && password !== confirmPassword) {
-      showError("两次输入的密码不一致");
+      showError(t("passwordDialog.passwordMismatch"));
       return;
     }
     onConfirm(password);
@@ -72,7 +77,7 @@ export function PasswordDialog({
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="password">密码</Label>
+            <Label htmlFor="password">{t("passwordDialog.password")}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -84,7 +89,7 @@ export function PasswordDialog({
                     handleConfirm();
                   }
                 }}
-                placeholder="请输入密码"
+                placeholder={t("passwordDialog.placeholder")}
                 className="pr-10"
               />
               <button
@@ -98,7 +103,7 @@ export function PasswordDialog({
           </div>
           {requireConfirmation && (
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">确认密码</Label>
+              <Label htmlFor="confirm-password">{t("passwordDialog.confirmPassword")}</Label>
               <div className="relative">
                 <Input
                   id="confirm-password"
@@ -110,7 +115,7 @@ export function PasswordDialog({
                       handleConfirm();
                     }
                   }}
-                  placeholder="再次输入密码"
+                  placeholder={t("passwordDialog.confirmPlaceholder")}
                   className="pr-10"
                 />
                 <button
@@ -130,9 +135,9 @@ export function PasswordDialog({
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={handleCancel}>
-            取消
+            {t("cancel")}
           </Button>
-          <Button onClick={handleConfirm}>{confirmText}</Button>
+          <Button onClick={handleConfirm}>{finalConfirmText}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

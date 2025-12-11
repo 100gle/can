@@ -9,18 +9,20 @@ import {
 import { useAccountsStore } from "@/state/accounts";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { Fragment, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 type BreadcrumbItem = { label: string; to: string };
 type BreadcrumbResult = { items: BreadcrumbItem[]; isSubPage: boolean };
 
 export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
+  const { t } = useTranslation("common");
   const params = useParams({ strict: false });
   const location = useLocation();
   const activeAccountId = useAccountsStore((state) => state.activeAccountId);
   const accounts = useAccountsStore((state) => state.accounts);
 
   return useMemo(() => {
-    const items: BreadcrumbItem[] = [{ label: "首页", to: "/" }];
+    const items: BreadcrumbItem[] = [{ label: t("nav.home"), to: "/" }];
 
     // Handle Settings Page
     if (location.pathname === "/settings") {
@@ -30,7 +32,7 @@ export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
         const label = account ? account.name : activeAccountId;
         items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
       }
-      items.push({ label: "系统设置", to: "/settings" });
+      items.push({ label: t("settings"), to: "/settings" });
       return { items, isSubPage: true };
     }
 
@@ -46,10 +48,10 @@ export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
     const isHomePage = location.pathname === "/";
 
     if (location.pathname.includes("/transfers")) {
-      items.push({ label: "传输任务", to: location.pathname });
+      items.push({ label: t("nav.transfers"), to: location.pathname });
       return { items, isSubPage: true };
     } else if (location.pathname.includes("/search")) {
-      items.push({ label: "对象搜索", to: location.pathname });
+      items.push({ label: t("nav.search"), to: location.pathname });
       return { items, isSubPage: true };
     } else if (location.pathname.includes("/buckets/")) {
       const bucketId = (params as any).bucketId;
@@ -58,7 +60,7 @@ export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
         items.push({ label: bucketId, to: `/accounts/${accountId}/dashboard?bucket=${bucketId}` });
 
         if (location.pathname.includes("/settings")) {
-          items.push({ label: "设置", to: location.pathname });
+          items.push({ label: t("settings"), to: location.pathname });
         }
       }
       return { items, isSubPage: true };
@@ -66,7 +68,7 @@ export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
 
     // Dashboard root or home page: not a sub-page
     return { items, isSubPage: !isDashboardRoot && !isHomePage };
-  }, [location.pathname, params, accounts, activeAccountId]);
+  }, [location.pathname, params, accounts, activeAccountId, t]);
 };
 
 export const DashboardBreadcrumb = () => {

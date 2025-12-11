@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useTransferStats } from "@/state/transfers";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Settings, Share2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -14,6 +15,7 @@ type SidebarProps = {
 
 export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps) => {
   const navigate = useNavigate();
+  const { t } = useTranslation("common");
   const { active, failed, total } = useTransferStats();
 
   return (
@@ -22,7 +24,7 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
         variant="ghost"
         onClick={() => navigate({ to: "/" })}
         className="flex items-center gap-3 rounded-xl p-2 h-auto justify-start"
-        aria-label="返回首页"
+        aria-label={t("nav.home")}
       >
         <img
           src={logo}
@@ -35,7 +37,9 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
         </div>
       </Button>
       <div className="flex-1 overflow-y-auto pr-1">
-        <p className="px-2 text-xs uppercase tracking-widest text-muted-foreground">我的账户</p>
+        <p className="px-2 text-xs uppercase tracking-widest text-muted-foreground">
+          {t("nav.myAccounts", "My Accounts")}
+        </p>
         <div className="mt-3 space-y-2">
           <AccountSwitcher />
         </div>
@@ -43,18 +47,13 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
       <div className="space-y-2">
         <Button size="sm" className="w-full gap-2" onClick={onCreateAccount}>
           <Plus className="h-4 w-4" />
-          新建账户
+          {t("nav.newAccount", "New Account")}
         </Button>
 
         <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2"
-            onClick={() => navigate({ to: "/transfers" })}
-          >
+          <Button variant="outline" size="sm" className="w-full gap-2">
             <Share2 className="h-4 w-4" />
-            传输队列
+            {t("nav.transfers", "Transfers")}
           </Button>
           {total > 0 && (
             <Badge
@@ -76,7 +75,7 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
           onClick={() => navigate({ to: "/settings" })}
         >
           <Settings className="h-4 w-4" />
-          系统设置
+          {t("settings")}
         </Button>
       </div>
     </div>

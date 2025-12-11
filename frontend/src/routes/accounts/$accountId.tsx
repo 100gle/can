@@ -8,6 +8,7 @@ import { transfersStore } from "@/state/transfers";
 import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/accounts/$accountId")({
   beforeLoad: async ({ params }) => {
@@ -45,6 +46,7 @@ function AccountLayout() {
     open: false,
     mode: "create",
   });
+  const { t } = useTranslation();
 
   // Set active account when accountId changes
   useEffect(() => {
@@ -74,7 +76,7 @@ function AccountLayout() {
       <DashboardLayout sidebar={sidebar}>
         <div className="flex flex-1 items-center justify-center text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="ml-2 text-sm">正在加载账户信息...</span>
+          <span className="ml-2 text-sm">{t("account.route.loading")}</span>
         </div>
       </DashboardLayout>
     );
@@ -85,9 +87,9 @@ function AccountLayout() {
       <DashboardLayout sidebar={sidebar}>
         <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
           <div>
-            <p>尚未配置任何账户，返回首页创建一个。</p>
+            <p>{t("account.route.empty")}</p>
             <Button className="mt-4" onClick={() => navigate({ to: "/" })}>
-              返回首页
+              {t("account.route.backToHome")}
             </Button>
           </div>
         </div>
@@ -99,7 +101,7 @@ function AccountLayout() {
     <DashboardLayout
       sidebar={sidebar}
       accountName={activeAccount.name}
-      accountMeta={`${activeAccount.providerLabel} · ${activeAccount.region || "Region 未设置"}`}
+      accountMeta={`${activeAccount.providerLabel} · ${activeAccount.region || t("account.card.regionNotSet")}`}
     >
       <AccountLayoutContext.Provider value={{ openDrawer }}>
         <Outlet />

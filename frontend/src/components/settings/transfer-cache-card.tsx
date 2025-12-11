@@ -18,8 +18,10 @@ import { formatBytes } from "@/lib/utils";
 import { usePreferencesStore, type CacheSize } from "@/state/preferences";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function TransferCacheCard() {
+  const { t } = useTranslation();
   const workerCount = useTransfersStore((state) => state.workerCount);
   const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
   const [speedLimitInput, setSpeedLimitInput] = useState("");
@@ -64,7 +66,7 @@ export function TransferCacheCard() {
     await offlineCache.clear();
     const usage = await offlineCache.getUsage();
     setCacheUsage(usage);
-    showSuccess("缓存已清除");
+    showSuccess(t("settings.offline.clearSuccess"));
   };
 
   const handleCacheSizeChange = (value: string) => {
@@ -76,21 +78,23 @@ export function TransferCacheCard() {
     <Card>
       <CardHeader className="pb-4">
         <div className="flex items-baseline gap-2">
-          <CardTitle className="text-lg font-semibold">传输与缓存</CardTitle>
-          <CardDescription className="text-sm">配置传输性能和离线缓存</CardDescription>
+          <CardTitle className="text-lg font-semibold">{t("settings.transfer.title")}</CardTitle>
+          <CardDescription className="text-sm">{t("settings.transfer.desc")}</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
         {/* Transfer Settings Section */}
         <div className="space-y-5">
           <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">传输设置</h3>
-            <p className="text-xs text-muted-foreground">配置并发任务数和全局限速</p>
+            <h3 className="text-base font-semibold tracking-tight">
+              {t("settings.transfer.section")}
+            </h3>
+            <p className="text-xs text-muted-foreground">{t("settings.transfer.sectionDesc")}</p>
           </div>
           <div className="space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label>并发数 (Workers)</Label>
+                <Label>{t("settings.transfer.workers")}</Label>
                 <span className="text-sm font-medium">{workerCount}</span>
               </div>
               <Slider
@@ -100,17 +104,15 @@ export function TransferCacheCard() {
                 value={[workerCount]}
                 onValueChange={handleWorkerCountChange}
               />
-              <p className="text-xs text-muted-foreground">
-                同时进行的上传/下载任务数量。数值过大可能导致网络拥堵或系统卡顿。
-              </p>
+              <p className="text-xs text-muted-foreground">{t("settings.transfer.workersDesc")}</p>
             </div>
 
             <div className="space-y-3">
-              <Label htmlFor="speed-limit">全局限速 (Bytes/s)</Label>
+              <Label htmlFor="speed-limit">{t("settings.transfer.speedLimit")}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="speed-limit"
-                  placeholder="0 (无限制)"
+                  placeholder={t("settings.transfer.unlimited")}
                   value={speedLimitInput}
                   onChange={(e) => setSpeedLimitInput(e.target.value)}
                   onBlur={handleSpeedLimitBlur}
@@ -118,11 +120,11 @@ export function TransferCacheCard() {
                 <span className="text-sm text-muted-foreground whitespace-nowrap">
                   {globalSpeedLimit > 0
                     ? (globalSpeedLimit / 1024 / 1024).toFixed(2) + " MB/s"
-                    : "无限制"}
+                    : t("settings.transfer.unlimited")}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                限制所有任务的总上传/下载速度 (0 表示不限制)。
+                {t("settings.transfer.speedLimitDesc")}
               </p>
             </div>
           </div>
@@ -133,15 +135,15 @@ export function TransferCacheCard() {
         {/* Offline Cache Section */}
         <div className="space-y-5">
           <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">离线缓存</h3>
-            <p className="text-xs text-muted-foreground">
-              管理离线数据缓存，开启后将缓存最近浏览的列表和文件以便离线访问
-            </p>
+            <h3 className="text-base font-semibold tracking-tight">
+              {t("settings.offline.title")}
+            </h3>
+            <p className="text-xs text-muted-foreground">{t("settings.offline.desc")}</p>
           </div>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>启用离线缓存</Label>
-              <p className="text-xs text-muted-foreground">自动缓存浏览过的存储桶列表和对象列表</p>
+              <Label>{t("settings.offline.enable")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settings.offline.enableDesc")}</p>
             </div>
             <Switch checked={offlineCacheEnabled} onCheckedChange={setOfflineCacheEnabled} />
           </div>
@@ -149,8 +151,8 @@ export function TransferCacheCard() {
             <div className="space-y-4 pt-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-0.5">
-                  <Label>缓存大小</Label>
-                  <p className="text-xs text-muted-foreground">限制离线缓存的最大占用</p>
+                  <Label>{t("settings.offline.size")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("settings.offline.sizeDesc")}</p>
                 </div>
                 <Select value={String(offlineCacheSize)} onValueChange={handleCacheSizeChange}>
                   <SelectTrigger className="w-[160px]">
@@ -166,16 +168,16 @@ export function TransferCacheCard() {
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-2">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">当前占用</p>
+                  <p className="text-sm font-medium">{t("settings.offline.currentUsage")}</p>
                   <p className="text-2xl font-bold">
-                    {cacheUsage ? formatBytes(cacheUsage.usage) : "Calculating..."}
+                    {cacheUsage ? formatBytes(cacheUsage.usage) : t("settings.offline.calculating")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     (Quota: {cacheUsage ? formatBytes(cacheUsage.quota) : "-"})
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleClearOfflineCache}>
-                  清除缓存
+                  {t("settings.offline.clear")}
                 </Button>
               </div>
             </div>

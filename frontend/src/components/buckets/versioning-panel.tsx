@@ -4,8 +4,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const VersioningPanel = () => {
+  const { t } = useTranslation();
   const versioning = useBucketConfigStore((state) => state.versioning);
   const loading = useBucketConfigStore((state) => state.loading);
   const saving = useBucketConfigStore((state) => state.saving.versioning);
@@ -23,10 +25,8 @@ export const VersioningPanel = () => {
   return (
     <div className="space-y-4">
       <header>
-        <h3 className="text-xl font-semibold">版本控制</h3>
-        <p className="text-sm text-muted-foreground">
-          启用版本控制后，存储桶会为对象的每一次变更保留历史版本。
-        </p>
+        <h3 className="text-xl font-semibold">{t("bucket.versioning.title")}</h3>
+        <p className="text-sm text-muted-foreground">{t("bucket.versioning.description")}</p>
       </header>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <RadioGroup
@@ -44,12 +44,14 @@ export const VersioningPanel = () => {
               <RadioGroupItem value={option} id={optionId} disabled={loading} />
               <div>
                 <Label htmlFor={optionId} className="font-medium">
-                  {option === "Enabled" ? "已启用" : "已暂停"}
+                  {option === "Enabled"
+                    ? t("bucket.versioning.enabled")
+                    : t("bucket.versioning.suspended")}
                 </Label>
                 <p className="text-sm text-muted-foreground">
                   {option === "Enabled"
-                    ? "所有对象的历史版本都会被保留"
-                    : "仅保留现有版本，新上传将不追踪版本"}
+                    ? t("bucket.versioning.enabledDesc")
+                    : t("bucket.versioning.suspendedDesc")}
                 </p>
               </div>
             </div>
@@ -58,7 +60,7 @@ export const VersioningPanel = () => {
       </RadioGroup>
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-        保存
+        {t("bucket.versioning.save")}
       </Button>
     </div>
   );

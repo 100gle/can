@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { deriveLabel, getFileIcon } from "./file-utils";
 
@@ -79,6 +80,7 @@ export function TreeView({
   onDelete,
   onEnterFolder,
 }: TreeViewProps) {
+  const { t } = useTranslation("common");
   const [nodes, setNodes] = useState<TreeNodeData[]>([]);
   const [rootLoading, setRootLoading] = useState(false);
   const [rootLoaded, setRootLoaded] = useState(false);
@@ -124,10 +126,10 @@ export function TreeView({
       setRootNextMarker(result.nextMarker);
       setRootLoaded(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "加载根节点失败";
+      const message = error instanceof Error ? error.message : t("treeView.loadRootFailed");
       setRootError(message);
       setRootLoaded(true);
-      toast.error("无法加载根目录", { description: message });
+      toast.error(t("treeView.cannotLoadRoot"), { description: message });
     } finally {
       setRootLoading(false);
     }
@@ -165,7 +167,7 @@ export function TreeView({
       setRootTruncated(Boolean(result.truncated));
       setRootNextMarker(result.nextMarker);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "加载更多失败";
+      const message = error instanceof Error ? error.message : t("treeView.loadMoreFailed");
       toast.error(message);
     } finally {
       setRootLoadingMore(false);
@@ -282,7 +284,7 @@ export function TreeView({
         );
       } catch (error) {
         setNodes((prev) => updateNodeByPath(prev, path, { state: "collapsed" }));
-        const message = error instanceof Error ? error.message : "加载子目录失败";
+        const message = error instanceof Error ? error.message : t("treeView.loadChildrenFailed");
         toast.error(message);
       }
     }
@@ -323,7 +325,7 @@ export function TreeView({
       });
     } catch (error) {
       setNodes((prev) => updateNodeByPath(prev, path, { loadingMore: false }));
-      const message = error instanceof Error ? error.message : "加载更多失败";
+      const message = error instanceof Error ? error.message : t("treeView.loadMoreFailed");
       toast.error(message);
     }
   };
@@ -334,7 +336,7 @@ export function TreeView({
         <p>{rootError}</p>
         <div>
           <Button variant="destructive" size="sm" onClick={handleRootRetry}>
-            重试
+            {t("retry")}
           </Button>
         </div>
       </div>
@@ -345,7 +347,7 @@ export function TreeView({
     return (
       <div className="flex items-center justify-center py-8 text-muted-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        加载中...
+        {t("loading")}
       </div>
     );
   }
@@ -354,7 +356,7 @@ export function TreeView({
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
         <Folder className="h-12 w-12 text-muted-foreground/40" />
-        <p className="mt-4">文件夹为空</p>
+        <p className="mt-4">{t("treeView.folderEmpty")}</p>
       </div>
     );
   }
@@ -381,6 +383,7 @@ export function TreeView({
           onDelete={onDelete}
           onEnterFolder={onEnterFolder}
           onLoadMore={loadMoreChildren}
+          t={t}
         />
       ))}
 
@@ -412,6 +415,7 @@ type TreeNodeProps = {
   onDelete: (key: string) => void;
   onEnterFolder: (key: string) => void;
   onLoadMore: (path: number[]) => void;
+  t: (key: string) => string;
 };
 
 const TreeNode = memo(
@@ -433,6 +437,7 @@ const TreeNode = memo(
     onDelete,
     onEnterFolder,
     onLoadMore,
+    t,
   }: TreeNodeProps) {
     const { object, children, state, parentPrefix } = node;
     const isDir = object.isDir;
@@ -479,21 +484,21 @@ const TreeNode = memo(
         {isDir ? (
           <ContextMenuItem onClick={() => onEnterFolder(object.key)}>
             <Folder className="mr-2 h-4 w-4" />
-            进入
+            {t("contextMenu.enter")}
           </ContextMenuItem>
         ) : (
           <>
             <ContextMenuItem onClick={() => onPreview(object.key)}>
               <Eye className="mr-2 h-4 w-4" />
-              预览
+              {t("contextMenu.preview")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onDownload(object.key)}>
               <Download className="mr-2 h-4 w-4" />
-              下载
+              {t("contextMenu.download")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onCopyLink(object.key)}>
               <Link2 className="mr-2 h-4 w-4" />
-              复制链接
+              {t("contextMenu.copyLink")}
             </ContextMenuItem>
           </>
         )}
@@ -503,7 +508,7 @@ const TreeNode = memo(
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          删除
+          {t("contextMenu.delete")}
         </ContextMenuItem>
       </>
     );
@@ -608,6 +613,7 @@ const TreeNode = memo(
                   onDelete={onDelete}
                   onEnterFolder={onEnterFolder}
                   onLoadMore={onLoadMore}
+                  t={t}
                 />
               );
             })}

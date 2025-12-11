@@ -40,6 +40,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const getTaskProgressRatio = (task: TransferViewModel) => {
   if (!task.total || task.total <= 0) {
@@ -49,6 +50,7 @@ const getTaskProgressRatio = (task: TransferViewModel) => {
 };
 
 const SpeedLimitDialog = () => {
+  const { t } = useTranslation();
   const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState("");
@@ -71,34 +73,37 @@ const SpeedLimitDialog = () => {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Settings2 className="h-4 w-4" />
-          传输设置
+          {t("transfers.settings")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>全局传输速度限制</DialogTitle>
-          <DialogDescription>
-            限制上传和下载的最大速度 (Bytes/s)。设置为 0 表示不限制。
-          </DialogDescription>
+          <DialogTitle>{t("transfers.settings.title")}</DialogTitle>
+          <DialogDescription>{t("transfers.settings.description")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <span className="text-right text-sm font-medium">限速值</span>
+            <span className="text-right text-sm font-medium">
+              {t("transfers.settings.limitLabel")}
+            </span>
             <Input
               id="speed-limit"
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
               className="col-span-3"
-              placeholder="0 (不限制)"
+              placeholder={t("transfers.settings.limitPlaceholder")}
               type="number"
             />
           </div>
           <div className="text-xs text-muted-foreground">
-            当前限制: {globalSpeedLimit === 0 ? "无限制" : `${formatBytes(globalSpeedLimit)}/s`}
+            {t("transfers.settings.currentLimit")}:{" "}
+            {globalSpeedLimit === 0
+              ? t("transfers.settings.unlimited")
+              : `${formatBytes(globalSpeedLimit)}/s`}
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleSave}>保存设置</Button>
+          <Button onClick={handleSave}>{t("transfers.settings.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -106,6 +111,7 @@ const SpeedLimitDialog = () => {
 };
 
 export const TransfersPage = () => {
+  const { t } = useTranslation();
   const tasks = useTransfersStore((state) => state.tasks);
   const { isOnline } = useNetworkStatus();
   const taskList = Object.values(tasks).sort(
@@ -125,8 +131,8 @@ export const TransfersPage = () => {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        title="传输管理"
-        description="查看并管理正在进行的上传 / 下载任务。"
+        title={t("transfers.title")}
+        description={t("transfers.description")}
         showBack
         actions={
           <>
@@ -138,7 +144,7 @@ export const TransfersPage = () => {
               className="gap-2"
             >
               <RotateCcw className="h-4 w-4" />
-              清理已完成
+              {t("transfers.clearCompleted")}
             </Button>
           </>
         }
@@ -146,42 +152,44 @@ export const TransfersPage = () => {
 
       {!isOnline && (
         <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-          ⏸️ <span className="font-semibold">离线暂停</span> · Offline paused -
-          传输任务已自动暂停，网络恢复后将自动继续
+          ⏸️ <span className="font-semibold">{t("transfers.offline.paused")}</span> · Offline paused
+          -{t("transfers.offline.description")}
         </div>
       )}
 
       <Tabs defaultValue="active" className="w-full">
         <TabsList>
-          <TabsTrigger value="active">传输中</TabsTrigger>
-          <TabsTrigger value="offline">离线待办</TabsTrigger>
+          <TabsTrigger value="active">{t("transfers.tab.active")}</TabsTrigger>
+          <TabsTrigger value="offline">{t("transfers.tab.offline")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active">
           <Card>
             <CardHeader>
-              <CardTitle>传输队列</CardTitle>
-              <CardDescription>当前 {taskList.length} 个任务</CardDescription>
+              <CardTitle>{t("transfers.queue.title")}</CardTitle>
+              <CardDescription>
+                {t("transfers.queue.count", { count: taskList.length })}
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {taskList.length === 0 ? (
                 <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
                   <CloudOff className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                  <p className="text-sm font-medium">暂无传输任务</p>
+                  <p className="text-sm font-medium">{t("transfers.queue.empty")}</p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
-                    上传或下载文件时任务将在此处显示
+                    {t("transfers.queue.emptyDesc")}
                   </p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>任务名称</TableHead>
-                      <TableHead>类型</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead className="w-[200px]">进度</TableHead>
-                      <TableHead>速度 / 剩余时间</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
+                      <TableHead>{t("transfers.table.name")}</TableHead>
+                      <TableHead>{t("transfers.table.type")}</TableHead>
+                      <TableHead>{t("transfers.table.status")}</TableHead>
+                      <TableHead className="w-[200px]">{t("transfers.table.progress")}</TableHead>
+                      <TableHead>{t("transfers.table.speedEta")}</TableHead>
+                      <TableHead className="text-right">{t("transfers.table.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -202,12 +210,12 @@ export const TransfersPage = () => {
                             {task.type === "upload" ? (
                               <div className="flex items-center gap-1 text-blue-500">
                                 <ArrowUpCircle className="h-4 w-4" />
-                                <span className="text-xs">上传</span>
+                                <span className="text-xs">{t("transfers.type.upload")}</span>
                               </div>
                             ) : (
                               <div className="flex items-center gap-1 text-green-500">
                                 <ArrowDownCircle className="h-4 w-4" />
-                                <span className="text-xs">下载</span>
+                                <span className="text-xs">{t("transfers.type.download")}</span>
                               </div>
                             )}
                           </TableCell>
@@ -240,7 +248,9 @@ export const TransfersPage = () => {
                             {task.status === "running" ? (
                               <div className="flex flex-col gap-1">
                                 <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
-                                <span>{task.eta ? `约 ${task.eta} 秒` : "-"}</span>
+                                <span>
+                                  {task.eta ? t("transfers.eta", { eta: task.eta }) : "-"}
+                                </span>
                               </div>
                             ) : (
                               "-"
@@ -254,7 +264,7 @@ export const TransfersPage = () => {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => transfersStore.pauseTask(task.id)}
-                                    title="暂停"
+                                    title={t("transfers.action.pause")}
                                   >
                                     <Pause className="h-4 w-4" />
                                   </Button>
@@ -262,7 +272,7 @@ export const TransfersPage = () => {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => transfersStore.cancelTask(task.id)}
-                                    title="取消"
+                                    title={t("transfers.action.cancel")}
                                   >
                                     <XCircle className="h-4 w-4 text-destructive" />
                                   </Button>
@@ -274,7 +284,7 @@ export const TransfersPage = () => {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => transfersStore.resumeTask(task.id)}
-                                    title="继续"
+                                    title={t("transfers.action.resume")}
                                   >
                                     <Play className="h-4 w-4" />
                                   </Button>
@@ -282,7 +292,7 @@ export const TransfersPage = () => {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => transfersStore.cancelTask(task.id)}
-                                    title="取消"
+                                    title={t("transfers.action.cancel")}
                                   >
                                     <XCircle className="h-4 w-4 text-destructive" />
                                   </Button>
@@ -295,7 +305,7 @@ export const TransfersPage = () => {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => transfersStore.deleteTask(task.id)}
-                                    title="删除"
+                                    title={t("transfers.action.delete")}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>

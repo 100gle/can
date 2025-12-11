@@ -6,6 +6,7 @@ import { useObjectsStore } from "@/state/objects";
 import { objects } from "@wailsjs/go/models";
 import { Clipboard, History, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type LinkHistoryPanelProps = {
   open: boolean;
@@ -13,6 +14,7 @@ type LinkHistoryPanelProps = {
 };
 
 export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) {
+  const { t } = useTranslation();
   const accountId = useObjectsStore((s) => s.accountId);
   const [links, setLinks] = useState<objects.LinkHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,14 +56,14 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
 
   const handleCopy = (url: string) => {
     navigator.clipboard.writeText(url);
-    showSuccess("已复制到剪贴板");
+    showSuccess(t("linkHistory.success.copied"));
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[400px] sm:w-[540px]">
         <SheetHeader>
-          <SheetTitle>分享链接历史</SheetTitle>
+          <SheetTitle>{t("linkHistory.title")}</SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 h-[calc(100vh-100px)]">
@@ -72,8 +74,8 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
           ) : links.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
               <History className="h-12 w-12 text-muted-foreground/40 mb-4" />
-              <p className="text-sm font-medium">暂无历史记录</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">生成的分享链接将在此处显示</p>
+              <p className="text-sm font-medium">{t("linkHistory.empty")}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t("linkHistory.emptyDesc")}</p>
             </div>
           ) : (
             <div className="h-full overflow-y-auto pr-2 space-y-4">
@@ -88,13 +90,20 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${isExpired ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}
                       >
-                        {isExpired ? "已过期" : "有效"}
+                        {isExpired
+                          ? t("linkHistory.status.expired")
+                          : t("linkHistory.status.valid")}
                       </span>
                     </div>
 
                     <div className="text-xs text-muted-foreground mb-2">
-                      <div>Bucket: {link.bucket}</div>
-                      <div>过期时间: {new Date(link.expiresAt).toLocaleString()}</div>
+                      <div>
+                        {t("linkHistory.label.bucket")}: {link.bucket}
+                      </div>
+                      <div>
+                        {t("linkHistory.label.expires")}:{" "}
+                        {new Date(link.expiresAt).toLocaleString()}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -118,7 +127,7 @@ export function LinkHistoryPanel({ open, onOpenChange }: LinkHistoryPanelProps) 
                         className="text-destructive hover:text-destructive h-7 px-2"
                         onClick={() => handleDelete(link.id)}
                       >
-                        删除记录
+                        {t("linkHistory.button.delete")}
                       </Button>
                     </div>
                   </div>

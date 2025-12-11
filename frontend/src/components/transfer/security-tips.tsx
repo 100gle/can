@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExternalLink, Lock, ShieldAlert } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type SecurityTipsProps = {
   className?: string;
@@ -11,21 +12,22 @@ type SecurityTipsProps = {
  * Displays best practices and warnings for link sharing.
  */
 export function SecurityTips({ className, variant = "inline" }: SecurityTipsProps) {
+  const { t } = useTranslation();
   const tips = [
     {
       icon: <Lock className="h-4 w-4" />,
-      title: "链接过期时间",
-      description: "建议设置较短的过期时间，降低链接泄露风险。",
+      title: t("security.tip.expiry.title"),
+      description: t("security.tip.expiry.desc"),
     },
     {
       icon: <ShieldAlert className="h-4 w-4" />,
-      title: "敏感数据",
-      description: "不要通过预签名链接分享包含敏感信息的文件。",
+      title: t("security.tip.sensitive.title"),
+      description: t("security.tip.sensitive.desc"),
     },
     {
       icon: <ExternalLink className="h-4 w-4" />,
-      title: "安全传输",
-      description: "仅通过安全渠道（如加密邮件）分享链接。",
+      title: t("security.tip.secure.title"),
+      description: t("security.tip.secure.desc"),
     },
   ];
 
@@ -33,7 +35,7 @@ export function SecurityTips({ className, variant = "inline" }: SecurityTipsProp
     return (
       <Alert className={className}>
         <ShieldAlert className="h-4 w-4" />
-        <AlertTitle>安全提示</AlertTitle>
+        <AlertTitle>{t("security.title")}</AlertTitle>
         <AlertDescription>
           <ul className="mt-2 space-y-2 text-sm">
             {tips.map((tip, index) => (
@@ -55,7 +57,7 @@ export function SecurityTips({ className, variant = "inline" }: SecurityTipsProp
     <div className={className}>
       <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
         <ShieldAlert className="h-4 w-4" />
-        安全提示
+        {t("security.title")}
       </p>
       <ul className="space-y-1.5 text-xs text-muted-foreground">
         {tips.map((tip, index) => (

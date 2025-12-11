@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { backupService } from "@/lib/services";
 import { showError } from "@/lib/toast";
 import { usePreferencesStore } from "@/state/preferences";
+import { useTranslation } from "react-i18next";
 
 interface BackupCardProps {
   onRequestEncryptedBackup: () => void;
@@ -15,6 +16,7 @@ export function BackupCard({
   onRequestEncryptedBackup,
   onRequestRestoreWithPassword,
 }: BackupCardProps) {
+  const { t } = useTranslation();
   const backupEncryptionEnabled = usePreferencesStore((state) => state.backupEncryptionEnabled);
   const setBackupEncryptionEnabled = usePreferencesStore(
     (state) => state.setBackupEncryptionEnabled,
@@ -26,7 +28,7 @@ export function BackupCard({
     } else {
       const result = await backupService.createBackup();
       if (!result.success) {
-        showError(`备份失败: ${result.error}`);
+        showError(`Backup failed: ${result.error}`);
       }
     }
   };
@@ -42,7 +44,7 @@ export function BackupCard({
     if (result.error.includes("encrypted") || result.error.includes("password")) {
       onRequestRestoreWithPassword();
     } else {
-      showError(`恢复失败: ${result.error}`);
+      showError(`Restore failed: ${result.error}`);
     }
   };
 
@@ -50,10 +52,8 @@ export function BackupCard({
     <Card>
       <CardHeader>
         <div className="flex items-baseline gap-2">
-          <CardTitle>系统备份</CardTitle>
-          <CardDescription className="text-xs">
-            创建包含应用设置、账户配置和偏好设置的完整备份
-          </CardDescription>
+          <CardTitle>{t("settings.backup.title")}</CardTitle>
+          <CardDescription className="text-xs">{t("settings.backup.subtitle")}</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -64,20 +64,20 @@ export function BackupCard({
             onCheckedChange={setBackupEncryptionEnabled}
           />
           <Label htmlFor="backup-encryption" className="cursor-pointer">
-            启用备份加密 (AES-256-GCM)
+            {t("settings.backup.enableEncryption")}
           </Label>
         </div>
         {backupEncryptionEnabled && (
           <p className="text-xs text-muted-foreground border-l-2 border-amber-500 pl-3">
-            启用加密后，备份文件将使用密码保护。请务必牢记密码，丢失密码将无法恢复数据。
+            {t("settings.backup.encryptionWarning")}
           </p>
         )}
         <div className="flex flex-col gap-4 sm:flex-row">
           <Button variant="outline" onClick={handleRestoreBackup} className="w-full sm:w-auto">
-            从文件恢复
+            {t("settings.backup.restore")}
           </Button>
           <Button onClick={handleCreateBackup} className="w-full sm:w-auto">
-            创建完整备份
+            {t("settings.backup.create")}
           </Button>
         </div>
       </CardContent>

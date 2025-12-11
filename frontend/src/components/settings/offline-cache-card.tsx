@@ -14,8 +14,10 @@ import { showSuccess } from "@/lib/toast";
 import { formatBytes } from "@/lib/utils";
 import { usePreferencesStore, type CacheSize } from "@/state/preferences";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function OfflineCacheCard() {
+  const { t } = useTranslation();
   const offlineCacheEnabled = usePreferencesStore((state) => state.offlineCacheEnabled);
   const setOfflineCacheEnabled = usePreferencesStore((state) => state.setOfflineCacheEnabled);
   const offlineCacheSize = usePreferencesStore((state) => state.offlineCacheSize);
@@ -30,7 +32,7 @@ export function OfflineCacheCard() {
     await offlineCache.clear();
     const usage = await offlineCache.getUsage();
     setCacheUsage(usage);
-    showSuccess("缓存已清除");
+    showSuccess(t("settings.offline.clearSuccess"));
   };
 
   const handleCacheSizeChange = (value: string) => {
@@ -42,17 +44,15 @@ export function OfflineCacheCard() {
     <Card>
       <CardHeader>
         <div className="flex items-baseline gap-2">
-          <CardTitle>离线缓存</CardTitle>
-          <CardDescription className="text-xs">
-            管理离线数据缓存，开启后将缓存最近浏览的列表和文件以便离线访问
-          </CardDescription>
+          <CardTitle>{t("settings.offline.title")}</CardTitle>
+          <CardDescription className="text-xs">{t("settings.offline.desc")}</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label>启用离线缓存</Label>
-            <p className="text-xs text-muted-foreground">自动缓存浏览过的存储桶列表和对象列表</p>
+            <Label>{t("settings.offline.enable")}</Label>
+            <p className="text-xs text-muted-foreground">{t("settings.offline.enableDesc")}</p>
           </div>
           <Switch checked={offlineCacheEnabled} onCheckedChange={setOfflineCacheEnabled} />
         </div>
@@ -60,8 +60,8 @@ export function OfflineCacheCard() {
           <div className="space-y-4">
             <div className="flex flex-col gap-2 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-0.5">
-                <Label>缓存大小</Label>
-                <p className="text-xs text-muted-foreground">限制离线缓存的最大占用</p>
+                <Label>{t("settings.offline.size")}</Label>
+                <p className="text-xs text-muted-foreground">{t("settings.offline.sizeDesc")}</p>
               </div>
               <Select value={String(offlineCacheSize)} onValueChange={handleCacheSizeChange}>
                 <SelectTrigger className="w-[160px]">
@@ -78,16 +78,16 @@ export function OfflineCacheCard() {
             <div className="rounded-lg border border-border p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">当前占用</p>
+                  <p className="text-sm font-medium">{t("settings.offline.currentUsage")}</p>
                   <p className="text-2xl font-bold">
-                    {cacheUsage ? formatBytes(cacheUsage.usage) : "Calculating..."}
+                    {cacheUsage ? formatBytes(cacheUsage.usage) : t("settings.offline.calculating")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     (Quota: {cacheUsage ? formatBytes(cacheUsage.quota) : "-"})
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleClearOfflineCache}>
-                  清除缓存
+                  {t("settings.offline.clear")}
                 </Button>
               </div>
             </div>

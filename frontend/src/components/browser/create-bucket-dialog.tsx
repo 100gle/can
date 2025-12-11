@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { bucketsStore } from "@/state/buckets";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export type CreateBucketDialogProps = {
   open: boolean;
@@ -49,6 +50,7 @@ export function CreateBucketDialog({
   const [bucketCosMultiAz, setBucketCosMultiAz] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!open) {
@@ -63,11 +65,11 @@ export function CreateBucketDialog({
 
   const handleCreate = async () => {
     if (!accountId) {
-      onError?.("请先选择账户");
+      onError?.(t("bucket.create.error.noAccount"));
       return;
     }
     if (!newBucketName.trim()) {
-      onError?.("存储桶名称不能为空");
+      onError?.(t("bucket.create.error.nameRequired"));
       return;
     }
     setCreating(true);
@@ -82,7 +84,7 @@ export function CreateBucketDialog({
       await bucketsStore.createBucket(accountId, payload);
       onOpenChange(false);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "创建存储桶失败";
+      const message = e instanceof Error ? e.message : t("bucket.create.error.createFailed");
       onError?.(message);
     } finally {
       setCreating(false);
@@ -93,41 +95,45 @@ export function CreateBucketDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>新建存储桶 · Create Bucket</DialogTitle>
-          <DialogDescription>命名遵循 S3 规则，Region/ACL 与提供商保持一致。</DialogDescription>
+          <DialogTitle>{t("bucket.create.title")}</DialogTitle>
+          <DialogDescription>{t("bucket.create.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-5 py-4">
           <div className="space-y-2">
-            <Label>名称 / Name</Label>
+            <Label>{t("bucket.create.name.label")}</Label>
             <Input
-              placeholder="my-team-bucket"
+              placeholder={t("bucket.create.name.placeholder")}
               value={newBucketName}
               onChange={(e) => setNewBucketName(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">仅限小写字母、数字、`-`，长度 3-63。</p>
+            <p className="text-xs text-muted-foreground">{t("bucket.create.name.helper")}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>区域 / Region</Label>
+              <Label>{t("bucket.create.region.label")}</Label>
               <Input
-                placeholder="cn-hangzhou / us-east-1"
+                placeholder={t("bucket.create.region.placeholder")}
                 value={newBucketRegion}
                 onChange={(e) => setNewBucketRegion(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                留空将使用账户默认区域：{defaultRegion}。
+                {t("bucket.create.region.helper", { region: defaultRegion })}
               </p>
             </div>
             <div className="space-y-2">
-              <Label>访问策略 / Access Control</Label>
+              <Label>{t("bucket.create.acl.label")}</Label>
               <Select value={bucketACL} onValueChange={setBucketACL}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择 ACL" />
+                  <SelectValue placeholder={t("bucket.create.acl.placeholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="private">私有 · Private</SelectItem>
-                  <SelectItem value="public-read">公共读 · Public Read</SelectItem>
-                  <SelectItem value="public-read-write">公共读写 · Public RW</SelectItem>
+                  <SelectItem value="private">{t("bucket.create.acl.options.private")}</SelectItem>
+                  <SelectItem value="public-read">
+                    {t("bucket.create.acl.options.publicRead")}
+                  </SelectItem>
+                  <SelectItem value="public-read-write">
+                    {t("bucket.create.acl.options.publicReadWrite")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -136,12 +142,16 @@ export function CreateBucketDialog({
           <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
             <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
               <div>
-                <p className="text-sm font-medium">高级配置</p>
-                <p className="text-xs text-muted-foreground">供应商特有的参数</p>
+                <p className="text-sm font-medium">{t("bucket.create.advanced.title")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("bucket.create.advanced.description")}
+                </p>
               </div>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1">
-                  {advancedOpen ? "收起" : "展开"}
+                  {advancedOpen
+                    ? t("bucket.create.advanced.toggle.collapse")
+                    : t("bucket.create.advanced.toggle.expand")}
                   <ChevronDown
                     className={cn(
                       "h-4 w-4 transition-transform",
@@ -154,16 +164,20 @@ export function CreateBucketDialog({
             <CollapsibleContent className="space-y-4 pt-4">
               {isOSSProvider && (
                 <div className="space-y-2 rounded-lg border border-border/40 bg-muted/10 p-3">
-                  <Label>OSS 存储类型</Label>
+                  <Label>{t("bucket.create.oss.label")}</Label>
                   <Select value={bucketStorageClass} onValueChange={setBucketStorageClass}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="standard">标准 · Standard</SelectItem>
-                      <SelectItem value="ia">低频 · IA</SelectItem>
-                      <SelectItem value="archive">归档 · Archive</SelectItem>
-                      <SelectItem value="cold">冷归档 · Cold</SelectItem>
+                      <SelectItem value="standard">
+                        {t("bucket.create.oss.options.standard")}
+                      </SelectItem>
+                      <SelectItem value="ia">{t("bucket.create.oss.options.ia")}</SelectItem>
+                      <SelectItem value="archive">
+                        {t("bucket.create.oss.options.archive")}
+                      </SelectItem>
+                      <SelectItem value="cold">{t("bucket.create.oss.options.cold")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -172,26 +186,28 @@ export function CreateBucketDialog({
               {isCOSProvider && (
                 <div className="flex items-start justify-between rounded-lg border border-border/40 bg-muted/10 p-3">
                   <div>
-                    <p className="text-sm font-medium">多可用区冗余 · MAZ</p>
-                    <p className="text-xs text-muted-foreground">在同一区域内复制到多个 AZ</p>
+                    <p className="text-sm font-medium">{t("bucket.create.cos.title")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("bucket.create.cos.description")}
+                    </p>
                   </div>
                   <Switch checked={bucketCosMultiAz} onCheckedChange={setBucketCosMultiAz} />
                 </div>
               )}
 
               {!isOSSProvider && !isCOSProvider && (
-                <p className="text-xs text-muted-foreground">当前供应商暂无额外创建参数。</p>
+                <p className="text-xs text-muted-foreground">{t("bucket.create.advanced.none")}</p>
               )}
             </CollapsibleContent>
           </Collapsible>
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("cancel")}
           </Button>
           <Button onClick={handleCreate} disabled={creating || !newBucketName.trim()}>
             {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            创建
+            {t("bucket.create.action.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

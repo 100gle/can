@@ -13,6 +13,7 @@ import { objectsStore } from "@/state/objects";
 import { CreateSymlink } from "@wailsjs/go/app/App";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 export type SymlinkDialogProps = {
@@ -35,29 +36,31 @@ export function SymlinkDialog({
   const [symlinkName, setSymlinkName] = useState("");
   const [symlinkTargetKey, setSymlinkTargetKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const { t } = useTranslation();
+  const finalKeyPreview = `${prefix || "/"}${symlinkName}`.replace(/\/{2,}/g, "/");
 
   const handleCreate = async () => {
     if (!accountId || !bucket) {
-      onError?.("请先选择账户和 Bucket");
+      onError?.(t("symlink.error.missingContext"));
       return;
     }
     const trimmedName = symlinkName.trim();
     const trimmedTarget = symlinkTargetKey.trim();
     if (!trimmedName || !trimmedTarget) {
-      onError?.("请输入软链接名称和目标 Key");
+      onError?.(t("symlink.error.missingFields"));
       return;
     }
     const linkKey = `${prefix}${trimmedName}`.replace(/\/{2,}/g, "/");
     setSaving(true);
     try {
       await CreateSymlink(accountId, bucket, linkKey, trimmedTarget);
-      toast.success("软链接创建成功");
+      toast.success(t("symlink.success"));
       onOpenChange(false);
       setSymlinkName("");
       setSymlinkTargetKey("");
       await objectsStore.refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "创建软链接失败";
+      const message = error instanceof Error ? error.message : t("symlink.error.createFailed");
       onError?.(message);
     } finally {
       setSaving(false);
@@ -68,41 +71,41 @@ export function SymlinkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>创建软链接</DialogTitle>
-          <DialogDescription>软链接会映射到目标对象，可快速暴露常用路径。</DialogDescription>
+          <DialogTitle>{t("symlink.title")}</DialogTitle>
+          <DialogDescription>{t("symlink.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>软链接名称</Label>
+            <Label>{t("symlink.name.label")}</Label>
             <Input
-              placeholder="latest/report.csv"
+              placeholder={t("symlink.name.placeholder")}
               value={symlinkName}
               onChange={(e) => setSymlinkName(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              最终 Key: {(prefix || "/") + symlinkName}
+              {t("symlink.name.helper", { key: finalKeyPreview })}
             </p>
           </div>
           <div className="space-y-2">
-            <Label>目标对象 Key</Label>
+            <Label>{t("symlink.target.label")}</Label>
             <Input
-              placeholder="archives/2025-02/report.csv"
+              placeholder={t("symlink.target.placeholder")}
               value={symlinkTargetKey}
               onChange={(e) => setSymlinkTargetKey(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">填写完整的对象 Key，区分大小写。</p>
+            <p className="text-xs text-muted-foreground">{t("symlink.target.helper")}</p>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("cancel")}
           </Button>
           <Button
             onClick={handleCreate}
             disabled={saving || !symlinkName.trim() || !symlinkTargetKey.trim() || !bucket}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            创建
+            {t("symlink.action.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

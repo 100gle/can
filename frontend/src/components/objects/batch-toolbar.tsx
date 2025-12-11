@@ -3,6 +3,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { Copy, Download, FileDown, Loader2, Settings2, Trash2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type BatchToolbarProps = {
   className?: string;
@@ -21,6 +22,7 @@ export function BatchToolbar({
   onBatchMoveCopy,
   onBatchExport,
 }: BatchToolbarProps) {
+  const { t } = useTranslation();
   const selectedKeys = useObjectsStore((s) => s.selectedKeys);
   const selecting = useObjectsStore((s) => s.selecting);
   const count = selectedKeys.size;
@@ -43,7 +45,9 @@ export function BatchToolbar({
           className,
         )}
       >
-        <span className="text-sm font-medium text-primary">已选择 {count} 项</span>
+        <span className="text-sm font-medium text-primary">
+          {t("objects.batchToolbar.selected", { count })}
+        </span>
 
         <div className="flex items-center gap-1">
           <Tooltip>
@@ -56,10 +60,10 @@ export function BatchToolbar({
                 disabled={selecting}
               >
                 <Download className="h-4 w-4" />
-                下载
+                {t("objects.batchToolbar.action.download")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>批量下载选中的文件</TooltipContent>
+            <TooltipContent>{t("objects.batchToolbar.action.downloadTooltip")}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -72,10 +76,10 @@ export function BatchToolbar({
                 disabled={selecting}
               >
                 <Settings2 className="h-4 w-4" />
-                属性
+                {t("objects.batchToolbar.action.edit")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>批量编辑标签、存储类型、ACL</TooltipContent>
+            <TooltipContent>{t("objects.batchToolbar.action.editTooltip")}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -88,10 +92,10 @@ export function BatchToolbar({
                 disabled={selecting}
               >
                 <Copy className="h-4 w-4" />
-                复制/移动
+                {t("objects.batchToolbar.action.move")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>移动或复制选中的文件</TooltipContent>
+            <TooltipContent>{t("objects.batchToolbar.action.moveTooltip")}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -104,10 +108,10 @@ export function BatchToolbar({
                 disabled={selecting}
               >
                 <FileDown className="h-4 w-4" />
-                导出
+                {t("objects.batchToolbar.action.export")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>导出选中文件的列表</TooltipContent>
+            <TooltipContent>{t("objects.batchToolbar.action.exportTooltip")}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -124,10 +128,10 @@ export function BatchToolbar({
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
-                删除
+                {t("objects.batchToolbar.action.delete")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>批量删除选中的文件</TooltipContent>
+            <TooltipContent>{t("objects.batchToolbar.action.deleteTooltip")}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -143,7 +147,7 @@ export function BatchToolbar({
                 <X className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>清除选择</TooltipContent>
+            <TooltipContent>{t("objects.batchToolbar.action.clear")}</TooltipContent>
           </Tooltip>
         </div>
       </div>

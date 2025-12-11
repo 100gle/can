@@ -9,12 +9,14 @@ import {
   type BucketRefererModel,
 } from "@/state/bucketConfig";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type RefererProtectionPanelProps = {
   provider: string;
 };
 
 export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps) => {
+  const { t } = useTranslation();
   const referer = useBucketConfigStore((state) => state.referer);
   const saving = useBucketConfigStore((state) => state.saving.referer);
   const [draft, setDraft] = useState<BucketRefererModel | undefined>(referer);
@@ -27,8 +29,8 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Referer 防盗链</CardTitle>
-          <CardDescription>正在加载配置...</CardDescription>
+          <CardTitle>{t("bucket.referer.title")}</CardTitle>
+          <CardDescription>{t("bucket.referer.loading")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -44,16 +46,14 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Referer 防盗链</CardTitle>
-        <CardDescription>仅允许白名单来源访问静态资源，降低盗链风险。</CardDescription>
+        <CardTitle>{t("bucket.referer.title")}</CardTitle>
+        <CardDescription>{t("bucket.referer.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between rounded-xl border p-4">
           <div>
-            <p className="font-medium">启用 Referer 白名单</p>
-            <p className="text-sm text-muted-foreground">
-              关闭后将允许所有来源访问（不建议在生产环境关闭）。
-            </p>
+            <p className="font-medium">{t("bucket.referer.enable")}</p>
+            <p className="text-sm text-muted-foreground">{t("bucket.referer.enableDesc")}</p>
           </div>
           <Switch
             checked={draft.enabled}
@@ -64,10 +64,8 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
         </div>
         <div className="flex items-center justify-between rounded-xl border p-4">
           <div>
-            <p className="font-medium">允许空 Referer</p>
-            <p className="text-sm text-muted-foreground">
-              部分客户端不会携带 Referer，必要时可放行。
-            </p>
+            <p className="font-medium">{t("bucket.referer.allowEmpty")}</p>
+            <p className="text-sm text-muted-foreground">{t("bucket.referer.allowEmptyDesc")}</p>
           </div>
           <Switch
             checked={draft.allowEmpty}
@@ -77,7 +75,7 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
           />
         </div>
         <div className="space-y-2">
-          <Label>白名单列表（每行一个，可使用 www.example.com 或 *.example.com）</Label>
+          <Label>{t("bucket.referer.whitelist")}</Label>
           <Textarea
             rows={6}
             disabled={!draft.enabled}
@@ -92,12 +90,12 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
                   : state,
               )
             }
-            placeholder="https://www.example.com&#10;https://*.internal.example.com"
+            placeholder={t("bucket.referer.placeholder")}
           />
         </div>
         {provider === "aws" && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            AWS S3 原生不支持 Bucket Referer 白名单，本设置主要用于 OSS/COS，AWS 将忽略此配置。
+            {t("bucket.referer.awsHint")}
           </p>
         )}
         <div className="flex justify-end gap-2">
@@ -106,10 +104,10 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
             onClick={() => setDraft(referer)}
             disabled={saving || referer === draft}
           >
-            重置
+            {t("bucket.referer.reset")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "保存中..." : "保存配置"}
+            {saving ? t("bucket.referer.saving") : t("bucket.referer.save")}
           </Button>
         </div>
       </CardContent>
