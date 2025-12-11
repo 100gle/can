@@ -119,6 +119,9 @@ const FALLBACK_PROVIDERS: ProviderMetadata[] = [
   { id: "oss", label: "Aliyun OSS", description: "Object Storage Service" },
   { id: "cos", label: "Tencent COS", description: "Tencent Cloud Object Storage" },
   { id: "r2", label: "Cloudflare R2", description: "Durable object storage" },
+  { id: "qiniu", label: "七牛云 Kodo", description: "" },
+  { id: "minio", label: "MinIO", description: "" },
+  { id: "custom", label: "通用 S3", description: "" },
 ];
 
 const FALLBACK_CAPABILITIES: ProviderCapability[] = [

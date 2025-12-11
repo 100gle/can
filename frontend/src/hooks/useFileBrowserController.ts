@@ -10,7 +10,7 @@ import { useAccountsStore } from "@/state/accounts";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
 import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
 import { usePreferencesStore, type ViewMode as PrefsViewMode } from "@/state/preferences";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type BrowseLevel = "buckets" | "objects" | "search";
 export type ViewMode = "list" | "grid" | "tree";
@@ -224,45 +224,51 @@ export function useFileBrowserController(
 
   const hasActiveFilters = searchTerm !== "" || typeFilter !== "all";
 
-  // Actions
-  const goToRoot = () => {
+  // Actions - memoized to prevent child re-renders
+  const goToRoot = useCallback(() => {
     setLevel("buckets");
     setCurrentBucket(null);
     setSearchTerm("");
     setTypeFilter("all");
-  };
+  }, []);
 
-  const goToBucket = async (bucketName: string) => {
-    if (!accountId) return;
-    setCurrentBucket(bucketName);
-    setLevel("objects");
-    setSearchTerm("");
-    setTypeFilter("all");
-    const delimiter = viewMode === "list" ? "" : "/";
-    await objectsStore.setContext(accountId, bucketName, delimiter);
-    objectsStore.clearSelection();
-  };
+  const goToBucket = useCallback(
+    async (bucketName: string) => {
+      if (!accountId) return;
+      setCurrentBucket(bucketName);
+      setLevel("objects");
+      setSearchTerm("");
+      setTypeFilter("all");
+      const delimiter = viewMode === "list" ? "" : "/";
+      await objectsStore.setContext(accountId, bucketName, delimiter);
+      objectsStore.clearSelection();
+    },
+    [accountId, viewMode],
+  );
 
-  const enterFolder = (key: string) => {
+  const enterFolder = useCallback((key: string) => {
     void objectsStore.enterPrefix(key.endsWith("/") ? key : `${key}/`);
-  };
+  }, []);
 
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-    setPrefsViewMode(mode as PrefsViewMode);
-    if (level === "objects" && mode !== "tree") {
-      const newDelimiter = mode === "list" ? "" : "/";
-      void objectsStore.setDelimiter(newDelimiter);
-    }
-  };
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      setViewMode(mode);
+      setPrefsViewMode(mode as PrefsViewMode);
+      if (level === "objects" && mode !== "tree") {
+        const newDelimiter = mode === "list" ? "" : "/";
+        void objectsStore.setDelimiter(newDelimiter);
+      }
+    },
+    [level, setPrefsViewMode],
+  );
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     if (level === "buckets") {
       void bucketsStore.refresh();
     } else {
       void objectsStore.refresh();
     }
-  };
+  }, [level]);
 
   return {
     // State

@@ -5,15 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Building2,
-  MapPin,
-  Pencil,
-  Server,
-  ShieldCheck,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react";
+import { Cloud, MapPin, Pencil, Server, ShieldCheck, Trash2, type LucideIcon } from "lucide-react";
 import { memo, MouseEvent } from "react";
 
 type AccountCardProps = {
@@ -71,17 +63,15 @@ export const AccountCard = memo(function AccountCard({
       <div className={cn("flex h-full flex-col gap-4", isList && "flex")}>
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xl font-semibold leading-tight line-clamp-1">{account.name}</h3>
-            </div>
-            {account.tag ? (
+            <h3 className="text-xl font-semibold leading-tight line-clamp-1">{account.name}</h3>
+            {account.tag && (
               <Badge
                 variant="outline"
                 className="ml-auto rounded-full px-2 py-0 text-xs font-medium text-muted-foreground"
               >
                 {account.tag}
               </Badge>
-            ) : null}
+            )}
           </div>
           <p className="text-sm text-muted-foreground line-clamp-1">{account.providerLabel}</p>
         </div>
@@ -94,7 +84,7 @@ export const AccountCard = memo(function AccountCard({
         >
           {isList ? (
             <>
-              <DetailItem icon={Building2} label="Provider" value={account.providerLabel} />
+              <DetailItem icon={Cloud} label="Provider" value={account.providerLabel} />
               <DetailItem icon={MapPin} label="Region" value={account.region || "未设置"} />
               <DetailItem
                 icon={ShieldCheck}
@@ -110,7 +100,7 @@ export const AccountCard = memo(function AccountCard({
             </>
           ) : (
             <>
-              <DetailItem icon={Building2} label="Provider" value={account.providerLabel} />
+              <DetailItem icon={Cloud} label="Provider" value={account.providerLabel} />
               <DetailItem icon={MapPin} label="Region" value={account.region || "未设置"} />
               <DetailItem
                 icon={ShieldCheck}
@@ -131,7 +121,7 @@ export const AccountCard = memo(function AccountCard({
               isList ? "self-end sm:mt-0 sm:justify-end" : "justify-end",
             )}
           >
-            {onEdit ? (
+            {onEdit && (
               <Button
                 variant="outline"
                 size={isList ? "sm" : "icon"}
@@ -143,10 +133,10 @@ export const AccountCard = memo(function AccountCard({
                 aria-label="编辑账户"
               >
                 <Pencil className="h-4 w-4" />
-                {isList ? <span>编辑</span> : null}
+                {isList && <span>编辑</span>}
               </Button>
-            ) : null}
-            {onDelete ? (
+            )}
+            {onDelete && (
               <Button
                 variant={isList ? "destructive" : "ghost"}
                 size={isList ? "sm" : "icon"}
@@ -158,9 +148,9 @@ export const AccountCard = memo(function AccountCard({
                 aria-label="删除账户"
               >
                 <Trash2 className="h-4 w-4" />
-                {isList ? <span>删除</span> : null}
+                {isList && <span>删除</span>}
               </Button>
-            ) : null}
+            )}
           </div>
         )}
       </div>

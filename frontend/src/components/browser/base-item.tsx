@@ -1,5 +1,6 @@
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
+import { memo, useCallback } from "react";
 
 export type BaseItemProps = {
   // 布局控制
@@ -22,7 +23,7 @@ export type BaseItemProps = {
   menuItems: React.ReactNode;
 };
 
-export function BaseItem({
+export const BaseItem = memo(function BaseItem({
   viewMode,
   label,
   icon,
@@ -35,13 +36,24 @@ export function BaseItem({
   clickable = true,
   menuItems,
 }: BaseItemProps) {
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (clickable && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        onClick?.(e as unknown as React.MouseEvent);
+      }
+    },
+    [clickable, onClick],
+  );
   return (
     <ContextMenu>
       <ContextMenuTrigger>
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={clickable ? 0 : undefined}
           onClick={onClick}
           onDoubleClick={onDoubleClick}
+          onKeyDown={handleKeyDown}
           className={cn(
             "group relative flex items-center justify-center rounded-md transition-all text-center",
             "hover:bg-accent/60",
@@ -50,6 +62,7 @@ export function BaseItem({
               : "flex-row gap-3 px-3 py-2 w-full border-b border-border/30",
             !clickable && "cursor-default",
             selected && "ring-2 ring-primary bg-accent/80",
+            clickable && "focus:outline-none focus:ring-2 focus:ring-primary",
           )}
         >
           {overlay}
@@ -71,9 +84,9 @@ export function BaseItem({
           >
             {label}
           </p>
-        </button>
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent>{menuItems}</ContextMenuContent>
     </ContextMenu>
   );
-}
+});

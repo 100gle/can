@@ -122,7 +122,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
               viewMode="grid"
               onEnter={controller.goToBucket}
               onSettings={onOpenBucketSettings}
-              onDelete={(name) => actions.setPendingDeleteBucket(name)}
+              onDelete={actions.setPendingDeleteBucket}
             />
           ))}
         </div>
@@ -150,7 +150,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           onPreview={actions.handlePreview}
           onDownload={actions.handleDownload}
           onCopyLink={actions.handleCopyLink}
-          onDelete={(key) => actions.setPendingDeleteObject(key)}
+          onDelete={actions.setPendingDeleteObject}
           // Pagination
           pageSize={controller.pageSize}
           truncated={controller.truncated}
@@ -178,7 +178,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           onPreview={actions.handlePreview}
           onDownload={actions.handleDownload}
           onCopyLink={actions.handleCopyLink}
-          onDelete={(key) => actions.setPendingDeleteObject(key)}
+          onDelete={actions.setPendingDeleteObject}
           onEnterFolder={controller.enterFolder}
         />
       );
@@ -202,7 +202,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             onPreview={actions.handlePreview}
             onDownload={actions.handleDownload}
             onCopyLink={actions.handleCopyLink}
-            onDelete={(key) => actions.setPendingDeleteObject(key)}
+            onDelete={actions.setPendingDeleteObject}
           />
         ))}
       </div>
@@ -274,9 +274,9 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                             onClick={() => objectsStore.loadMore()}
                             disabled={controller.loadingMore}
                           >
-                            {controller.loadingMore ? (
+                            {controller.loadingMore && (
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : null}
+                            )}
                             加载更多
                           </Button>
                         </div>

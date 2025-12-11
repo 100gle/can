@@ -131,7 +131,7 @@ export default function DashboardPage() {
               编辑账户
             </Button>
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
       </header>
 

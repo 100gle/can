@@ -4,6 +4,7 @@ import { HomeLayout } from "@/components/layouts/home-layout";
 import { showError, showSuccess } from "@/lib/toast";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 type DrawerState =
   | { open: false }
@@ -16,11 +17,10 @@ type DrawerState =
 const CLOSED_DRAWER: DrawerState = { open: false };
 
 export default function HomePage() {
-  const accounts = useAccountsStore((state) => state.accounts);
-  const providers = useAccountsStore((state) => state.providers);
+  const { accounts, providers } = useAccountsStore(
+    useShallow((state) => ({ accounts: state.accounts, providers: state.providers })),
+  );
   const [drawerState, setDrawerState] = useState<DrawerState>(CLOSED_DRAWER);
-
-  // Accounts already bootstrapped in root route (__root.tsx)
 
   const openDrawer = (mode: "create" | "edit", account?: AccountModel) => {
     setDrawerState({ open: true, mode, account });
@@ -45,8 +45,8 @@ export default function HomePage() {
           .join("\n");
         showSuccess(message);
       })
-      .catch(() => {
-        /* handled in store */
+      .catch((err: Error) => {
+        showError(`导出失败: ${err?.message ?? "未知错误"}`);
       });
   };
 
@@ -66,8 +66,8 @@ export default function HomePage() {
         }
         showSuccess(message.join("\n"));
       })
-      .catch(() => {
-        /* handled */
+      .catch((err: Error) => {
+        showError(`导入失败: ${err?.message ?? "未知错误"}`);
       });
   };
 
@@ -79,7 +79,7 @@ export default function HomePage() {
         onImportAccount={handleImportAccounts}
         onExportAccount={handleExportAccounts}
       />
-      {drawerState.open ? (
+      {drawerState.open && (
         <AccountFormDrawer
           open
           mode={drawerState.mode}
@@ -87,7 +87,7 @@ export default function HomePage() {
           initialAccount={drawerState.account}
           onClose={closeDrawer}
         />
-      ) : null}
+      )}
     </HomeLayout>
   );
 }

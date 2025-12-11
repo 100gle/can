@@ -95,10 +95,21 @@ export function FileTable({
     return data.slice(startIndex, endIndex);
   }, [data, safePage, pageSize]);
 
+  // Use refs to provide stable getter functions for dynamic state
+  const paginatedDataRef = useRef(paginatedData);
+  paginatedDataRef.current = paginatedData;
+  const selectedKeysRef = useRef(selectedKeys);
+  selectedKeysRef.current = selectedKeys;
+
   // Compute selection state (based on current page data)
   const allSelected =
     paginatedData.length > 0 && paginatedData.every((d) => selectedKeys.has(d.key));
   const someSelected = paginatedData.some((d) => selectedKeys.has(d.key)) && !allSelected;
+
+  const allSelectedRef = useRef(allSelected);
+  allSelectedRef.current = allSelected;
+  const someSelectedRef = useRef(someSelected);
+  someSelectedRef.current = someSelected;
 
   // Handle row click with OS-standard multi-select behavior + Toggle on repeat click
   const handleRowClick = (e: React.MouseEvent, key: string) => {
@@ -135,28 +146,25 @@ export function FileTable({
     }
   };
 
+  // Create stable column configuration using getter functions
+  // This allows columns to remain stable while state changes are fetched at render time
   const columns = useMemo(
     () =>
-      createFileTableColumns(
-        paginatedData,
-        prefix,
-        selectedKeys,
-        allSelected,
-        someSelected,
-        (keys) => onSelectAll(keys),
+      createFileTableColumns({
+        getSelectedKeys: () => selectedKeysRef.current,
+        getAllKeys: () => paginatedDataRef.current.map((d) => d.key),
+        getAllSelected: () => allSelectedRef.current,
+        getSomeSelected: () => someSelectedRef.current,
+        onSelectAll: (keys) => onSelectAll(keys),
         onClearSelection,
         onToggleSelect,
         onPreview,
         onDownload,
         onCopyLink,
         onDelete,
-      ),
+      }),
     [
-      paginatedData,
-      prefix,
-      selectedKeys,
-      allSelected,
-      someSelected,
+      // Only depend on callback functions, not on state values
       onSelectAll,
       onClearSelection,
       onToggleSelect,
@@ -309,12 +317,13 @@ export function FileTable({
                         </div>
                       </ContextMenuTrigger>
                       <TableRowContextMenu
+                        itemKey={row.original.key}
                         isDir={row.original.isDir}
-                        onEnterFolder={() => onEnterFolder(row.original.key)}
-                        onPreview={() => onPreview(row.original.key)}
-                        onDownload={() => onDownload(row.original.key)}
-                        onCopyLink={() => onCopyLink(row.original.key)}
-                        onDelete={() => onDelete(row.original.key)}
+                        onEnterFolder={onEnterFolder}
+                        onPreview={onPreview}
+                        onDownload={onDownload}
+                        onCopyLink={onCopyLink}
+                        onDelete={onDelete}
                       />
                     </ContextMenu>
                   );

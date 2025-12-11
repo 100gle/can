@@ -141,40 +141,42 @@ export const AccountSwitcher = () => {
               {(isSwitching || isActive) &&
                 (isSwitching ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
-                ) : meta ? (
-                  <TooltipProvider delayDuration={150}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span
-                          className="relative inline-flex h-2.5 w-2.5 items-center justify-center"
-                          aria-label={meta.label}
-                        >
-                          {meta.pulse && (
+                ) : (
+                  meta && (
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            className="relative inline-flex h-2.5 w-2.5 items-center justify-center"
+                            aria-label={meta.label}
+                          >
+                            {meta.pulse && (
+                              <span
+                                className={cn(
+                                  "absolute inline-flex h-4 w-4 rounded-full opacity-75 animate-ping",
+                                  status === "ok" && "bg-emerald-400/40",
+                                  status === "connecting" && "bg-amber-400/40",
+                                )}
+                                aria-hidden
+                              />
+                            )}
                             <span
                               className={cn(
-                                "absolute inline-flex h-4 w-4 rounded-full opacity-75 animate-ping",
-                                status === "ok" && "bg-emerald-400/40",
-                                status === "connecting" && "bg-amber-400/40",
+                                "relative inline-flex h-2.5 w-2.5 rounded-full border border-background/60",
+                                meta.dot,
                               )}
-                              aria-hidden
                             />
-                          )}
-                          <span
-                            className={cn(
-                              "relative inline-flex h-2.5 w-2.5 rounded-full border border-background/60",
-                              meta.dot,
-                            )}
-                          />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="text-xs">
-                        {status === "error" && statusMessage ? statusMessage : meta.label}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : null)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="text-xs">
+                          {status === "error" && statusMessage ? statusMessage : meta.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )
+                ))}
               {/* Tag badge */}
-              {account.tag ? (
+              {account.tag && (
                 <Badge
                   variant="outline"
                   className={cn(
@@ -184,7 +186,7 @@ export const AccountSwitcher = () => {
                 >
                   {account.tag}
                 </Badge>
-              ) : null}
+              )}
             </div>
             <p className="text-xs text-muted-foreground">{account.providerLabel}</p>
           </Button>

@@ -1,9 +1,8 @@
-import type { AccountModel, ConnectionProbe } from "@/state/accounts";
+import type { AccountModel } from "@/state/accounts";
 import { AccountCard } from "./account-card";
 
 type AccountCardGridProps = {
   accounts: AccountModel[];
-  connectionTests?: Record<string, ConnectionProbe>;
   onSelectAccount?: (account: AccountModel) => void;
   onEditAccount?: (account: AccountModel) => void;
   onDeleteAccount?: (account: AccountModel) => void;
@@ -12,7 +11,6 @@ type AccountCardGridProps = {
 
 export const AccountCardGrid = ({
   accounts,
-  connectionTests,
   onSelectAccount,
   onEditAccount,
   onDeleteAccount,
@@ -26,7 +24,6 @@ export const AccountCardGrid = ({
           <div key={account.id} className="w-full">
             <AccountCard
               account={account}
-              status={connectionTests?.[account.id]}
               onSelect={onSelectAccount}
               onEdit={onEditAccount}
               onDelete={onDeleteAccount}
@@ -44,7 +41,6 @@ export const AccountCardGrid = ({
         <AccountCard
           key={account.id}
           account={account}
-          status={connectionTests?.[account.id]}
           onSelect={onSelectAccount}
           onEdit={onEditAccount}
           onDelete={onDeleteAccount}

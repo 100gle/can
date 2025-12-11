@@ -260,7 +260,7 @@ export function BrowserToolbar({
                   <span className="hidden lg:inline truncate">上传</span>
                 </Button>
               )}
-              {selectedKeys.size > 0 && level === "objects" ? (
+              {selectedKeys.size > 0 && level === "objects" && (
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -313,7 +313,7 @@ export function BrowserToolbar({
                     </Button>
                   </PopoverContent>
                 </Popover>
-              ) : null}
+              )}
               {level === "buckets" && (
                 <Button
                   variant="default"

@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const EncryptionPanel = () => {
   const encryption = useBucketConfigStore((state) => state.encryption);
@@ -54,7 +54,7 @@ export const EncryptionPanel = () => {
         </div>
         <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="切换默认加密" />
       </div>
-      {enabled ? (
+      {enabled && (
         <div className="space-y-3 rounded-lg border border-border/50 p-4">
           <div className="space-y-2">
             <Label>算法</Label>
@@ -71,7 +71,7 @@ export const EncryptionPanel = () => {
               </SelectContent>
             </Select>
           </div>
-          {algorithm === "aws:kms" ? (
+          {algorithm === "aws:kms" && (
             <div className="space-y-2">
               <Label htmlFor="kms-key">KMS Key ID</Label>
               <Input
@@ -81,11 +81,11 @@ export const EncryptionPanel = () => {
                 placeholder="arn:aws:kms:region:acct:key/..."
               />
             </div>
-          ) : null}
+          )}
         </div>
-      ) : null}
+      )}
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         保存
       </Button>
     </div>

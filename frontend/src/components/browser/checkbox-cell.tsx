@@ -1,4 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox";
+import { memo } from "react";
 
 interface CheckboxCellProps {
   checked: boolean | "indeterminate";
@@ -7,7 +8,12 @@ interface CheckboxCellProps {
   ariaLabel?: string;
 }
 
-export function CheckboxCell({ checked, onCheckedChange, onClick, ariaLabel }: CheckboxCellProps) {
+export const CheckboxCell = memo(function CheckboxCell({
+  checked,
+  onCheckedChange,
+  onClick,
+  ariaLabel,
+}: CheckboxCellProps) {
   return (
     <Checkbox
       checked={checked}
@@ -17,4 +23,4 @@ export function CheckboxCell({ checked, onCheckedChange, onClick, ariaLabel }: C
       onClick={onClick}
     />
   );
-}
+});

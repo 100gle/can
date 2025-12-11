@@ -232,7 +232,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       onBlur={field.handleBlur}
                       aria-invalid={showError}
                     />
-                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
+                    {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -264,7 +264,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       onBlur={field.handleBlur}
                       aria-invalid={showError}
                     />
-                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
+                    {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -335,7 +335,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       onBlur={field.handleBlur}
                       aria-invalid={showError}
                     />
-                    {showError ? <p className="text-xs text-destructive">{errorMessage}</p> : null}
+                    {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -366,7 +366,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
             </form.Field>
           </div>
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={loading} className="gap-2">
@@ -487,12 +487,12 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
             <p className="text-sm font-semibold">共 {total} 条结果</p>
             <p className="text-xs text-muted-foreground">最新搜索会覆盖上一轮结果</p>
           </div>
-          {loading ? (
+          {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               正在加载
             </div>
-          ) : null}
+          )}
         </div>
         <div className="mt-4">
           {results.length === 0 ? (
@@ -530,13 +530,13 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
             </Table>
           )}
         </div>
-        {hasMore ? (
+        {hasMore && (
           <div className="mt-4 text-right">
             <Button variant="outline" onClick={() => searchStore.loadMore()} disabled={loadingMore}>
               {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : "加载更多"}
             </Button>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

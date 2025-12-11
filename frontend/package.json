@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt src/"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

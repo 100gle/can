@@ -22,44 +22,71 @@ import {
 import { CheckboxCell } from "./checkbox-cell";
 import { formatDate, formatSize, getFileIcon } from "./file-utils";
 
-export function createFileTableColumns(
-  data: ObjectModel[],
-  _prefix: string,
-  selectedKeys: Set<string>,
-  allSelected: boolean,
-  someSelected: boolean,
-  onSelectAll: (keys: string[]) => void,
-  onClearSelection: () => void,
-  onToggleSelect: (key: string) => void,
-  onPreview?: (key: string) => void,
-  onDownload?: (key: string) => void,
-  onCopyLink?: (key: string) => void,
-  onDelete?: (key: string) => void,
-): ColumnDef<ObjectModel>[] {
+/**
+ * Configuration object with getter functions for dynamic state.
+ * Using getters allows column definitions to remain stable
+ * while the actual state values are fetched at render time.
+ */
+export interface FileTableColumnConfig {
+  getSelectedKeys: () => Set<string>;
+  getAllKeys: () => string[];
+  getAllSelected: () => boolean;
+  getSomeSelected: () => boolean;
+  onSelectAll: (keys: string[]) => void;
+  onClearSelection: () => void;
+  onToggleSelect: (key: string) => void;
+  onPreview?: (key: string) => void;
+  onDownload?: (key: string) => void;
+  onCopyLink?: (key: string) => void;
+  onDelete?: (key: string) => void;
+}
+
+export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef<ObjectModel>[] {
+  const {
+    getSelectedKeys,
+    getAllKeys,
+    getAllSelected,
+    getSomeSelected,
+    onSelectAll,
+    onClearSelection,
+    onToggleSelect,
+    onPreview,
+    onDownload,
+    onCopyLink,
+    onDelete,
+  } = config;
+
   return [
     {
       id: "select",
-      header: () => (
-        <CheckboxCell
-          checked={allSelected ? true : someSelected ? "indeterminate" : false}
-          onCheckedChange={(value: boolean | "indeterminate") => {
-            if (value === true || value === "indeterminate") {
-              onSelectAll(data.map((d) => d.key));
-            } else {
-              onClearSelection();
-            }
-          }}
-          ariaLabel="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <CheckboxCell
-          checked={selectedKeys.has(row.original.key)}
-          onCheckedChange={() => onToggleSelect(row.original.key)}
-          ariaLabel="Select row"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
+      header: () => {
+        const allSelected = getAllSelected();
+        const someSelected = getSomeSelected();
+        return (
+          <CheckboxCell
+            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+            onCheckedChange={(value: boolean | "indeterminate") => {
+              if (value === true || value === "indeterminate") {
+                onSelectAll(getAllKeys());
+              } else {
+                onClearSelection();
+              }
+            }}
+            ariaLabel="Select all"
+          />
+        );
+      },
+      cell: ({ row }) => {
+        const selectedKeys = getSelectedKeys();
+        return (
+          <CheckboxCell
+            checked={selectedKeys.has(row.original.key)}
+            onCheckedChange={() => onToggleSelect(row.original.key)}
+            ariaLabel="Select row"
+            onClick={(e) => e.stopPropagation()}
+          />
+        );
+      },
       enableSorting: false,
       enableHiding: false,
       size: 40,

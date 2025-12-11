@@ -1,6 +1,7 @@
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { DatabaseZap, Folder, Settings2, Trash2 } from "lucide-react";
+import { memo, useMemo } from "react";
 import { BaseItem } from "./base-item";
 
 export type BucketItemProps = {
@@ -11,33 +12,47 @@ export type BucketItemProps = {
   onDelete: (name: string) => void;
 };
 
-export function BucketItem({ bucket, viewMode, onEnter, onSettings, onDelete }: BucketItemProps) {
-  const icon = (
-    <DatabaseZap className={cn("text-primary", viewMode === "grid" ? "h-12 w-12" : "h-7 w-7")} />
+export const BucketItem = memo(function BucketItem({
+  bucket,
+  viewMode,
+  onEnter,
+  onSettings,
+  onDelete,
+}: BucketItemProps) {
+  const icon = useMemo(
+    () => (
+      <DatabaseZap className={cn("text-primary", viewMode === "grid" ? "h-12 w-12" : "h-7 w-7")} />
+    ),
+    [viewMode],
   );
 
-  const menuItems = (
-    <>
-      <ContextMenuItem onClick={() => onEnter(bucket.name)}>
-        <Folder className="mr-2 h-4 w-4" />
-        进入
-      </ContextMenuItem>
-      {onSettings && (
-        <ContextMenuItem onClick={() => onSettings(bucket.name)}>
-          <Settings2 className="mr-2 h-4 w-4" />
-          设置
+  const menuItems = useMemo(
+    () => (
+      <>
+        <ContextMenuItem onClick={() => onEnter(bucket.name)}>
+          <Folder className="mr-2 h-4 w-4" />
+          进入
         </ContextMenuItem>
-      )}
-      <ContextMenuSeparator />
-      <ContextMenuItem
-        onClick={() => onDelete(bucket.name)}
-        className="text-destructive focus:text-destructive"
-      >
-        <Trash2 className="mr-2 h-4 w-4" />
-        删除
-      </ContextMenuItem>
-    </>
+        {onSettings && (
+          <ContextMenuItem onClick={() => onSettings(bucket.name)}>
+            <Settings2 className="mr-2 h-4 w-4" />
+            设置
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => onDelete(bucket.name)}
+          className="text-destructive focus:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          删除
+        </ContextMenuItem>
+      </>
+    ),
+    [bucket.name, onEnter, onSettings, onDelete],
   );
+
+  const handleClick = useMemo(() => () => onEnter(bucket.name), [bucket.name, onEnter]);
 
   return (
     <BaseItem
@@ -45,8 +60,8 @@ export function BucketItem({ bucket, viewMode, onEnter, onSettings, onDelete }: 
       label={bucket.name}
       icon={icon}
       iconBackground="bg-primary/10"
-      onClick={() => onEnter(bucket.name)}
+      onClick={handleClick}
       menuItems={menuItems}
     />
   );
-}
+});

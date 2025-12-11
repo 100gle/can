@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
+import { Loader2, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type EditableRule = {
   id: string;
@@ -151,15 +151,15 @@ export const LifecyclePanel = () => {
             </div>
           </div>
         ))}
-        {rules.length === 0 ? (
+        {rules.length === 0 && (
           <p className="text-sm text-muted-foreground">当前尚未配置生命周期规则。</p>
-        ) : null}
+        )}
         <Button variant="outline" onClick={handleAdd}>
           添加规则
         </Button>
       </div>
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         保存生命周期
       </Button>
     </div>

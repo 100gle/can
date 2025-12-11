@@ -14,7 +14,7 @@ import {
   OpenDirectoryDialogWithFiles,
   OpenMultipleFilesDialog,
 } from "@wailsjs/go/app/App";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useCopyToClipboard } from "usehooks-ts";
 
@@ -184,39 +184,40 @@ export function useFileBrowserActions({
   // Preview handler
   // Note: In tree view, files may not be in the global objects array since
   // tree view manages its own node state. We construct a minimal object if needed.
-  const handlePreview = useCallback(
-    (key: string) => {
-      // Skip directories
-      if (key.endsWith("/")) {
-        toast.error("请选择可预览的文件");
-        return;
-      }
+  // Use ref to keep callback stable while accessing latest objects
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
 
-      // Try to find in global objects state first
-      let target = objects.find((obj) => obj.key === key && !obj.isDir);
+  const handlePreview = useCallback((key: string) => {
+    // Skip directories
+    if (key.endsWith("/")) {
+      toast.error("请选择可预览的文件");
+      return;
+    }
 
-      // If not found, construct a minimal object (for tree view case)
-      if (!target) {
-        target = {
-          key,
-          size: 0,
-          lastModified: new Date().toISOString() as any,
-          etag: "",
-          contentType: "",
-          storageClass: "",
-          versionId: "",
-          isDir: false,
-          metadata: {},
-          isSymlink: false,
-          symlinkTarget: "",
-        };
-      }
+    // Try to find in global objects state first (read from ref for latest value)
+    let target = objectsRef.current.find((obj) => obj.key === key && !obj.isDir);
 
-      setPreviewObject(target);
-      setPreviewOpen(true);
-    },
-    [objects],
-  );
+    // If not found, construct a minimal object (for tree view case)
+    if (!target) {
+      target = {
+        key,
+        size: 0,
+        lastModified: new Date().toISOString() as any,
+        etag: "",
+        contentType: "",
+        storageClass: "",
+        versionId: "",
+        isDir: false,
+        metadata: {},
+        isSymlink: false,
+        symlinkTarget: "",
+      };
+    }
+
+    setPreviewObject(target);
+    setPreviewOpen(true);
+  }, []); // Empty deps - callback is now stable
 
   // Upload handlers - Desktop only, uses Wails dialogs + backend queue
 

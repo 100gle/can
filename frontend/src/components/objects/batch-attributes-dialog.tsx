@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +21,7 @@ import type { ObjectModel } from "@/state/objects";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import type { objects as ObjectModels } from "@wailsjs/go/models";
 import { Loader2, ShieldCheck, Tags, Warehouse } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type KeyValue = { key: string; value: string; id: string };
 
@@ -239,7 +239,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
             <p>
               已应用：{result.succeeded}/{result.total} 项
             </p>
-            {result.failed?.length ? (
+            {result.failed?.length && (
               <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                 {result.failed.map((failure) => (
                   <div key={`${failure.bucket}/${failure.key}`}>
@@ -247,7 +247,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
                   </div>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
         )}
 

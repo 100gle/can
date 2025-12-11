@@ -1,3 +1,4 @@
+import { ProviderIcon } from "@/components/common/provider-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -36,7 +37,17 @@ import {
   type ProviderMetadata,
 } from "@/state/accounts";
 import { useForm, useStore } from "@tanstack/react-form";
-import { AlertCircle, Loader2, Plus, RefreshCcw, Save, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Save,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -106,14 +117,14 @@ export const AccountFormDrawer = ({
       if (mode === "create") {
         if (!data.accessKeyId?.trim()) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["accessKeyId"],
             message: "Access Key ID 必填",
           });
         }
         if (!data.secretAccessKey?.trim()) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["secretAccessKey"],
             message: "Secret Access Key 必填",
           });
@@ -128,13 +139,14 @@ export const AccountFormDrawer = ({
   const [testHint, setTestHint] = useState<string>();
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAccessKey, setShowAccessKey] = useState(false);
+  const [showSecretKey, setShowSecretKey] = useState(false);
 
   const form = useForm({
     defaultValues: defaultFormValues,
     validators: {
-      onSubmit: ({ value }) => {
-        accountFormSchema.parse(value);
-      },
+      onSubmit: accountFormSchema,
+      onChange: accountFormSchema,
     },
     onSubmit: async ({ value }) => {
       setLocalError(undefined);
@@ -176,10 +188,13 @@ export const AccountFormDrawer = ({
   const providerOptions = useMemo(() => {
     if (providers.length) return providers;
     return [
-      { id: "aws", label: "AWS S3", description: "" },
+      { id: "aws", label: "AWS S3", description: "测试" },
       { id: "oss", label: "Aliyun OSS", description: "" },
       { id: "cos", label: "Tencent COS", description: "" },
       { id: "r2", label: "Cloudflare R2", description: "" },
+      { id: "qiniu", label: "Qiniu Kodo", description: "" },
+      { id: "minio", label: "MinIO", description: "" },
+      { id: "custom", label: "Generic S3", description: "" },
     ];
   }, [providers]);
 
@@ -316,9 +331,7 @@ export const AccountFormDrawer = ({
                           aria-invalid={showError}
                           required
                         />
-                        {showError ? (
-                          <p className="text-xs text-destructive">{errorMessage}</p>
-                        ) : null}
+                        {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                       </div>
                     );
                   }}
@@ -342,9 +355,7 @@ export const AccountFormDrawer = ({
                           onBlur={field.handleBlur}
                           aria-invalid={showError}
                         />
-                        {showError ? (
-                          <p className="text-xs text-destructive">{errorMessage}</p>
-                        ) : null}
+                        {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                       </div>
                     );
                   }}
@@ -376,14 +387,19 @@ export const AccountFormDrawer = ({
                         <SelectContent>
                           {providerOptions.map((provider) => (
                             <SelectItem key={provider.id} value={provider.id}>
-                              {provider.label}
+                              <span className="inline-flex items-center gap-2">
+                                <ProviderIcon
+                                  provider={provider.id}
+                                  size="sm"
+                                  className="shrink-0"
+                                />
+                                <span>{provider.label}</span>
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {showError ? (
-                        <p className="text-xs text-destructive">{errorMessage}</p>
-                      ) : null}
+                      {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                     </div>
                   );
                 }}
@@ -412,9 +428,7 @@ export const AccountFormDrawer = ({
                           aria-invalid={showError}
                           required
                         />
-                        {showError ? (
-                          <p className="text-xs text-destructive">{errorMessage}</p>
-                        ) : null}
+                        {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                       </div>
                     );
                   }}
@@ -450,17 +464,18 @@ export const AccountFormDrawer = ({
                       <div className="space-y-1">
                         <Input
                           id="port"
-                          type="number"
-                          min={1}
-                          max={65535}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="443"
                           value={displayValue}
-                          onChange={(event) => field.handleChange(Number(event.target.value) || 0)}
+                          onChange={(event) => {
+                            const val = event.target.value.replace(/\D/g, "");
+                            field.handleChange(val ? Number(val) : 0);
+                          }}
                           onBlur={field.handleBlur}
                           aria-invalid={showError}
                         />
-                        {showError ? (
-                          <p className="text-xs text-destructive">{errorMessage}</p>
-                        ) : null}
+                        {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                       </div>
                     );
                   }}
@@ -472,7 +487,7 @@ export const AccountFormDrawer = ({
               <div className="space-y-2">
                 <Label htmlFor="access-key">
                   Access Key ID
-                  {mode === "create" ? <span className="text-destructive">*</span> : null}
+                  {mode === "create" && <span className="text-destructive">*</span>}
                 </Label>
                 <form.Field name="accessKeyId">
                   {(field) => {
@@ -482,18 +497,33 @@ export const AccountFormDrawer = ({
                     );
                     return (
                       <div className="space-y-1">
-                        <Input
-                          id="access-key"
-                          placeholder="AKIA..."
-                          value={field.state.value ?? ""}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                          onBlur={field.handleBlur}
-                          aria-invalid={showError}
-                          required={mode === "create"}
-                        />
-                        {showError ? (
-                          <p className="text-xs text-destructive">{errorMessage}</p>
-                        ) : null}
+                        <div className="relative">
+                          <Input
+                            id="access-key"
+                            type={showAccessKey ? "text" : "password"}
+                            placeholder="AKIA..."
+                            value={field.state.value ?? ""}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                            onBlur={field.handleBlur}
+                            aria-invalid={showError}
+                            required={mode === "create"}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setShowAccessKey(!showAccessKey)}
+                            tabIndex={-1}
+                            aria-label={showAccessKey ? "隐藏 Access Key" : "显示 Access Key"}
+                          >
+                            {showAccessKey ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                        {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                       </div>
                     );
                   }}
@@ -502,7 +532,7 @@ export const AccountFormDrawer = ({
               <div className="space-y-2">
                 <Label htmlFor="secret-key">
                   Secret Access Key
-                  {mode === "create" ? <span className="text-destructive">*</span> : null}
+                  {mode === "create" && <span className="text-destructive">*</span>}
                 </Label>
                 <form.Field name="secretAccessKey">
                   {(field) => {
@@ -512,19 +542,33 @@ export const AccountFormDrawer = ({
                     );
                     return (
                       <div className="space-y-1">
-                        <Input
-                          id="secret-key"
-                          type="password"
-                          placeholder={mode === "create" ? "仅本机加密存储" : "留空则保持不变"}
-                          value={field.state.value ?? ""}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                          onBlur={field.handleBlur}
-                          aria-invalid={showError}
-                          required={mode === "create"}
-                        />
-                        {showError ? (
-                          <p className="text-xs text-destructive">{errorMessage}</p>
-                        ) : null}
+                        <div className="relative">
+                          <Input
+                            id="secret-key"
+                            type={showSecretKey ? "text" : "password"}
+                            placeholder={mode === "create" ? "仅本机加密存储" : "留空则保持不变"}
+                            value={field.state.value ?? ""}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                            onBlur={field.handleBlur}
+                            aria-invalid={showError}
+                            required={mode === "create"}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setShowSecretKey(!showSecretKey)}
+                            tabIndex={-1}
+                            aria-label={showSecretKey ? "隐藏 Secret Key" : "显示 Secret Key"}
+                          >
+                            {showSecretKey ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                        {showError && <p className="text-xs text-destructive">{errorMessage}</p>}
                       </div>
                     );
                   }}
@@ -549,7 +593,7 @@ export const AccountFormDrawer = ({
               </form.Field>
             </div>
 
-            {localError ? (
+            {localError && (
               <Alert variant="destructive">
                 <AlertCircle className="text-destructive" />
                 <div>
@@ -557,7 +601,7 @@ export const AccountFormDrawer = ({
                   <AlertDescription>{localError}</AlertDescription>
                 </div>
               </Alert>
-            ) : null}
+            )}
 
             <SheetFooter className="gap-4 border-t border-border/60 pt-4">
               <div className="flex flex-col gap-4">
@@ -583,7 +627,7 @@ export const AccountFormDrawer = ({
                     </Button>
                   </div>
                 </div>
-                {mode === "edit" && initialAccount ? (
+                {mode === "edit" && initialAccount && (
                   <Alert variant="destructive" className="gap-3">
                     <Trash2 className="text-destructive" />
                     <div className="space-y-1">
@@ -609,7 +653,7 @@ export const AccountFormDrawer = ({
                       </Button>
                     </div>
                   </Alert>
-                ) : null}
+                )}
               </div>
             </SheetFooter>
           </form>

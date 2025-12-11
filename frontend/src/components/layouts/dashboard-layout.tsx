@@ -72,7 +72,7 @@ export const DashboardLayout = ({
 
             <DashboardBreadcrumb />
           </div>
-          {showSettingsShortcut ? (
+          {showSettingsShortcut && (
             <Button
               variant="outline"
               size="sm"
@@ -82,7 +82,7 @@ export const DashboardLayout = ({
               <Settings2 className="h-4 w-4" />
               系统设置
             </Button>
-          ) : null}
+          )}
         </div>
         <div className="lg:hidden border-b border-border/40 bg-card/40 px-4 py-3 text-sm text-muted-foreground">
           请在桌面端展开侧边栏以获得完整体验

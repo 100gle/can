@@ -41,7 +41,6 @@ export const AccountSelector = ({
   const accounts = useAccountsStore((state) => state.accounts);
   const loading = useAccountsStore((state) => state.loading);
   const error = useAccountsStore((state) => state.error);
-  const connectionTests = useAccountsStore((state) => state.connectionTests);
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [pendingDelete, setPendingDelete] = useState<AccountModel | null>(null);
 
@@ -102,7 +101,6 @@ export const AccountSelector = ({
     return (
       <AccountCardGrid
         accounts={accounts}
-        connectionTests={connectionTests}
         onSelectAccount={handleSelectAccount}
         onEditAccount={onEditAccount}
         onDeleteAccount={handleDeleteAccount}
@@ -128,7 +126,7 @@ export const AccountSelector = ({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            {accounts.length > 0 ? (
+            {accounts.length > 0 && (
               <>
                 {/* Mobile Tabs List for smaller screens */}
 
@@ -150,10 +148,10 @@ export const AccountSelector = ({
                   新建账户
                 </Button>
               </>
-            ) : null}
+            )}
           </div>
         </div>
-        {accounts.length > 0 ? (
+        {accounts.length > 0 && (
           <div className="flex justify-start">
             <TabsList className="flex rounded-lg border border-border/60 bg-muted/20 p-1 text-muted-foreground shadow-inner shadow-black/5 backdrop-blur-sm">
               <TabsTrigger
@@ -174,7 +172,7 @@ export const AccountSelector = ({
               </TabsTrigger>
             </TabsList>
           </div>
-        ) : null}
+        )}
         <TabsContent value="cards">{renderGrid("cards")}</TabsContent>
         <TabsContent value="list">{renderGrid("list")}</TabsContent>
       </Tabs>

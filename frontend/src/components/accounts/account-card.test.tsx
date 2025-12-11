@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { AccountCard } from "./account-card";
 import type { AccountModel } from "@/state/accounts";
+import { AccountCard } from "./account-card";
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => () => undefined,
@@ -25,13 +25,14 @@ const buildAccount = (overrides: Partial<AccountModel> = {}): AccountModel => ({
 });
 
 describe("AccountCard", () => {
-  it("shows connection status for healthy probe", () => {
-    render(<AccountCard account={buildAccount()} status={{ status: "ok" }} />);
-    expect(screen.getByText("连接正常")).toBeTruthy();
+  it("renders account name and provider", () => {
+    render(<AccountCard account={buildAccount()} />);
+    expect(screen.getByText("测试账户")).toBeTruthy();
+    expect(screen.getByText("AWS")).toBeTruthy();
   });
 
-  it("shows running label while probe is executing", () => {
-    render(<AccountCard account={buildAccount()} status={{ status: "running" }} />);
-    expect(screen.getByText("检测中...")).toBeTruthy();
+  it("renders account tag when present", () => {
+    render(<AccountCard account={buildAccount({ tag: "production" })} />);
+    expect(screen.getByText("production")).toBeTruthy();
   });
 });

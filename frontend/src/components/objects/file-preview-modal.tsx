@@ -565,7 +565,7 @@ export function FilePreviewModal({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               关闭
             </Button>
-            {previewKind === "text" || previewKind === "markdown" ? (
+            {(previewKind === "text" || previewKind === "markdown") && (
               <Button
                 variant={mode === "edit" ? "default" : "outline"}
                 onClick={handleSave}
@@ -585,7 +585,7 @@ export function FilePreviewModal({
                   </>
                 )}
               </Button>
-            ) : null}
+            )}
             {previewUrl && (
               <Button asChild>
                 <a href={previewUrl} target="_blank" rel="noreferrer">

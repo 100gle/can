@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTransferStats } from "@/state/transfers";
 import { useNavigate } from "@tanstack/react-router";
-import { HelpCircle, Plus, Settings, Share2 } from "lucide-react";
+import { Plus, Settings, Share2 } from "lucide-react";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -77,16 +77,6 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
         >
           <Settings className="h-4 w-4" />
           系统设置
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full gap-2"
-          onClick={() => navigate({ to: "/help" })}
-        >
-          <HelpCircle className="h-4 w-4" />
-          帮助与支持
         </Button>
       </div>
     </div>

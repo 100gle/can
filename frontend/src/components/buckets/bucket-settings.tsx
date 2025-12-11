@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { ReactNode } from "react";
 
 export type BucketSettingsSection = {
   id: string;
@@ -37,9 +37,9 @@ export const BucketSettings = ({
           >
             <div>
               <p className="text-sm font-medium">{section.label}</p>
-              {section.description ? (
+              {section.description && (
                 <p className="text-xs text-muted-foreground">{section.description}</p>
-              ) : null}
+              )}
             </div>
           </TabsTrigger>
         ))}

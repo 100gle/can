@@ -9,8 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isDesktopMode } from "@/lib/bridge";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import {
@@ -415,15 +415,16 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                             {lockConfig?.mode || "未设置"}
                           </span>
                         </div>
-                        {lockConfig?.retentionDays ? (
+                        {lockConfig?.retentionDays && (
                           <p className="text-xs text-muted-foreground">
                             默认保留 {lockConfig.retentionDays} 天
                           </p>
-                        ) : lockConfig?.retentionYears ? (
+                        )}
+                        {lockConfig?.retentionYears && (
                           <p className="text-xs text-muted-foreground">
                             默认保留 {lockConfig.retentionYears} 年
                           </p>
-                        ) : null}
+                        )}
                       </div>
                       <div className="space-y-3 rounded-md border border-border/60 p-3">
                         <div className="flex items-center justify-between">

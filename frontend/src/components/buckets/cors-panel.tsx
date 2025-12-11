@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
+import { Loader2, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type EditableCORSRule = {
   allowedOrigins: string;
@@ -144,15 +144,15 @@ export const CORSPanel = () => {
             </div>
           </div>
         ))}
-        {rules.length === 0 ? (
+        {rules.length === 0 && (
           <p className="text-sm text-muted-foreground">暂未配置 CORS 规则。</p>
-        ) : null}
+        )}
         <Button variant="outline" onClick={handleAdd}>
           添加规则
         </Button>
       </div>
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         保存 CORS
       </Button>
     </div>

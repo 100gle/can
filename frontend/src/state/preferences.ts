@@ -35,6 +35,7 @@ type PreferencesState = {
   viewMode: ViewMode;
   offlineCacheEnabled: boolean;
   offlineCacheSize: CacheSize;
+  backupEncryptionEnabled: boolean;
   setThemePreference: (value: ThemePreference) => void;
   setSystemTheme: (value: ThemeSelection) => void;
   setAdvancedOptions: (patch: Partial<AdvancedOptions>) => void;
@@ -42,6 +43,7 @@ type PreferencesState = {
   setViewMode: (mode: ViewMode) => void;
   setOfflineCacheEnabled: (enabled: boolean) => void;
   setOfflineCacheSize: (size: CacheSize) => void;
+  setBackupEncryptionEnabled: (enabled: boolean) => void;
 };
 
 const noopStorage: StateStorage = {
@@ -85,6 +87,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       viewMode: "grid",
       offlineCacheEnabled: true,
       offlineCacheSize: 100,
+      backupEncryptionEnabled: false,
       setThemePreference: (value) => set({ themePreference: value }),
       setSystemTheme: (value) => set({ systemTheme: value }),
       setAdvancedOptions: (patch) =>
@@ -95,6 +98,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setViewMode: (mode) => set({ viewMode: mode }),
       setOfflineCacheEnabled: (enabled) => set({ offlineCacheEnabled: enabled }),
       setOfflineCacheSize: (size) => set({ offlineCacheSize: size }),
+      setBackupEncryptionEnabled: (enabled) => set({ backupEncryptionEnabled: enabled }),
     }),
     {
       name: PREFERENCES_STORAGE_KEY,
@@ -105,6 +109,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         viewMode: state.viewMode,
         offlineCacheEnabled: state.offlineCacheEnabled,
         offlineCacheSize: state.offlineCacheSize,
+        backupEncryptionEnabled: state.backupEncryptionEnabled,
       }),
     },
   ),

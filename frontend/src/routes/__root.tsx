@@ -16,7 +16,7 @@ export const Route = createRootRoute({
       <DropOverlay />
       <Outlet />
       <Toaster position="top-right" />
-      {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-right" />}
+      {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-left" />}
     </>
   ),
 });

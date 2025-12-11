@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { bucketConfigStore, useBucketConfigStore } from "@/state/bucketConfig";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const VersioningPanel = () => {
   const versioning = useBucketConfigStore((state) => state.versioning);
@@ -28,7 +28,7 @@ export const VersioningPanel = () => {
           启用版本控制后，存储桶会为对象的每一次变更保留历史版本。
         </p>
       </header>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <RadioGroup
         value={status}
         onValueChange={(value: "Enabled" | "Suspended") => setStatus(value)}
@@ -57,7 +57,7 @@ export const VersioningPanel = () => {
         })}
       </RadioGroup>
       <Button onClick={handleSave} disabled={Boolean(saving)} className="gap-2">
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         保存
       </Button>
     </div>

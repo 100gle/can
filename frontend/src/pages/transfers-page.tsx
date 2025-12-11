@@ -248,7 +248,7 @@ export const TransfersPage = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              {task.status === "running" ? (
+                              {task.status === "running" && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -267,8 +267,8 @@ export const TransfersPage = () => {
                                     <XCircle className="h-4 w-4 text-destructive" />
                                   </Button>
                                 </>
-                              ) : null}
-                              {task.status === "paused" ? (
+                              )}
+                              {task.status === "paused" && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -287,19 +287,19 @@ export const TransfersPage = () => {
                                     <XCircle className="h-4 w-4 text-destructive" />
                                   </Button>
                                 </>
-                              ) : null}
+                              )}
                               {task.status === "failed" ||
-                              task.status === "canceled" ||
-                              task.status === "completed" ? (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => transfersStore.deleteTask(task.id)}
-                                  title="删除"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              ) : null}
+                                task.status === "canceled" ||
+                                (task.status === "completed" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => transfersStore.deleteTask(task.id)}
+                                    title="删除"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                ))}
                             </div>
                           </TableCell>
                         </TableRow>

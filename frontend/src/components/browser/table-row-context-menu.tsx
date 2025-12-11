@@ -4,17 +4,20 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { Download, Eye, Folder, Link2, Trash2 } from "lucide-react";
+import { memo } from "react";
 
 interface TableRowContextMenuProps {
+  itemKey: string;
   isDir: boolean;
-  onEnterFolder: () => void;
-  onPreview: () => void;
-  onDownload: () => void;
-  onCopyLink: () => void;
-  onDelete: () => void;
+  onEnterFolder: (key: string) => void;
+  onPreview: (key: string) => void;
+  onDownload: (key: string) => void;
+  onCopyLink: (key: string) => void;
+  onDelete: (key: string) => void;
 }
 
-export function TableRowContextMenu({
+export const TableRowContextMenu = memo(function TableRowContextMenu({
+  itemKey,
   isDir,
   onEnterFolder,
   onPreview,
@@ -25,31 +28,34 @@ export function TableRowContextMenu({
   return (
     <ContextMenuContent>
       {isDir ? (
-        <ContextMenuItem onClick={onEnterFolder}>
+        <ContextMenuItem onClick={() => onEnterFolder(itemKey)}>
           <Folder className="mr-2 h-4 w-4" />
           进入
         </ContextMenuItem>
       ) : (
         <>
-          <ContextMenuItem onClick={onPreview}>
+          <ContextMenuItem onClick={() => onPreview(itemKey)}>
             <Eye className="mr-2 h-4 w-4" />
             预览
           </ContextMenuItem>
-          <ContextMenuItem onClick={onDownload}>
+          <ContextMenuItem onClick={() => onDownload(itemKey)}>
             <Download className="mr-2 h-4 w-4" />
             下载
           </ContextMenuItem>
-          <ContextMenuItem onClick={onCopyLink}>
+          <ContextMenuItem onClick={() => onCopyLink(itemKey)}>
             <Link2 className="mr-2 h-4 w-4" />
             复制链接
           </ContextMenuItem>
         </>
       )}
       <ContextMenuSeparator />
-      <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+      <ContextMenuItem
+        onClick={() => onDelete(itemKey)}
+        className="text-destructive focus:text-destructive"
+      >
         <Trash2 className="mr-2 h-4 w-4" />
         删除
       </ContextMenuItem>
     </ContextMenuContent>
   );
-}
+});

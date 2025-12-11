@@ -164,9 +164,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
               <SelectValue placeholder="选择预设 ACL" />
             </SelectTrigger>
             <SelectContent>
-              {supportsCustomGrant ? (
-                <SelectItem value="">自定义（仅使用下方授权）</SelectItem>
-              ) : null}
+              {supportsCustomGrant && <SelectItem value="">自定义（仅使用下方授权）</SelectItem>}
               {CANNED_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -282,7 +280,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
             </div>
           )}
         </section>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button
             onClick={() => setDraft(acl)}

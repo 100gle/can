@@ -104,7 +104,7 @@ function AccountLayout() {
       <AccountLayoutContext.Provider value={{ openDrawer }}>
         <Outlet />
       </AccountLayoutContext.Provider>
-      {drawerState.open ? (
+      {drawerState.open && (
         <AccountFormDrawer
           open
           mode={drawerState.mode}
@@ -112,7 +112,7 @@ function AccountLayout() {
           initialAccount={drawerState.account}
           onClose={closeDrawer}
         />
-      ) : null}
+      )}
     </DashboardLayout>
   );
 }
