@@ -34,12 +34,14 @@ func NewStorageClient(ctx context.Context, creds storage.ConnectionCredentials) 
 	return &ossAdapter{
 		StorageClient: base,
 		ossClient:     ossClient,
+		creds:         creds,
 	}, nil
 }
 
 type ossAdapter struct {
 	storage.StorageClient
 	ossClient *oss.Client
+	creds     storage.ConnectionCredentials
 }
 
 func (a *ossAdapter) Provider() types.Provider {
@@ -61,6 +63,7 @@ func (a *ossAdapter) Objects() storage.ObjectDriver {
 	return &objectAdapter{
 		ObjectDriver: a.StorageClient.Objects(),
 		client:       a.ossClient,
+		creds:        a.creds,
 	}
 }
 
@@ -74,6 +77,7 @@ type bucketAdapter struct {
 type objectAdapter struct {
 	storage.ObjectDriver
 	client *oss.Client
+	creds  storage.ConnectionCredentials
 }
 
 func resolveOSSEndpoint(creds storage.ConnectionCredentials) string {

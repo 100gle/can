@@ -10,23 +10,23 @@ import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
 import { SearchPanel } from "@/components/search/search-panel";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuTrigger,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFileBrowserActions } from "@/hooks/useFileBrowserActions";
@@ -131,19 +131,32 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
 
     // Objects view
     if (controller.viewMode === "list") {
+      // Filter out directories: check both isDir flag AND if key ends with "/" (S3 convention)
+      const listItems = (controller.filteredItems as ObjectModel[]).filter(
+        (item) => !item.isDir && !item.key.endsWith("/"),
+      );
       return (
         <FileTable
-          data={controller.filteredItems as ObjectModel[]}
+          data={listItems}
           prefix={controller.prefix}
           selectedKeys={controller.selectedKeys}
+          lastSelectedKey={controller.lastSelectedKey}
           onToggleSelect={controller.toggleSelect}
           onSelectAll={controller.selectAll}
+          onSelectRange={controller.selectRange}
+          onSetLastSelectedKey={controller.setLastSelectedKey}
           onClearSelection={controller.clearSelection}
           onEnterFolder={controller.enterFolder}
           onPreview={actions.handlePreview}
           onDownload={actions.handleDownload}
           onCopyLink={actions.handleCopyLink}
           onDelete={(key) => actions.setPendingDeleteObject(key)}
+          // Pagination
+          pageSize={controller.pageSize}
+          truncated={controller.truncated}
+          loadingMore={controller.loadingMore}
+          onLoadMore={() => objectsStore.loadMore()}
+          onPageSizeChange={controller.setPageSize}
         />
       );
     }
@@ -155,8 +168,12 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           bucket={controller.currentBucket!}
           initialPrefix={controller.prefix}
           selectedKeys={controller.selectedKeys}
+          selectionVersion={controller.selectedKeysVersion}
+          lastSelectedKey={controller.lastSelectedKey}
           onToggleSelect={controller.toggleSelect}
           onSelectAll={controller.selectAll}
+          onSelectRange={controller.selectRange}
+          onSetLastSelectedKey={controller.setLastSelectedKey}
           onClearSelection={controller.clearSelection}
           onPreview={actions.handlePreview}
           onDownload={actions.handleDownload}
@@ -239,23 +256,31 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
               {/* Content with context menu */}
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <div className="relative flex-1 overflow-auto">
+                  <div
+                    className={cn(
+                      "relative flex-1 min-h-0",
+                      controller.viewMode === "list" ? "overflow-hidden" : "overflow-auto",
+                    )}
+                  >
                     {renderContent()}
 
-                    {controller.level === "objects" && controller.truncated && (
-                      <div className="mt-4 text-center">
-                        <Button
-                          variant="outline"
-                          onClick={() => objectsStore.loadMore()}
-                          disabled={controller.loadingMore}
-                        >
-                          {controller.loadingMore ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : null}
-                          加载更多
-                        </Button>
-                      </div>
-                    )}
+                    {/* Show load-more button only for grid/tree modes - list has its own footer */}
+                    {controller.level === "objects" &&
+                      controller.viewMode === "grid" &&
+                      controller.truncated && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            variant="outline"
+                            onClick={() => objectsStore.loadMore()}
+                            disabled={controller.loadingMore}
+                          >
+                            {controller.loadingMore ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : null}
+                            加载更多
+                          </Button>
+                        </div>
+                      )}
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>

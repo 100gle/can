@@ -22,6 +22,7 @@ const renderAt = async (path: string) => {
         <RouterProvider router={router} />
       </React.StrictMode>,
     );
+    await router.load();
   });
 
   return { root, container };

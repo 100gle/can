@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { AccountModel } from "@/state/accounts";
 import { useNavigate } from "@tanstack/react-router";
@@ -17,28 +16,8 @@ import {
 } from "lucide-react";
 import { memo, MouseEvent } from "react";
 
-export type AccountCardStatus = "ok" | "error" | "pending";
-
-const statusStyles: Record<AccountCardStatus, { dot: string; pulse?: boolean; label: string }> = {
-  ok: {
-    dot: "bg-emerald-500",
-    pulse: true,
-    label: "连接正常",
-  },
-  error: {
-    dot: "bg-red-500",
-    label: "连接异常",
-  },
-  pending: {
-    dot: "bg-muted",
-    label: "未连接",
-  },
-};
-
 type AccountCardProps = {
   account: AccountModel;
-  status?: AccountCardStatus;
-  statusMessage?: string;
   disabled?: boolean;
   onSelect?: (account: AccountModel) => void;
   onEdit?: (account: AccountModel) => void;
@@ -48,8 +27,6 @@ type AccountCardProps = {
 
 export const AccountCard = memo(function AccountCard({
   account,
-  status = "pending",
-  statusMessage,
   disabled,
   onSelect,
   onEdit,
@@ -94,13 +71,9 @@ export const AccountCard = memo(function AccountCard({
       <div className={cn("flex h-full flex-col gap-4", isList && "flex")}>
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-xl font-semibold leading-tight line-clamp-1">{account.name}</h3>
-            <StatusIndicator
-              status={status}
-              statusMessage={statusMessage}
-              layout={layout}
-              compact
-            />
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-semibold leading-tight line-clamp-1">{account.name}</h3>
+            </div>
             {account.tag ? (
               <Badge
                 variant="outline"
@@ -214,64 +187,3 @@ const DetailItem = ({
     </span>
   </li>
 );
-
-const StatusIndicator = ({
-  status,
-  layout,
-  compact,
-  statusMessage,
-}: {
-  status: AccountCardStatus;
-  layout: "cards" | "list";
-  compact?: boolean;
-  statusMessage?: string;
-}) => {
-  const meta = statusStyles[status];
-  const tooltipContent = status === "error" && statusMessage ? statusMessage : undefined;
-  const indicator = (
-    <div
-      className={cn(
-        "flex items-center gap-2 text-xs text-muted-foreground",
-        !compact && layout === "list" && "sm:flex-col sm:items-end sm:gap-1",
-      )}
-      role="status"
-      aria-live="polite"
-      aria-label={meta.label}
-    >
-      <span className="relative inline-flex h-2.5 w-2.5 items-center justify-center" aria-hidden>
-        {meta.pulse ? (
-          <span
-            className="absolute inline-flex h-4 w-4 rounded-full bg-emerald-400/40 opacity-75 animate-ping"
-            aria-hidden
-          />
-        ) : null}
-        <span
-          className={cn(
-            "relative inline-flex h-2.5 w-2.5 rounded-full border border-background/60",
-            meta.dot,
-          )}
-        />
-      </span>
-      <span
-        className={cn("text-xs", compact ? "hidden" : layout === "cards" ? "hidden" : "sm:inline")}
-      >
-        {meta.label}
-      </span>
-    </div>
-  );
-
-  if (!tooltipContent) {
-    return indicator;
-  }
-
-  return (
-    <TooltipProvider delayDuration={150} disableHoverableContent>
-      <Tooltip>
-        <TooltipTrigger asChild>{indicator}</TooltipTrigger>
-        <TooltipContent side="bottom" align="start" className="max-w-xs text-left text-destructive">
-          {tooltipContent}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-};

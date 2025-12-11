@@ -32,9 +32,13 @@ export type ObjectsState = {
   pendingKeys: Record<string, "deleting" | "downloading">;
   // Selection state
   selectedKeys: Set<string>;
+  selectedKeysVersion: number;
+  lastSelectedKey: string | null;
   selecting: boolean;
   isFromCache: boolean;
   lastSync?: number;
+  // Pagination
+  pageSize: number;
 };
 
 export type ObjectsActions = {
@@ -44,12 +48,21 @@ export type ObjectsActions = {
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
   setDelimiter: (delimiter: string) => Promise<void>;
+  setPageSize: (size: number) => void;
   listChildren: (params: {
     accountId: string;
     bucket: string;
     prefix: string;
     delimiter?: string;
   }) => Promise<ObjectModel[]>;
+  listChildrenPaginated: (params: {
+    accountId: string;
+    bucket: string;
+    prefix: string;
+    delimiter?: string;
+    limit?: number;
+    marker?: string;
+  }) => Promise<{ items: ObjectModel[]; truncated: boolean; nextMarker?: string }>;
   uploadFromPath: (filePath: string, key: string) => Promise<void>;
   downloadToPath: (key: string, savePath: string) => Promise<void>;
   deleteObject: (key: string) => Promise<void>;
@@ -57,6 +70,8 @@ export type ObjectsActions = {
   // Selection actions
   toggleSelect: (key: string) => void;
   selectAll: (keys?: string[]) => void;
+  selectRange: (keys: string[], opts?: { merge?: boolean }) => void;
+  setLastSelectedKey: (key: string | null) => void;
   clearSelection: () => void;
   // Object operations
   copyObject: (sourceKey: string, targetBucket: string, targetKey: string) => Promise<void>;
@@ -91,8 +106,11 @@ const createInitialState = (): ObjectsState => ({
   truncated: false,
   pendingKeys: {},
   selectedKeys: new Set<string>(),
+  selectedKeysVersion: 0,
+  lastSelectedKey: null,
   selecting: false,
   isFromCache: false,
+  pageSize: 30,
 });
 
 const FALLBACK_OBJECTS: ObjectModel[] = [
@@ -150,7 +168,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     }
     // Use provided delimiter or preserve current value
     const effectiveDelimiter = delimiter ?? get().delimiter;
-    set({
+    set((state) => ({
       accountId,
       bucket,
       prefix: "",
@@ -160,7 +178,10 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       truncated: false,
       error: undefined,
       isFromCache: false,
-    });
+      selectedKeys: new Set<string>(),
+      lastSelectedKey: null,
+      selectedKeysVersion: state.selectedKeysVersion + 1,
+    }));
     await get().refresh();
   },
   enterPrefix: async (prefix: string) => {
@@ -181,7 +202,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     await get().refresh();
   },
   refresh: async () => {
-    const { accountId, bucket, prefix, delimiter } = get();
+    const { accountId, bucket, prefix, delimiter, pageSize } = get();
     if (!accountId || !bucket) {
       set({ objects: [], error: undefined });
       return;
@@ -211,7 +232,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
                 bucket,
                 prefix,
                 delimiter,
-                limit: 500,
+                limit: pageSize,
                 marker: "",
               });
               return {
@@ -240,7 +261,7 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
           bucket,
           prefix,
           delimiter,
-          limit: 500,
+          limit: pageSize,
           marker: "",
         });
         objects = payload.objects.map((object) => normalizeObject(object));
@@ -273,12 +294,12 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
     const useBridge = isDesktopMode();
     try {
       if (useBridge) {
-        const { delimiter } = get();
+        const { delimiter, pageSize } = get();
         const result = await ListObjects(accountId, {
           bucket,
           prefix,
           delimiter,
-          limit: 500,
+          limit: pageSize,
           marker: nextMarker,
         });
         set((state) => ({
@@ -441,6 +462,10 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       await get().refresh();
     }
   },
+  setPageSize: (size: number) => {
+    set({ pageSize: size, nextMarker: undefined, truncated: false });
+    void get().refresh();
+  },
   listChildren: async ({ accountId, bucket, prefix, delimiter = "/" }) => {
     if (!accountId || !bucket) {
       return [];
@@ -491,6 +516,34 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       (object) => normalizeObject(object),
     );
   },
+  listChildrenPaginated: async ({ accountId, bucket, prefix, delimiter = "/", limit, marker }) => {
+    if (!accountId || !bucket) {
+      return { items: [], truncated: false };
+    }
+    const useBridge = isDesktopMode();
+    const pageSize = limit ?? get().pageSize;
+    if (useBridge) {
+      const payload = await ListObjects(accountId, {
+        bucket,
+        prefix,
+        delimiter,
+        limit: pageSize,
+        marker: marker ?? "",
+      });
+      const items = payload.objects
+        .map((obj) => normalizeObject(obj))
+        .filter((obj) => obj.key !== prefix);
+      return {
+        items,
+        truncated: Boolean(payload.truncated),
+        nextMarker: payload.nextMarker || undefined,
+      };
+    }
+    const fallback = FALLBACK_OBJECTS.filter((obj) => !prefix || obj.key.startsWith(prefix))
+      .filter((obj) => obj.key !== prefix)
+      .map((obj) => normalizeObject(obj));
+    return { items: fallback, truncated: false };
+  },
 
   // Selection actions
   toggleSelect: (key: string) => {
@@ -501,18 +554,37 @@ const useObjectsStoreBase = create<ObjectsStore>((set, get) => ({
       } else {
         newSet.add(key);
       }
-      return { selectedKeys: newSet };
+      return { selectedKeys: newSet, selectedKeysVersion: state.selectedKeysVersion + 1 };
     });
   },
   selectAll: (keys?: string[]) => {
     set((state) => {
       const fallback = state.objects.filter((o) => !o.isDir).map((o) => o.key);
       const nextKeys = keys && keys.length > 0 ? keys : fallback;
-      return { selectedKeys: new Set(nextKeys) };
+      return {
+        selectedKeys: new Set(nextKeys),
+        selectedKeysVersion: state.selectedKeysVersion + 1,
+      };
     });
   },
+  selectRange: (keys: string[], opts?: { merge?: boolean }) => {
+    set((state) => {
+      const base = opts?.merge ? new Set(state.selectedKeys) : new Set<string>();
+      for (const k of keys) {
+        base.add(k);
+      }
+      return { selectedKeys: base, selectedKeysVersion: state.selectedKeysVersion + 1 };
+    });
+  },
+  setLastSelectedKey: (key: string | null) => {
+    set({ lastSelectedKey: key });
+  },
   clearSelection: () => {
-    set({ selectedKeys: new Set<string>() });
+    set((state) => ({
+      selectedKeys: new Set<string>(),
+      lastSelectedKey: null,
+      selectedKeysVersion: state.selectedKeysVersion + 1,
+    }));
   },
 
   // Object operations
@@ -682,7 +754,9 @@ export const objectsStore = {
   refresh: relay((store) => store.refresh),
   loadMore: relay((store) => store.loadMore),
   setDelimiter: relay((store) => store.setDelimiter),
+  setPageSize: relay((store) => store.setPageSize),
   listChildren: relay((store) => store.listChildren),
+  listChildrenPaginated: relay((store) => store.listChildrenPaginated),
   uploadFromPath: relay((store) => store.uploadFromPath),
   downloadToPath: relay((store) => store.downloadToPath),
   deleteObject: relay((store) => store.deleteObject),
@@ -690,6 +764,8 @@ export const objectsStore = {
   // Selection
   toggleSelect: relay((store) => store.toggleSelect),
   selectAll: relay((store) => store.selectAll),
+  selectRange: relay((store) => store.selectRange),
+  setLastSelectedKey: relay((store) => store.setLastSelectedKey),
   clearSelection: relay((store) => store.clearSelection),
   // Operations
   copyObject: relay((store) => store.copyObject),

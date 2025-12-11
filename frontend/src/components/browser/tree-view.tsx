@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
@@ -19,9 +20,12 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { deriveLabel, getFileIcon } from "./file-utils";
+
+/** Max items to load per folder expansion to prevent OOM with large folders */
+const TREE_PAGE_SIZE = 100;
 
 export type TreeObject = ObjectModels.ObjectInfo;
 
@@ -30,8 +34,12 @@ export type TreeViewProps = {
   bucket: string;
   initialPrefix?: string;
   selectedKeys: Set<string>;
+  selectionVersion: number;
+  lastSelectedKey: string | null;
   onToggleSelect: (key: string) => void;
   onSelectAll: (keys: string[]) => void;
+  onSelectRange: (keys: string[], opts?: { merge?: boolean }) => void;
+  onSetLastSelectedKey: (key: string | null) => void;
   onClearSelection: () => void;
   onPreview: (key: string) => void;
   onDownload: (key: string) => void;
@@ -47,6 +55,10 @@ type TreeNodeData = {
   children: TreeNodeData[];
   state: NodeState;
   parentPrefix: string;
+  // Pagination for lazy loading
+  truncated?: boolean;
+  nextMarker?: string;
+  loadingMore?: boolean;
 };
 
 export function TreeView({
@@ -54,8 +66,12 @@ export function TreeView({
   bucket,
   initialPrefix = "",
   selectedKeys,
+  selectionVersion,
+  lastSelectedKey,
   onToggleSelect,
-  onSelectAll,
+  onSelectAll: _onSelectAll,
+  onSelectRange,
+  onSetLastSelectedKey,
   onClearSelection,
   onPreview,
   onDownload,
@@ -66,32 +82,121 @@ export function TreeView({
   const [nodes, setNodes] = useState<TreeNodeData[]>([]);
   const [rootLoading, setRootLoading] = useState(false);
   const [rootLoaded, setRootLoaded] = useState(false);
-  const [lastSelectedKey, setLastSelectedKey] = useState<string | null>(null);
+  const [rootTruncated, setRootTruncated] = useState(false);
+  const [rootNextMarker, setRootNextMarker] = useState<string | undefined>(undefined);
+  const [rootLoadingMore, setRootLoadingMore] = useState(false);
+  const [rootError, setRootError] = useState<string | null>(null);
+
+  // Ref for intersection observer (root level lazy loading)
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setNodes([]);
+    setRootLoaded(false);
+    setRootTruncated(false);
+    setRootNextMarker(undefined);
+    setRootLoadingMore(false);
+    setRootError(null);
+  }, [accountId, bucket, initialPrefix]);
 
   // Load root level on first render
   const loadRoot = useCallback(async () => {
     if (rootLoaded || rootLoading) return;
     setRootLoading(true);
+    setRootError(null);
     try {
-      const objects = await loadPrefix(accountId, bucket, initialPrefix);
+      const result = await objectsStore.listChildrenPaginated({
+        accountId,
+        bucket,
+        prefix: initialPrefix,
+        delimiter: "/",
+        limit: TREE_PAGE_SIZE,
+      });
       setNodes(
-        objects.map((obj) => ({
+        result.items.map((obj) => ({
           object: obj,
           children: [],
           state: "collapsed" as NodeState,
           parentPrefix: initialPrefix,
         })),
       );
+      setRootTruncated(Boolean(result.truncated));
+      setRootNextMarker(result.nextMarker);
       setRootLoaded(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "加载根节点失败";
+      setRootError(message);
+      setRootLoaded(true);
+      toast.error("无法加载根目录", { description: message });
     } finally {
       setRootLoading(false);
     }
   }, [accountId, bucket, initialPrefix, rootLoaded, rootLoading]);
 
   // Auto-load root
-  if (!rootLoaded && !rootLoading) {
-    void loadRoot();
-  }
+  useEffect(() => {
+    if (!rootLoaded && !rootLoading) {
+      void loadRoot();
+    }
+  }, [rootLoaded, rootLoading, loadRoot]);
+
+  // Load more root items (lazy loading via IntersectionObserver)
+  const loadMoreRoot = useCallback(async () => {
+    if (!rootTruncated || !rootNextMarker || rootLoadingMore) return;
+    setRootLoadingMore(true);
+    try {
+      const result = await objectsStore.listChildrenPaginated({
+        accountId,
+        bucket,
+        prefix: initialPrefix,
+        delimiter: "/",
+        limit: TREE_PAGE_SIZE,
+        marker: rootNextMarker,
+      });
+      setNodes((prev) => [
+        ...prev,
+        ...result.items.map((obj) => ({
+          object: obj,
+          children: [],
+          state: "collapsed" as NodeState,
+          parentPrefix: initialPrefix,
+        })),
+      ]);
+      setRootTruncated(Boolean(result.truncated));
+      setRootNextMarker(result.nextMarker);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "加载更多失败";
+      toast.error(message);
+    } finally {
+      setRootLoadingMore(false);
+    }
+  }, [accountId, bucket, initialPrefix, rootTruncated, rootNextMarker, rootLoadingMore]);
+
+  // Intersection observer for lazy loading at root level
+  useEffect(() => {
+    if (!rootTruncated || !loadMoreSentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !rootLoadingMore) {
+          void loadMoreRoot();
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" },
+    );
+
+    observer.observe(loadMoreSentinelRef.current);
+    return () => observer.disconnect();
+  }, [rootTruncated, rootLoadingMore, loadMoreRoot]);
+
+  const handleRootRetry = () => {
+    setNodes([]);
+    setRootError(null);
+    setRootLoaded(false);
+    setRootTruncated(false);
+    setRootNextMarker(undefined);
+    setRootLoadingMore(false);
+  };
 
   // Flatten all visible nodes for range selection
   const getAllVisibleKeys = (): string[] => {
@@ -111,7 +216,7 @@ export function TreeView({
   // Handle node selection with OS-standard multi-select behavior
   const handleNodeClick = (e: React.MouseEvent, key: string) => {
     if (e.shiftKey && lastSelectedKey) {
-      // Shift+Click: Range selection
+      // Shift+Click: Range selection with merge
       const allKeys = getAllVisibleKeys();
       const lastIndex = allKeys.indexOf(lastSelectedKey);
       const currentIndex = allKeys.indexOf(key);
@@ -120,24 +225,26 @@ export function TreeView({
         const start = Math.min(lastIndex, currentIndex);
         const end = Math.max(lastIndex, currentIndex);
         const keysToSelect = allKeys.slice(start, end + 1);
-        onSelectAll(keysToSelect);
+        onSelectRange(keysToSelect, { merge: true });
+        onSetLastSelectedKey(key);
       }
     } else if (e.ctrlKey || e.metaKey) {
       // Ctrl/Cmd+Click: Toggle individual item
       onToggleSelect(key);
-      setLastSelectedKey(key);
+      onSetLastSelectedKey(key);
     } else {
       // Plain click
       const isSelected = selectedKeys.has(key);
       const isOnlyOne = selectedKeys.size === 1 && isSelected;
 
       if (isOnlyOne) {
+        // Clicking the only selected item again clears selection
         onClearSelection();
-        setLastSelectedKey(null);
       } else {
+        // Select only this item
         onClearSelection();
         onToggleSelect(key);
-        setLastSelectedKey(key);
+        onSetLastSelectedKey(key);
       }
     }
   };
@@ -150,14 +257,22 @@ export function TreeView({
       // Collapse
       setNodes((prev) => updateNodeByPath(prev, path, { state: "collapsed" }));
     } else if (node.state === "collapsed") {
-      // Expand - load children if not loaded
+      // Expand - load children with pagination
       setNodes((prev) => updateNodeByPath(prev, path, { state: "loading" }));
       try {
-        const children = await loadPrefix(accountId, bucket, node.object.key);
+        const result = await objectsStore.listChildrenPaginated({
+          accountId,
+          bucket,
+          prefix: node.object.key,
+          delimiter: "/",
+          limit: TREE_PAGE_SIZE,
+        });
         setNodes((prev) =>
           updateNodeByPath(prev, path, {
             state: "expanded",
-            children: children.map((obj) => ({
+            truncated: result.truncated,
+            nextMarker: result.nextMarker,
+            children: result.items.map((obj) => ({
               object: obj,
               children: [],
               state: "collapsed" as NodeState,
@@ -165,11 +280,66 @@ export function TreeView({
             })),
           }),
         );
-      } catch {
+      } catch (error) {
         setNodes((prev) => updateNodeByPath(prev, path, { state: "collapsed" }));
+        const message = error instanceof Error ? error.message : "加载子目录失败";
+        toast.error(message);
       }
     }
   };
+
+  // Load more children for a node (triggered by intersection observer in TreeNode)
+  const loadMoreChildren = async (path: number[]) => {
+    const node = getNodeByPath(nodes, path);
+    if (!node || !node.truncated || !node.nextMarker || node.loadingMore) return;
+
+    setNodes((prev) => updateNodeByPath(prev, path, { loadingMore: true }));
+    try {
+      const result = await objectsStore.listChildrenPaginated({
+        accountId,
+        bucket,
+        prefix: node.object.key,
+        delimiter: "/",
+        limit: TREE_PAGE_SIZE,
+        marker: node.nextMarker,
+      });
+      setNodes((prev) => {
+        const current = getNodeByPath(prev, path);
+        if (!current) return prev;
+        return updateNodeByPath(prev, path, {
+          loadingMore: false,
+          truncated: result.truncated,
+          nextMarker: result.nextMarker,
+          children: [
+            ...current.children,
+            ...result.items.map((obj) => ({
+              object: obj,
+              children: [],
+              state: "collapsed" as NodeState,
+              parentPrefix: node.object.key,
+            })),
+          ],
+        });
+      });
+    } catch (error) {
+      setNodes((prev) => updateNodeByPath(prev, path, { loadingMore: false }));
+      const message = error instanceof Error ? error.message : "加载更多失败";
+      toast.error(message);
+    }
+  };
+
+  if (rootError) {
+    return (
+      <div className="flex flex-col gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <p>{rootError}</p>
+        <div>
+          <Button variant="destructive" size="sm" onClick={handleRootRetry}>
+            重试
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (rootLoading) {
     return (
@@ -190,15 +360,18 @@ export function TreeView({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col py-1">
       {nodes.map((node, index) => (
         <TreeNode
           key={node.object.key}
           node={node}
           depth={0}
           path={[index]}
+          isLast={index === nodes.length - 1 && !rootTruncated}
+          parentIsLast={[]}
           selected={selectedKeys.has(node.object.key)}
           selectedKeys={selectedKeys}
+          selectionVersion={selectionVersion}
           onToggle={toggleNode}
           onNodeClick={handleNodeClick}
           onToggleSelect={onToggleSelect}
@@ -207,8 +380,16 @@ export function TreeView({
           onCopyLink={onCopyLink}
           onDelete={onDelete}
           onEnterFolder={onEnterFolder}
+          onLoadMore={loadMoreChildren}
         />
       ))}
+
+      {/* Invisible sentinel for lazy loading more root items */}
+      {rootTruncated && (
+        <div ref={loadMoreSentinelRef} className="h-8 flex items-center justify-center">
+          {rootLoadingMore && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
+      )}
     </div>
   );
 }
@@ -217,8 +398,11 @@ type TreeNodeProps = {
   node: TreeNodeData;
   depth: number;
   path: number[];
+  isLast: boolean;
+  parentIsLast: boolean[];
   selected: boolean;
   selectedKeys: Set<string>;
+  selectionVersion: number;
   onToggle: (path: number[]) => void;
   onNodeClick: (e: React.MouseEvent, key: string) => void;
   onToggleSelect: (key: string) => void;
@@ -227,169 +411,239 @@ type TreeNodeProps = {
   onCopyLink: (key: string) => void;
   onDelete: (key: string) => void;
   onEnterFolder: (key: string) => void;
+  onLoadMore: (path: number[]) => void;
 };
 
-function TreeNode({
-  node,
-  depth,
-  path,
-  selected,
-  selectedKeys,
-  onToggle,
-  onNodeClick,
-  onToggleSelect,
-  onPreview,
-  onDownload,
-  onCopyLink,
-  onDelete,
-  onEnterFolder,
-}: TreeNodeProps) {
-  const { object, children, state, parentPrefix } = node;
-  const isDir = object.isDir;
-  const label = deriveLabel(object.key, parentPrefix);
+const TreeNode = memo(
+  function TreeNodeInner({
+    node,
+    depth,
+    path,
+    isLast,
+    parentIsLast,
+    selected,
+    selectedKeys,
+    selectionVersion,
+    onToggle,
+    onNodeClick,
+    onToggleSelect,
+    onPreview,
+    onDownload,
+    onCopyLink,
+    onDelete,
+    onEnterFolder,
+    onLoadMore,
+  }: TreeNodeProps) {
+    const { object, children, state, parentPrefix } = node;
+    const isDir = object.isDir;
+    const label = deriveLabel(object.key, parentPrefix);
 
-  const handleClick = (e: React.MouseEvent) => {
-    // If clicking the checkbox area, let it handle itself
-    if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
-      return;
-    }
-    // Otherwise, handle selection
-    onNodeClick(e, object.key);
-  };
+    // Ref for lazy loading sentinel
+    const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const handleToggleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isDir) {
-      onToggle(path);
-    }
-  };
+    // Intersection observer for lazy loading children
+    useEffect(() => {
+      if (!node.truncated || state !== "expanded" || !sentinelRef.current) return;
 
-  const menuItems = (
-    <>
-      {isDir ? (
-        <ContextMenuItem onClick={() => onEnterFolder(object.key)}>
-          <Folder className="mr-2 h-4 w-4" />
-          进入
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting && !node.loadingMore) {
+            onLoadMore(path);
+          }
+        },
+        { threshold: 0.1, rootMargin: "50px" },
+      );
+
+      observer.observe(sentinelRef.current);
+      return () => observer.disconnect();
+    }, [node.truncated, node.loadingMore, state, path, onLoadMore]);
+
+    const handleClick = (e: React.MouseEvent) => {
+      // If clicking the checkbox area, let it handle itself
+      if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+        return;
+      }
+      // Otherwise, handle selection
+      onNodeClick(e, object.key);
+    };
+
+    const handleToggleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isDir) {
+        onToggle(path);
+      }
+    };
+
+    const menuItems = (
+      <>
+        {isDir ? (
+          <ContextMenuItem onClick={() => onEnterFolder(object.key)}>
+            <Folder className="mr-2 h-4 w-4" />
+            进入
+          </ContextMenuItem>
+        ) : (
+          <>
+            <ContextMenuItem onClick={() => onPreview(object.key)}>
+              <Eye className="mr-2 h-4 w-4" />
+              预览
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onDownload(object.key)}>
+              <Download className="mr-2 h-4 w-4" />
+              下载
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onCopyLink(object.key)}>
+              <Link2 className="mr-2 h-4 w-4" />
+              复制链接
+            </ContextMenuItem>
+          </>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => onDelete(object.key)}
+          className="text-destructive focus:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          删除
         </ContextMenuItem>
-      ) : (
-        <>
-          <ContextMenuItem onClick={() => onPreview(object.key)}>
-            <Eye className="mr-2 h-4 w-4" />
-            预览
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onDownload(object.key)}>
-            <Download className="mr-2 h-4 w-4" />
-            下载
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCopyLink(object.key)}>
-            <Link2 className="mr-2 h-4 w-4" />
-            复制链接
-          </ContextMenuItem>
-        </>
-      )}
-      <ContextMenuSeparator />
-      <ContextMenuItem
-        onClick={() => onDelete(object.key)}
-        className="text-destructive focus:text-destructive"
-      >
-        <Trash2 className="mr-2 h-4 w-4" />
-        删除
-      </ContextMenuItem>
-    </>
-  );
+      </>
+    );
 
-  const icon = isDir ? (
-    <Folder className="h-4 w-4 text-primary" />
-  ) : (
-    getFileIcon(object.key, "h-4 w-4")
-  );
-
-  const chevron = isDir ? (
-    state === "loading" ? (
-      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-    ) : state === "expanded" ? (
-      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+    const icon = isDir ? (
+      <Folder className="h-4 w-4 text-primary" />
     ) : (
-      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-    )
-  ) : (
-    <span className="w-4" />
-  );
+      getFileIcon(object.key, "h-4 w-4")
+    );
 
-  return (
-    <>
-      <ContextMenu>
-        <ContextMenuTrigger>
-          <div
-            onClick={handleClick}
-            className={cn(
-              "flex items-center gap-2 w-full px-2 py-1.5 rounded-md transition-colors",
-              "hover:bg-accent/60",
-              selected && "bg-accent",
-            )}
-            style={{ paddingLeft: `${depth * 16 + 8}px` }}
-          >
-            <div onClick={handleToggleClick} className="flex items-center justify-center shrink-0">
-              {chevron}
+    const chevron = isDir ? (
+      state === "loading" ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : state === "expanded" ? (
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      ) : (
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      )
+    ) : (
+      <span className="w-4" />
+    );
+
+    // Calculate the left padding based on depth (each level = 20px)
+    const indentPadding = depth * 20;
+
+    return (
+      <>
+        <ContextMenu>
+          <ContextMenuTrigger>
+            <div
+              onClick={handleClick}
+              className={cn(
+                "flex items-center gap-1 w-full py-1 rounded-sm transition-colors",
+                "hover:bg-accent/60",
+                selected && "bg-accent",
+              )}
+              style={{
+                minHeight: "28px",
+                paddingLeft: indentPadding + 8,
+                paddingRight: 8,
+              }}
+            >
+              {/* Expand/Collapse chevron */}
+              <div
+                onClick={handleToggleClick}
+                className="flex items-center justify-center shrink-0"
+              >
+                {chevron}
+              </div>
+
+              {/* Checkbox */}
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onToggleSelect(object.key)}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0"
+              />
+
+              {/* Icon */}
+              <span className="flex items-center justify-center shrink-0">{icon}</span>
+
+              {/* Label */}
+              <span className="truncate text-sm font-medium flex-1">{label}</span>
+
+              {/* Symlink indicator */}
+              {object.isSymlink && <Link2 className="h-3 w-3 text-primary shrink-0" />}
             </div>
-            <Checkbox
-              checked={selected}
-              onCheckedChange={() => onToggleSelect(object.key)}
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0"
-            />
-            <span className="flex items-center justify-center shrink-0">{icon}</span>
-            <span className="truncate text-sm font-medium flex-1">{label}</span>
-            {object.isSymlink && <Link2 className="h-3 w-3 text-primary shrink-0" />}
-          </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>{menuItems}</ContextMenuContent>
-      </ContextMenu>
+          </ContextMenuTrigger>
+          <ContextMenuContent>{menuItems}</ContextMenuContent>
+        </ContextMenu>
 
-      {state === "expanded" &&
-        children.map((child, index) => (
-          <TreeNode
-            key={child.object.key}
-            node={child}
-            depth={depth + 1}
-            path={[...path, index]}
-            selected={selectedKeys.has(child.object.key)}
-            selectedKeys={selectedKeys}
-            onToggle={onToggle}
-            onNodeClick={onNodeClick}
-            onToggleSelect={onToggleSelect}
-            onPreview={onPreview}
-            onDownload={onDownload}
-            onCopyLink={onCopyLink}
-            onDelete={onDelete}
-            onEnterFolder={onEnterFolder}
-          />
-        ))}
-    </>
-  );
-}
+        {state === "expanded" && (
+          <div className="relative">
+            {/* Continuous vertical line spanning all children */}
+            <div
+              className="absolute w-px bg-border"
+              style={{
+                left: indentPadding + 8 + 7, // align with chevron center
+                top: 0,
+                bottom: 0,
+              }}
+            />
+            {children.map((child, index) => {
+              const childIsLast = index === children.length - 1 && !node.truncated;
+              return (
+                <TreeNode
+                  key={child.object.key}
+                  node={child}
+                  depth={depth + 1}
+                  path={[...path, index]}
+                  isLast={childIsLast}
+                  parentIsLast={[...parentIsLast, isLast]}
+                  selected={selectedKeys.has(child.object.key)}
+                  selectedKeys={selectedKeys}
+                  selectionVersion={selectionVersion}
+                  onToggle={onToggle}
+                  onNodeClick={onNodeClick}
+                  onToggleSelect={onToggleSelect}
+                  onPreview={onPreview}
+                  onDownload={onDownload}
+                  onCopyLink={onCopyLink}
+                  onDelete={onDelete}
+                  onEnterFolder={onEnterFolder}
+                  onLoadMore={onLoadMore}
+                />
+              );
+            })}
+            {node.truncated && (
+              <div
+                ref={sentinelRef}
+                className="h-6 flex items-center"
+                style={{ paddingLeft: `${(depth + 1) * 20 + 8}px` }}
+              >
+                {node.loadingMore && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison to avoid unnecessary re-renders
+    return (
+      prevProps.selected === nextProps.selected &&
+      prevProps.node === nextProps.node &&
+      prevProps.depth === nextProps.depth &&
+      prevProps.isLast === nextProps.isLast &&
+      prevProps.path.length === nextProps.path.length &&
+      prevProps.path.every((v, i) => v === nextProps.path[i]) &&
+      prevProps.parentIsLast.length === nextProps.parentIsLast.length &&
+      prevProps.parentIsLast.every((v, i) => v === nextProps.parentIsLast[i]) &&
+      prevProps.selectionVersion === nextProps.selectionVersion
+    );
+  },
+);
 
 // Helper functions
-async function loadPrefix(
-  accountId: string,
-  bucket: string,
-  prefix: string,
-): Promise<TreeObject[]> {
-  try {
-    const items = await objectsStore.listChildren({
-      accountId,
-      bucket,
-      prefix,
-      delimiter: "/",
-    });
-    return items.filter((obj) => obj.key !== prefix);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "加载失败";
-    toast.error(msg);
-    return [];
-  }
-}
-
 function getNodeByPath(nodes: TreeNodeData[], path: number[]): TreeNodeData | null {
   if (path.length === 0) return null;
   let current = nodes[path[0]];

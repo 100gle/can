@@ -15,17 +15,16 @@ import {
   ArrowUpDown,
   Download,
   Eye,
-  Folder,
   Link2,
   MoreHorizontal,
   Trash2,
 } from "lucide-react";
 import { CheckboxCell } from "./checkbox-cell";
-import { deriveLabel, formatDate, formatSize, getFileIcon } from "./file-utils";
+import { formatDate, formatSize, getFileIcon } from "./file-utils";
 
 export function createFileTableColumns(
   data: ObjectModel[],
-  prefix: string,
+  _prefix: string,
   selectedKeys: Set<string>,
   allSelected: boolean,
   someSelected: boolean,
@@ -89,22 +88,17 @@ export function createFileTableColumns(
       },
       cell: ({ row }) => {
         const item = row.original;
-        const label = deriveLabel(item.key, prefix);
 
         return (
-          <div className="flex items-center gap-2 w-full overflow-hidden">
-            <div className="flex items-center justify-center h-4 w-4 shrink-0">
-              {item.isDir ? (
-                <Folder className="h-4 w-4 text-primary fill-primary/20" />
-              ) : (
-                getFileIcon(item.key, "h-4 w-4")
-              )}
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-4 w-4 items-center justify-center shrink-0">
+              {getFileIcon(item.key, "h-4 w-4")}
             </div>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="truncate text-sm text-foreground/90 cursor-default">{label}</span>
+                <span className="truncate text-sm text-foreground/90">{item.key}</span>
               </TooltipTrigger>
-              <TooltipContent side="bottom" align="start" className="max-w-[400px] break-all">
+              <TooltipContent side="bottom" align="start" className="max-w-[420px] break-all">
                 <p className="font-mono text-xs">{item.key}</p>
               </TooltipContent>
             </Tooltip>
@@ -112,8 +106,8 @@ export function createFileTableColumns(
         );
       },
       enableResizing: true,
-      size: 1000,
-      minSize: 500,
+      size: 360,
+      minSize: 220,
     },
     {
       accessorKey: "lastModified",

@@ -17,6 +17,8 @@ export type AdvancedOptions = {
   logLevel: LogLevel;
 };
 
+export type ViewMode = "grid" | "list" | "tree";
+
 export const DEFAULT_ADVANCED_OPTIONS: AdvancedOptions = {
   databaseDriver: "sqlite",
   logLevel: "info",
@@ -30,12 +32,14 @@ type PreferencesState = {
   themePreference: ThemePreference;
   systemTheme: ThemeSelection;
   advancedOptions: AdvancedOptions;
+  viewMode: ViewMode;
   offlineCacheEnabled: boolean;
   offlineCacheSize: CacheSize;
   setThemePreference: (value: ThemePreference) => void;
   setSystemTheme: (value: ThemeSelection) => void;
   setAdvancedOptions: (patch: Partial<AdvancedOptions>) => void;
   resetAdvancedOptions: () => void;
+  setViewMode: (mode: ViewMode) => void;
   setOfflineCacheEnabled: (enabled: boolean) => void;
   setOfflineCacheSize: (size: CacheSize) => void;
 };
@@ -78,6 +82,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       themePreference: "system",
       systemTheme: "light",
       advancedOptions: cloneDefaultAdvancedOptions(),
+      viewMode: "grid",
       offlineCacheEnabled: true,
       offlineCacheSize: 100,
       setThemePreference: (value) => set({ themePreference: value }),
@@ -87,6 +92,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           advancedOptions: { ...state.advancedOptions, ...patch },
         })),
       resetAdvancedOptions: () => set({ advancedOptions: cloneDefaultAdvancedOptions() }),
+      setViewMode: (mode) => set({ viewMode: mode }),
       setOfflineCacheEnabled: (enabled) => set({ offlineCacheEnabled: enabled }),
       setOfflineCacheSize: (size) => set({ offlineCacheSize: size }),
     }),
@@ -96,6 +102,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       partialize: (state) => ({
         themePreference: state.themePreference,
         advancedOptions: state.advancedOptions,
+        viewMode: state.viewMode,
         offlineCacheEnabled: state.offlineCacheEnabled,
         offlineCacheSize: state.offlineCacheSize,
       }),

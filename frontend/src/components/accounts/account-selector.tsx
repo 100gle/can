@@ -21,8 +21,7 @@ import {
   Rows,
   UploadCloud,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import type { AccountCardStatus } from "./account-card";
+import { useEffect, useState } from "react";
 import { AccountCardGrid } from "./account-card-grid";
 
 type AccountSelectorProps = {
@@ -50,16 +49,6 @@ export const AccountSelector = ({
     void accountsStore.bootstrap();
   }, []);
 
-  useEffect(() => {
-    if (loading || accounts.length === 0) return;
-    accounts.forEach((account) => {
-      const status = connectionTests[account.id]?.status;
-      if (!status || status === "idle") {
-        void accountsStore.testConnection(account.id);
-      }
-    });
-  }, [accounts, connectionTests, loading]);
-
   const handleSelectAccount = async (account: AccountModel) => {
     await accountsStore.setActiveAccount(account.id);
     navigate({
@@ -83,32 +72,6 @@ export const AccountSelector = ({
     });
     setPendingDelete(null);
   };
-
-  const statusByAccount = useMemo(() => {
-    return accounts.reduce<Record<string, AccountCardStatus>>((acc, account) => {
-      const probe = connectionTests[account.id];
-      if (!probe || probe.status === "idle") {
-        acc[account.id] = "pending";
-      } else if (probe.status === "ok") {
-        acc[account.id] = "ok";
-      } else if (probe.status === "error") {
-        acc[account.id] = "error";
-      } else {
-        acc[account.id] = "pending";
-      }
-      return acc;
-    }, {});
-  }, [accounts, connectionTests]);
-
-  const statusMessageByAccount = useMemo(() => {
-    return accounts.reduce<Record<string, string | undefined>>((acc, account) => {
-      const probe = connectionTests[account.id];
-      if (probe?.message) {
-        acc[account.id] = probe.message;
-      }
-      return acc;
-    }, {});
-  }, [accounts, connectionTests]);
 
   const renderGrid = (layout: "cards" | "list") => {
     if (loading) {
@@ -139,8 +102,7 @@ export const AccountSelector = ({
     return (
       <AccountCardGrid
         accounts={accounts}
-        getStatus={(account) => statusByAccount[account.id] ?? "pending"}
-        getStatusMessage={(account) => statusMessageByAccount[account.id]}
+        connectionTests={connectionTests}
         onSelectAccount={handleSelectAccount}
         onEditAccount={onEditAccount}
         onDeleteAccount={handleDeleteAccount}

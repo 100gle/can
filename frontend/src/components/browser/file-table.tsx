@@ -11,77 +11,126 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileTableColumns } from "./table-columns";
+import { TableFooterPaginator } from "./table-footer-paginator";
 import { TableRowContextMenu } from "./table-row-context-menu";
 
 interface FileTableProps {
   data: ObjectModel[];
   prefix: string;
   selectedKeys: Set<string>;
+  lastSelectedKey: string | null;
   onToggleSelect: (key: string) => void;
   onSelectAll: (keys: string[]) => void;
+  onSelectRange: (keys: string[], opts?: { merge?: boolean }) => void;
+  onSetLastSelectedKey: (key: string | null) => void;
   onClearSelection: () => void;
   onEnterFolder: (key: string) => void;
   onPreview: (key: string) => void;
   onDownload: (key: string) => void;
   onCopyLink: (key: string) => void;
   onDelete: (key: string) => void;
+  // Pagination props
+  pageSize?: number;
+  truncated?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 const ROW_HEIGHT = 40; // Fixed row height for virtualization
+const DEFAULT_PAGE_SIZE = 30;
+const PAGE_SIZE_OPTIONS = [30, 50, 100];
 
 export function FileTable({
   data,
   prefix,
   selectedKeys,
+  lastSelectedKey,
   onToggleSelect,
   onSelectAll,
+  onSelectRange,
+  onSetLastSelectedKey,
   onClearSelection,
   onEnterFolder,
   onPreview,
   onDownload,
   onCopyLink,
   onDelete,
+  // Pagination
+  pageSize = DEFAULT_PAGE_SIZE,
+  truncated = false,
+  loadingMore = false,
+  onLoadMore,
+  onPageSizeChange,
 }: FileTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnResizeMode] = useState<ColumnResizeMode>("onChange");
-  const [lastSelectedKey, setLastSelectedKey] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // Compute selection state
-  const allSelected = data.length > 0 && data.every((d) => selectedKeys.has(d.key));
-  const someSelected = data.some((d) => selectedKeys.has(d.key)) && !allSelected;
+  // Reset to page 1 when data changes significantly (e.g., navigation)
+  useEffect(() => {
+    setCurrentPage(1);
+    if (parentRef.current) {
+      parentRef.current.scrollTop = 0;
+    }
+  }, [prefix]);
+
+  const totalLoaded = data.length;
+  const totalPages = Math.max(1, Math.ceil(Math.max(totalLoaded, 1) / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    if (!truncated && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages, truncated]);
+
+  // Calculate paginated data for current page
+  const paginatedData = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return data.slice(startIndex, endIndex);
+  }, [data, safePage, pageSize]);
+
+  // Compute selection state (based on current page data)
+  const allSelected =
+    paginatedData.length > 0 && paginatedData.every((d) => selectedKeys.has(d.key));
+  const someSelected = paginatedData.some((d) => selectedKeys.has(d.key)) && !allSelected;
 
   // Handle row click with OS-standard multi-select behavior + Toggle on repeat click
   const handleRowClick = (e: React.MouseEvent, key: string) => {
     if (e.shiftKey && lastSelectedKey) {
-      // Shift+Click: Range selection
-      const lastIndex = data.findIndex((item) => item.key === lastSelectedKey);
-      const currentIndex = data.findIndex((item) => item.key === key);
+      // Shift+Click: Range selection with merge
+      const lastIndex = paginatedData.findIndex((item) => item.key === lastSelectedKey);
+      const currentIndex = paginatedData.findIndex((item) => item.key === key);
 
       if (lastIndex >= 0 && currentIndex >= 0) {
         const start = Math.min(lastIndex, currentIndex);
         const end = Math.max(lastIndex, currentIndex);
-        const keysToSelect = data.slice(start, end + 1).map((item) => item.key);
-        onSelectAll(keysToSelect);
+        const keysToSelect = paginatedData.slice(start, end + 1).map((item) => item.key);
+        onSelectRange(keysToSelect, { merge: true });
+        onSetLastSelectedKey(key);
       }
     } else if (e.ctrlKey || e.metaKey) {
       // Ctrl/Cmd+Click: Toggle individual item
       onToggleSelect(key);
-      setLastSelectedKey(key);
+      onSetLastSelectedKey(key);
     } else {
       // Plain click
       const isSelected = selectedKeys.has(key);
       const isOnlyOne = selectedKeys.size === 1 && isSelected;
 
       if (isOnlyOne) {
+        // Clicking the only selected item again clears selection
         onClearSelection();
-        setLastSelectedKey(null);
       } else {
+        // Select only this item
         onClearSelection();
         onToggleSelect(key);
-        setLastSelectedKey(key);
+        onSetLastSelectedKey(key);
       }
     }
   };
@@ -89,12 +138,12 @@ export function FileTable({
   const columns = useMemo(
     () =>
       createFileTableColumns(
-        data,
+        paginatedData,
         prefix,
         selectedKeys,
         allSelected,
         someSelected,
-        onSelectAll,
+        (keys) => onSelectAll(keys),
         onClearSelection,
         onToggleSelect,
         onPreview,
@@ -103,7 +152,7 @@ export function FileTable({
         onDelete,
       ),
     [
-      data,
+      paginatedData,
       prefix,
       selectedKeys,
       allSelected,
@@ -119,7 +168,7 @@ export function FileTable({
   );
 
   const table = useReactTable({
-    data,
+    data: paginatedData,
     columns,
     columnResizeMode,
     enableColumnResizing: true,
@@ -144,21 +193,41 @@ export function FileTable({
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
 
+  // Handle page change with auto-load
+  const handlePageChange = (page: number) => {
+    const nextPage = Math.max(page, 1);
+    setCurrentPage(nextPage);
+    // Scroll to top when changing pages
+    if (parentRef.current) {
+      parentRef.current.scrollTop = 0;
+    }
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    if (size === pageSize) return;
+    onPageSizeChange?.(size);
+    setCurrentPage(1);
+    if (parentRef.current) {
+      parentRef.current.scrollTop = 0;
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="rounded-md border w-full">
+      <div className="flex h-full flex-col overflow-hidden rounded-md border bg-card/30">
         {/* Fixed Header */}
-        <div className="overflow-hidden border-b">
+        <div className="border-b">
           <div className="flex items-center bg-muted/50">
             {table.getHeaderGroups()[0]?.headers.map((header, index) => {
               const isLastColumn = index === table.getHeaderGroups()[0].headers.length - 1;
-              const isActionsColumn = header.column.id === "actions";
+              const isNameColumn = header.column.id === "key";
+              const flexStyle = isNameColumn ? "1 1 0%" : `0 0 ${header.getSize()}px`;
               return (
                 <div
                   key={header.id}
                   className="relative py-2 px-2 text-sm font-medium text-muted-foreground select-none"
                   style={{
-                    flex: isActionsColumn ? "1 0 auto" : `0 0 ${header.getSize()}px`,
+                    flex: flexStyle,
                     minWidth: header.column.columnDef.minSize ?? 50,
                   }}
                 >
@@ -184,78 +253,97 @@ export function FileTable({
         </div>
 
         {/* Virtual scrolling container */}
-        <div
-          ref={parentRef}
-          className="overflow-auto"
-          style={{ height: "calc(100vh - 300px)", minHeight: "300px", maxHeight: "600px" }}
-        >
-          {rows.length ? (
-            <div style={{ height: `${totalSize}px`, position: "relative" }}>
-              {virtualRows.map((virtualRow) => {
-                const row = rows[virtualRow.index];
-                return (
-                  <ContextMenu key={row.id}>
-                    <ContextMenuTrigger asChild>
-                      <div
-                        data-state={selectedKeys.has(row.original.key) && "selected"}
-                        className={cn(
-                          "flex items-center cursor-pointer hover:bg-muted/50 transition-colors border-b",
-                          selectedKeys.has(row.original.key) && "bg-muted",
-                        )}
-                        style={{
-                          height: ROW_HEIGHT,
-                          transform: `translateY(${virtualRow.start}px)`,
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                        }}
-                        onClick={(e) => handleRowClick(e, row.original.key)}
-                        onDoubleClick={() => {
-                          if (row.original.isDir) {
-                            onEnterFolder(row.original.key);
-                          } else {
-                            onPreview(row.original.key);
-                          }
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell) => {
-                          const isActionsColumn = cell.column.id === "actions";
-                          return (
-                            <div
-                              key={cell.id}
-                              className="py-2 px-2 truncate"
-                              style={{
-                                flex: isActionsColumn
-                                  ? "1 0 auto"
-                                  : `0 0 ${cell.column.getSize()}px`,
-                                minWidth: cell.column.columnDef.minSize ?? 50,
-                              }}
-                            >
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </ContextMenuTrigger>
-                    <TableRowContextMenu
-                      isDir={row.original.isDir}
-                      onEnterFolder={() => onEnterFolder(row.original.key)}
-                      onPreview={() => onPreview(row.original.key)}
-                      onDownload={() => onDownload(row.original.key)}
-                      onCopyLink={() => onCopyLink(row.original.key)}
-                      onDelete={() => onDelete(row.original.key)}
-                    />
-                  </ContextMenu>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="h-24 flex items-center justify-center text-muted-foreground">
-              No results.
-            </div>
-          )}
+        <div className="flex-1 overflow-hidden min-h-0">
+          <div ref={parentRef} className="h-full overflow-auto">
+            {rows.length ? (
+              <div style={{ height: `${totalSize}px`, position: "relative" }}>
+                {virtualRows.map((virtualRow, vIndex) => {
+                  const row = rows[virtualRow.index];
+                  const isLastVisibleRow = vIndex === virtualRows.length - 1;
+                  return (
+                    <ContextMenu key={row.id}>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          data-state={selectedKeys.has(row.original.key) && "selected"}
+                          className={cn(
+                            "flex items-center cursor-pointer hover:bg-muted/50 transition-colors",
+                            selectedKeys.has(row.original.key) && "bg-muted",
+                            // Only show border if not the last row to avoid scrollbar cutting
+                            !isLastVisibleRow && "border-b",
+                          )}
+                          style={{
+                            height: ROW_HEIGHT,
+                            transform: `translateY(${virtualRow.start}px)`,
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                          }}
+                          onClick={(e) => handleRowClick(e, row.original.key)}
+                          onDoubleClick={() => {
+                            if (row.original.isDir) {
+                              onEnterFolder(row.original.key);
+                            } else {
+                              onPreview(row.original.key);
+                            }
+                          }}
+                        >
+                          {row.getVisibleCells().map((cell) => {
+                            const isNameColumn = cell.column.id === "key";
+                            const flexStyle = isNameColumn
+                              ? "1 1 0%"
+                              : `0 0 ${cell.column.getSize()}px`;
+                            return (
+                              <div
+                                key={cell.id}
+                                className="py-2 px-2 truncate"
+                                style={{
+                                  flex: flexStyle,
+                                  minWidth: cell.column.columnDef.minSize ?? 50,
+                                }}
+                              >
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ContextMenuTrigger>
+                      <TableRowContextMenu
+                        isDir={row.original.isDir}
+                        onEnterFolder={() => onEnterFolder(row.original.key)}
+                        onPreview={() => onPreview(row.original.key)}
+                        onDownload={() => onDownload(row.original.key)}
+                        onCopyLink={() => onCopyLink(row.original.key)}
+                        onDelete={() => onDelete(row.original.key)}
+                      />
+                    </ContextMenu>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex h-full min-h-[200px] items-center justify-center text-muted-foreground">
+                No results.
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Footer with Paginator */}
+        {onLoadMore && (
+          <TableFooterPaginator
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalPages={totalPages}
+            hasMore={truncated}
+            loadingMore={loadingMore}
+            selectedCount={selectedKeys.size}
+            totalRowCount={paginatedData.length}
+            onPageChange={handlePageChange}
+            onLoadMore={onLoadMore}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

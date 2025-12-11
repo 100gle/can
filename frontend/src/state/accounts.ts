@@ -334,6 +334,9 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
           },
         },
       }));
+      if (result.status !== "ok") {
+        throw new Error(result.message || "连接测试失败");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "连接测试失败";
       set((state) => ({
@@ -342,6 +345,7 @@ const useAccountsStoreBase = create<AccountsStore>((set, get) => ({
           [accountId]: { status: "error", message },
         },
       }));
+      throw new Error(message);
     }
   },
   testConnectionPreview: async (input: AccountFormInput) => {

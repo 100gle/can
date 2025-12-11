@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
+import { toast } from "sonner";
 
 type ConnectionTestButtonProps = {
   accountId?: string;
@@ -18,6 +19,9 @@ export const ConnectionTestButton = ({ accountId, disabled }: ConnectionTestButt
     setTesting(true);
     try {
       await accountsStore.testConnection(accountId);
+    } catch (error) {
+      const description = error instanceof Error ? error.message : "连接测试失败";
+      toast.error("连接测试失败", { description });
     } finally {
       setTesting(false);
     }

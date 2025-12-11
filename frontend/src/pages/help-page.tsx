@@ -52,12 +52,6 @@ const QUICK_START_STEPS: QuickStartStep[] = [
       "拖拽文件/文件夹至对象浏览器或使用工具栏按钮，任务自动加入传输队列，暂停/恢复、限速与断点续传默认开启。",
     tip: "对象浏览器 Object Explorer",
   },
-  {
-    title: "4. 配置安全策略 · Harden Security",
-    description:
-      "访问“安全中心 / Security Center”审查 ACL、公共访问、MFA Delete，同时在系统设置中导出备份、开启空闲锁定。",
-    tip: "Accounts → 安全中心 / Security",
-  },
 ];
 
 const FAQS = [

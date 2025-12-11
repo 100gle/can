@@ -58,7 +58,6 @@ export interface BrowserToolbarProps {
   // Cache indicators
   isFromCache: boolean;
   lastSync: number | undefined;
-
   // Selection
   selectedKeys: Set<string>;
 
@@ -205,10 +204,21 @@ export function BrowserToolbar({
               {/* View Mode Toggle */}
               <div className="flex items-center rounded-md border border-border/40 bg-background shrink-0">
                 <Button
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="icon"
                   className="h-8 w-8 rounded-r-none"
+                  onClick={() => onViewModeChange("grid")}
+                  aria-pressed={viewMode === "grid"}
+                  title="网格视图 (默认)"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8 rounded-none border-x border-border/20"
                   onClick={() => onViewModeChange("list")}
+                  aria-pressed={viewMode === "list"}
                   title="平铺列表"
                 >
                   <List className="h-4 w-4" />
@@ -216,20 +226,12 @@ export function BrowserToolbar({
                 <Button
                   variant={viewMode === "tree" ? "secondary" : "ghost"}
                   size="icon"
-                  className="h-8 w-8 rounded-none border-x border-border/20"
+                  className="h-8 w-8 rounded-l-none"
                   onClick={() => onViewModeChange("tree")}
+                  aria-pressed={viewMode === "tree"}
                   title="树形视图"
                 >
                   <FolderTree className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "grid" ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8 rounded-l-none"
-                  onClick={() => onViewModeChange("grid")}
-                  title="网格视图"
-                >
-                  <LayoutGrid className="h-4 w-4" />
                 </Button>
               </div>
             </div>

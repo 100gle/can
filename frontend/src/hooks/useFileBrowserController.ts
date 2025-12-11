@@ -9,6 +9,7 @@
 import { useAccountsStore } from "@/state/accounts";
 import { bucketsStore, useBucketsStore } from "@/state/buckets";
 import { objectsStore, useObjectsStore, type ObjectModel } from "@/state/objects";
+import { usePreferencesStore, type ViewMode as PrefsViewMode } from "@/state/preferences";
 import { useEffect, useMemo, useState } from "react";
 
 export type BrowseLevel = "buckets" | "objects" | "search";
@@ -31,8 +32,14 @@ export interface FileBrowserState {
   objects: ObjectModel[];
   prefix: string;
   selectedKeys: Set<string>;
+  selectedKeysVersion: number;
+  lastSelectedKey: string | null;
   truncated: boolean;
   loadingMore: boolean;
+
+  // Pagination
+  pageSize: number;
+  totalLoaded: number;
 
   // Cache states
   isFromCache: boolean;
@@ -63,10 +70,15 @@ export interface FileBrowserActions {
   // Selection
   toggleSelect: typeof objectsStore.toggleSelect;
   selectAll: typeof objectsStore.selectAll;
+  selectRange: typeof objectsStore.selectRange;
+  setLastSelectedKey: typeof objectsStore.setLastSelectedKey;
   clearSelection: typeof objectsStore.clearSelection;
 
   // Refresh
   refresh: () => void;
+
+  // Pagination
+  setPageSize: typeof objectsStore.setPageSize;
 }
 
 export function useFileBrowserController(
@@ -89,6 +101,9 @@ export function useFileBrowserController(
   const objectsIsFromCache = useObjectsStore((state) => state.isFromCache);
   const objectsLastSync = useObjectsStore((state) => state.lastSync);
   const selectedKeys = useObjectsStore((state) => state.selectedKeys);
+  const selectedKeysVersion = useObjectsStore((state) => state.selectedKeysVersion);
+  const lastSelectedKey = useObjectsStore((state) => state.lastSelectedKey);
+  const pageSize = useObjectsStore((state) => state.pageSize);
 
   // Account state
   const accounts = useAccountsStore((state) => state.accounts);
@@ -110,7 +125,9 @@ export function useFileBrowserController(
   // Browser state
   const [level, setLevel] = useState<BrowseLevel>("buckets");
   const [currentBucket, setCurrentBucket] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const prefsViewMode = usePreferencesStore((s) => s.viewMode);
+  const setPrefsViewMode = usePreferencesStore((s) => s.setViewMode);
+  const [viewMode, setViewMode] = useState<ViewMode>(prefsViewMode);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
@@ -232,6 +249,7 @@ export function useFileBrowserController(
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
+    setPrefsViewMode(mode as PrefsViewMode);
     if (level === "objects" && mode !== "tree") {
       const newDelimiter = mode === "list" ? "" : "/";
       void objectsStore.setDelimiter(newDelimiter);
@@ -259,8 +277,12 @@ export function useFileBrowserController(
     objects,
     prefix,
     selectedKeys,
+    selectedKeysVersion,
+    lastSelectedKey,
     truncated,
     loadingMore,
+    pageSize,
+    totalLoaded: objects.length,
     isFromCache,
     lastSync,
     breadcrumbs,
@@ -279,7 +301,10 @@ export function useFileBrowserController(
     setLevel,
     toggleSelect: objectsStore.toggleSelect,
     selectAll: objectsStore.selectAll,
+    selectRange: objectsStore.selectRange,
+    setLastSelectedKey: objectsStore.setLastSelectedKey,
     clearSelection: objectsStore.clearSelection,
     refresh,
+    setPageSize: objectsStore.setPageSize,
   };
 }
