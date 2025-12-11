@@ -1,14 +1,13 @@
 import { FileExplorer } from "@/components/browser/file-explorer";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAccountLayout } from "@/contexts/account-layout-context";
 import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { bucketsStore } from "@/state/buckets";
 import { objectsStore } from "@/state/objects";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { RefreshCcw, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
-
-import { useAccountLayout } from "@/routes/accounts/$accountId";
 
 export default function DashboardPage() {
   const navigate = useNavigate();

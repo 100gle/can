@@ -2,11 +2,12 @@ import { AccountFormDrawer } from "@/components/accounts/account-form-drawer";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { Button } from "@/components/ui/button";
+import { AccountLayoutContext } from "@/contexts/account-layout-context";
 import { AccountModel, accountsStore, useAccountsStore } from "@/state/accounts";
 import { transfersStore } from "@/state/transfers";
 import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/accounts/$accountId")({
   beforeLoad: async ({ params }) => {
@@ -31,20 +32,6 @@ export const Route = createFileRoute("/accounts/$accountId")({
   },
   component: AccountLayout,
 });
-
-type AccountLayoutContextType = {
-  openDrawer: (mode: "create" | "edit", account?: AccountModel) => void;
-};
-
-const AccountLayoutContext = createContext<AccountLayoutContextType | null>(null);
-
-export const useAccountLayout = () => {
-  const context = useContext(AccountLayoutContext);
-  if (!context) {
-    throw new Error("useAccountLayout must be used within AccountLayout");
-  }
-  return context;
-};
 
 function AccountLayout() {
   const navigate = useNavigate();

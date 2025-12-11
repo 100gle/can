@@ -182,13 +182,36 @@ export function useFileBrowserActions({
   }, [pendingDeleteObject]);
 
   // Preview handler
+  // Note: In tree view, files may not be in the global objects array since
+  // tree view manages its own node state. We construct a minimal object if needed.
   const handlePreview = useCallback(
     (key: string) => {
-      const target = objects.find((obj) => obj.key === key && !obj.isDir);
-      if (!target) {
+      // Skip directories
+      if (key.endsWith("/")) {
         toast.error("请选择可预览的文件");
         return;
       }
+
+      // Try to find in global objects state first
+      let target = objects.find((obj) => obj.key === key && !obj.isDir);
+
+      // If not found, construct a minimal object (for tree view case)
+      if (!target) {
+        target = {
+          key,
+          size: 0,
+          lastModified: new Date().toISOString() as any,
+          etag: "",
+          contentType: "",
+          storageClass: "",
+          versionId: "",
+          isDir: false,
+          metadata: {},
+          isSymlink: false,
+          symlinkTarget: "",
+        };
+      }
+
       setPreviewObject(target);
       setPreviewOpen(true);
     },

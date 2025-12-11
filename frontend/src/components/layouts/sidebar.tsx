@@ -3,7 +3,6 @@ import { AccountSwitcher } from "@/components/accounts/account-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAccountsStore } from "@/state/accounts";
 import { useTransferStats } from "@/state/transfers";
 import { useNavigate } from "@tanstack/react-router";
 import { HelpCircle, Plus, Settings, Share2 } from "lucide-react";
@@ -13,10 +12,8 @@ type SidebarProps = {
   accountId?: string;
 };
 
-export const Sidebar = ({ onCreateAccount, accountId }: SidebarProps) => {
+export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps) => {
   const navigate = useNavigate();
-  const { activeAccountId } = useAccountsStore((state) => state);
-  const currentAccountId = accountId || activeAccountId;
   const { active, failed, total } = useTransferStats();
 
   return (
