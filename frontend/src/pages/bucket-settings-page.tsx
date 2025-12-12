@@ -101,7 +101,7 @@ export const BucketSettingsPage = () => {
     );
   }
 
-  const sections: BucketSettingsSection[] = [
+  const sections = useMemo<BucketSettingsSection[]>(() => [
     {
       id: "acl",
       label: t("bucket.acl.title"),
@@ -188,7 +188,7 @@ export const BucketSettingsPage = () => {
         </CapabilityGate>
       ),
     },
-  ];
+  ], [t, featureMatrix, account.provider]);
 
   return (
     <main className="flex-1 overflow-auto p-6 space-y-6">
