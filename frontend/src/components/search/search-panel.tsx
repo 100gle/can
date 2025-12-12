@@ -20,11 +20,11 @@ import {
 import { getFieldErrorMessage } from "@/lib/forms";
 import { showError } from "@/lib/toast";
 import { formatBytes } from "@/lib/utils";
-import { searchStore, useSearchStore } from "@/state/search";
+import { searchStore, useSearchStore, type SearchQueryModel } from "@/state/search";
 import { useForm, useStore } from "@tanstack/react-form";
 import { TFunction } from "i18next";
 import { Bookmark, BookmarkPlus, DownloadCloud, Loader2, Search, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
@@ -38,6 +38,8 @@ const formatDateInputValue = (value?: string) => {
 type SearchPanelProps = {
   buckets: string[];
 };
+
+const QUERY_SYNC_IGNORED_KEYS: (keyof SearchQueryModel)[] = ["offset"];
 
 const createSearchFormSchema = (t: TFunction) =>
   z
@@ -111,9 +113,23 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
   const formValues = useStore(form.store, (state) => state.values);
   const formSubmitted = useStore(form.store, (state) => state.isSubmitted);
 
+  const lastSyncedQuery = useRef(query);
+
   useEffect(() => {
-    form.reset(query);
-  }, [query, form]);
+    const previous = lastSyncedQuery.current;
+    const hasMeaningfulChange = (Object.keys(query) as (keyof SearchQueryModel)[]).some((key) => {
+      if (QUERY_SYNC_IGNORED_KEYS.includes(key)) {
+        return false;
+      }
+      return previous[key] !== query[key];
+    });
+
+    if (hasMeaningfulChange) {
+      form.reset(query);
+    }
+
+    lastSyncedQuery.current = query;
+  }, [form, query]);
 
   const bucketOptions = useMemo(() => {
     const uniques = new Set(buckets);
