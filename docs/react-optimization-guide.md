@@ -1020,7 +1020,7 @@ const ReactMarkdown = React.lazy(() => import("react-markdown"));
 </Suspense>
 ```
 
-**计划**: Sprint 19
+**修复状态**: ✅ 已在 `perf: lazy load preview editors` 中完成，`file-preview-modal.tsx` 改用 `React.lazy` + `Suspense` 动态加载 Monaco Editor 与 ReactMarkdown，非预览场景不再提前下载大型依赖。
 
 ### 2. 传输列表的虚拟化与 Memo
 

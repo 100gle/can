@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isDesktopMode } from "@/lib/bridge";
 import { cn, formatBytes } from "@/lib/utils";
-import MonacoEditor from "@monaco-editor/react";
 import {
   GetObjectAttributes,
   GetPresignedDownloadURLWithHeaders,
@@ -19,9 +18,8 @@ import {
 } from "@wailsjs/go/app/App";
 import { objects as ObjectModels } from "@wailsjs/go/models";
 import { AlertTriangle, Eye, Loader2, Maximize2, Minimize2, Pencil, Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
@@ -116,6 +114,9 @@ const LANGUAGE_MAP: Record<string, string> = {
 };
 
 const textEncoder = new TextEncoder();
+
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+const ReactMarkdown = lazy(() => import("react-markdown"));
 
 export function FilePreviewModal({
   open,
@@ -436,18 +437,27 @@ export function FilePreviewModal({
       case "markdown":
         if (mode === "edit") {
           return (
-            <MonacoEditor
-              height="60vh"
-              theme="vs-dark"
-              language={language}
-              value={editorValue}
-              onChange={(value) => setEditorValue(value ?? "")}
-              options={{
-                readOnly: false,
-                minimap: { enabled: false },
-                fontSize: 14,
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("objects.preview.loading")}
+                </div>
+              }
+            >
+              <MonacoEditor
+                height="60vh"
+                theme="vs-dark"
+                language={language}
+                value={editorValue}
+                onChange={(value) => setEditorValue(value ?? "")}
+                options={{
+                  readOnly: false,
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                }}
+              />
+            </Suspense>
           );
         }
         return (
@@ -458,39 +468,66 @@ export function FilePreviewModal({
             </TabsList>
             <TabsContent value="rendered">
               <div className="h-[55vh] overflow-y-auto rounded-md border border-border/60 bg-card p-4">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  className="prose dark:prose-invert max-w-none"
+                <Suspense
+                  fallback={
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t("objects.preview.loading")}
+                    </div>
+                  }
                 >
-                  {textContent}
-                </ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    className="prose dark:prose-invert max-w-none"
+                  >
+                    {textContent}
+                  </ReactMarkdown>
+                </Suspense>
               </div>
             </TabsContent>
             <TabsContent value="source">
-              <MonacoEditor
-                height="55vh"
-                theme="vs-dark"
-                language={language}
-                value={textContent}
-                options={{ readOnly: true }}
-              />
+              <Suspense
+                fallback={
+                  <div className="flex h-[55vh] items-center justify-center text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t("objects.preview.loading")}
+                  </div>
+                }
+              >
+                <MonacoEditor
+                  height="55vh"
+                  theme="vs-dark"
+                  language={language}
+                  value={textContent}
+                  options={{ readOnly: true }}
+                />
+              </Suspense>
             </TabsContent>
           </Tabs>
         );
       case "text":
         return (
-          <MonacoEditor
-            height="60vh"
-            theme="vs-dark"
-            language={language}
-            value={mode === "edit" ? editorValue : textContent}
-            onChange={(value) => mode === "edit" && setEditorValue(value ?? "")}
-            options={{
-              readOnly: mode !== "edit",
-              minimap: { enabled: false },
-              fontSize: 14,
-            }}
-          />
+          <Suspense
+            fallback={
+              <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t("objects.preview.loading")}
+              </div>
+            }
+          >
+            <MonacoEditor
+              height="60vh"
+              theme="vs-dark"
+              language={language}
+              value={mode === "edit" ? editorValue : textContent}
+              onChange={(value) => mode === "edit" && setEditorValue(value ?? "")}
+              options={{
+                readOnly: mode !== "edit",
+                minimap: { enabled: false },
+                fontSize: 14,
+              }}
+            />
+          </Suspense>
         );
       default:
         return (
