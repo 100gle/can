@@ -7,12 +7,12 @@
 
 import { Badge } from "@/components/ui/badge";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,23 +21,23 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { BrowseLevel, ViewMode } from "@/hooks/useFileBrowserController";
 import { isDesktopMode } from "@/lib/bridge";
 import {
-  Download,
-  FolderTree,
-  LayoutGrid,
-  Link2,
-  List,
-  Loader2,
-  MoreHorizontal,
-  Move,
-  Plus,
-  Search,
-  SlidersHorizontal,
-  Trash2,
-  Upload,
-  WifiOff,
-  X,
+    Download,
+    FolderTree,
+    LayoutGrid,
+    Link2,
+    List,
+    Loader2,
+    MoreHorizontal,
+    Move,
+    Plus,
+    Search,
+    SlidersHorizontal,
+    Trash2,
+    Upload,
+    WifiOff,
+    X,
 } from "lucide-react";
-import React from "react";
+import React, { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -74,6 +74,82 @@ export interface BrowserToolbarProps {
   onMoveCopyClick: () => void;
   onDeleteSelectedClick: () => void;
 }
+
+// Memoized batch actions menu to prevent toolbar re-renders when selection changes
+type BatchActionsMenuProps = {
+  selectedCount: number;
+  onDownloadClick: () => void;
+  onMoveCopyClick: () => void;
+  onDeleteSelectedClick: () => void;
+};
+
+const BatchActionsMenu = memo(function BatchActionsMenu({
+  selectedCount,
+  onDownloadClick,
+  onMoveCopyClick,
+  onDeleteSelectedClick,
+}: BatchActionsMenuProps) {
+  const { t } = useTranslation();
+  
+  if (selectedCount === 0) return null;
+  
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5">
+          <MoreHorizontal className="h-3.5 w-3.5" />
+          <span className="text-sm">
+            {t("toolbar.action.selected", { count: selectedCount })}
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-1" align="end">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 h-9"
+          onClick={() => {
+            if (selectedCount === 0) {
+              toast.error(t("explorer.message.selectAtLeastOne"));
+              return;
+            }
+            if (isDesktopMode()) {
+              onDownloadClick();
+            } else {
+              toast.error(t("explorer.message.webBatchDownloadUnsupported"));
+            }
+          }}
+        >
+          <Download className="h-4 w-4" />
+          <span>{t("toolbar.action.download")}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 h-9"
+          onClick={onMoveCopyClick}
+        >
+          <Move className="h-4 w-4" />
+          <span>{t("toolbar.action.move")}</span>
+        </Button>
+        <div className="h-px bg-border my-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 h-9 text-destructive hover:text-destructive"
+          onClick={() => {
+            if (selectedCount > 0) {
+              onDeleteSelectedClick();
+            }
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>{t("toolbar.action.delete")}</span>
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+});
 
 export function BrowserToolbar({
   level,
@@ -268,61 +344,13 @@ export function BrowserToolbar({
                   <span className="hidden lg:inline truncate">{t("toolbar.action.upload")}</span>
                 </Button>
               )}
-              {selectedKeys.size > 0 && level === "objects" && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                      <span className="text-sm">
-                        {t("toolbar.action.selected", { count: selectedKeys.size })}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-1" align="end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 h-9"
-                      onClick={() => {
-                        if (selectedKeys.size === 0) {
-                          toast.error(t("explorer.message.selectAtLeastOne"));
-                          return;
-                        }
-                        if (isDesktopMode()) {
-                          onDownloadClick();
-                        } else {
-                          toast.error(t("explorer.message.webBatchDownloadUnsupported"));
-                        }
-                      }}
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>{t("toolbar.action.download")}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 h-9"
-                      onClick={onMoveCopyClick}
-                    >
-                      <Move className="h-4 w-4" />
-                      <span>{t("toolbar.action.move")}</span>
-                    </Button>
-                    <div className="h-px bg-border my-1" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 h-9 text-destructive hover:text-destructive"
-                      onClick={() => {
-                        if (selectedKeys.size > 0) {
-                          onDeleteSelectedClick();
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>{t("toolbar.action.delete")}</span>
-                    </Button>
-                  </PopoverContent>
-                </Popover>
+              {level === "objects" && (
+                <BatchActionsMenu
+                  selectedCount={selectedKeys.size}
+                  onDownloadClick={onDownloadClick}
+                  onMoveCopyClick={onMoveCopyClick}
+                  onDeleteSelectedClick={onDeleteSelectedClick}
+                />
               )}
               {level === "buckets" && (
                 <Button
@@ -342,3 +370,4 @@ export function BrowserToolbar({
     </div>
   );
 }
+

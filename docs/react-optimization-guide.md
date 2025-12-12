@@ -893,6 +893,8 @@ function BatchActionsMenu({
 
 **拆分优先级**: 🟢 低
 
+**修复状态**: ✅ 已在 `refactor: extract BatchActionsMenu component` 中完成，`BatchActionsMenu` 使用 `memo` 包裹并接收 `selectedCount` 而非整个 `selectedKeys` Set，减少选择变化时的重渲染。
+
 ---
 
 ### 拆分机会 8: Zustand Store 细粒度化
