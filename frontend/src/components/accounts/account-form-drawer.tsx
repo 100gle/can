@@ -48,7 +48,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
@@ -148,6 +148,10 @@ export const AccountFormDrawer = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAccessKey, setShowAccessKey] = useState(false);
   const [showSecretKey, setShowSecretKey] = useState(false);
+  const resetTestStatus = useCallback(() => {
+    setTestStatus((prev) => (prev === "idle" ? prev : "idle"));
+    setTestHint((prev) => (prev === undefined ? prev : undefined));
+  }, []);
 
   const form = useForm({
     defaultValues: defaultFormValues,
@@ -206,19 +210,6 @@ export const AccountFormDrawer = ({
       { id: "custom", label: "Generic S3", description: "" },
     ];
   }, [providers]);
-
-  useEffect(() => {
-    setTestStatus("idle");
-    setTestHint(undefined);
-  }, [
-    formValues.accessKeyId,
-    formValues.secretAccessKey,
-    formValues.endpoint,
-    formValues.region,
-    formValues.provider,
-    formValues.useSSL,
-    formValues.port,
-  ]);
 
   const normalizedEndpoint = formValues.endpoint?.trim() ?? "";
   const normalizedAccessKey = formValues.accessKeyId?.trim() ?? "";
@@ -396,6 +387,7 @@ export const AccountFormDrawer = ({
                         onValueChange={(value) => {
                           field.handleChange(value);
                           field.handleBlur();
+                          resetTestStatus();
                         }}
                       >
                         <SelectTrigger className="w-full" aria-invalid={showError}>
@@ -441,7 +433,10 @@ export const AccountFormDrawer = ({
                           id="endpoint"
                           placeholder={t("account.form.field.endpoint.placeholder")}
                           value={field.state.value ?? ""}
-                          onChange={(event) => field.handleChange(event.target.value)}
+                          onChange={(event) => {
+                            field.handleChange(event.target.value);
+                            resetTestStatus();
+                          }}
                           onBlur={field.handleBlur}
                           aria-invalid={showError}
                           required
@@ -460,7 +455,10 @@ export const AccountFormDrawer = ({
                       id="region"
                       placeholder={t("account.form.field.region.placeholder")}
                       value={field.state.value ?? ""}
-                      onChange={(event) => field.handleChange(event.target.value)}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                        resetTestStatus();
+                      }}
                       onBlur={field.handleBlur}
                     />
                   )}
@@ -489,6 +487,7 @@ export const AccountFormDrawer = ({
                           onChange={(event) => {
                             const val = event.target.value.replace(/\D/g, "");
                             field.handleChange(val ? Number(val) : 0);
+                            resetTestStatus();
                           }}
                           onBlur={field.handleBlur}
                           aria-invalid={showError}
@@ -521,7 +520,10 @@ export const AccountFormDrawer = ({
                             type={showAccessKey ? "text" : "password"}
                             placeholder={t("account.form.field.accessKeyId.placeholder")}
                             value={field.state.value ?? ""}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onChange={(event) => {
+                              field.handleChange(event.target.value);
+                              resetTestStatus();
+                            }}
                             onBlur={field.handleBlur}
                             aria-invalid={showError}
                             required={mode === "create"}
@@ -574,7 +576,10 @@ export const AccountFormDrawer = ({
                                 : t("account.form.field.secretAccessKey.placeholder.edit")
                             }
                             value={field.state.value ?? ""}
-                            onChange={(event) => field.handleChange(event.target.value)}
+                            onChange={(event) => {
+                              field.handleChange(event.target.value);
+                              resetTestStatus();
+                            }}
                             onBlur={field.handleBlur}
                             aria-invalid={showError}
                             required={mode === "create"}
@@ -619,7 +624,10 @@ export const AccountFormDrawer = ({
                 {(field) => (
                   <Switch
                     checked={field.state.value}
-                    onCheckedChange={(checked) => field.handleChange(checked)}
+                    onCheckedChange={(checked) => {
+                      field.handleChange(checked);
+                      resetTestStatus();
+                    }}
                     onBlur={field.handleBlur}
                     aria-label={t("account.form.field.useSSL.aria")}
                   />
