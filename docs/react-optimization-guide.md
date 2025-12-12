@@ -69,6 +69,8 @@ const [limit, setLimit] = useState("");
 // 方案2：保持 useEffect 但简化依赖（当前实现可接受，因为需要响应 open 变化）
 ```
 
+**修复状态**: ✅ 已在 `refactor: apply conditional rendering to SpeedLimitDialog` 中完成，提取 `SpeedLimitDialogContent` 组件并使用条件渲染，状态直接从 props 初始化，不再需要 useEffect 同步。
+
 **优先级**: 🟡 中 - 当前实现功能正确，但可以更简洁
 
 ---
@@ -493,7 +495,7 @@ useEffect(() => {
 
 | 问题 | 文件 | 优化方式 |
 |-----|-----|---------|
-| SpeedLimitDialog 状态同步 | transfers-page.tsx | 考虑使用 key 或简化 |
+| ✅ SpeedLimitDialog 状态同步 | transfers-page.tsx | 条件渲染 + props 初始化（`refactor: apply conditional rendering to SpeedLimitDialog`） |
 | ✅ AccountFormDrawer 测试状态重置 | account-form-drawer.tsx | 字段 `onChange` 内联调用 `resetTestStatus`（`fix: reset account test status on field change`） |
 | ✅ FileTable 页码重置 useEffect | file-table.tsx | 使用派生 `safePage` 取代 effect（`refactor: derive file table page clamp`） |
 
