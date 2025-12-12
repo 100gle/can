@@ -4,23 +4,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -28,19 +28,19 @@ import { formatBytes } from "@/lib/utils";
 import { offlineQueueStore } from "@/state/offlineQueue";
 import type { TransferViewModel } from "@/state/transfers";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
+import type { TFunction } from "i18next";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  CloudOff,
-  Pause,
-  Play,
-  RotateCcw,
-  Settings2,
-  Trash2,
-  XCircle,
+    ArrowDownCircle,
+    ArrowUpCircle,
+    CloudOff,
+    Pause,
+    Play,
+    RotateCcw,
+    Settings2,
+    Trash2,
+    XCircle,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 const getTaskProgressRatio = (task: TransferViewModel) => {
@@ -50,24 +50,66 @@ const getTaskProgressRatio = (task: TransferViewModel) => {
   return task.progress / task.total;
 };
 
-const SpeedLimitDialog = () => {
+const SpeedLimitDialogContent = ({
+  globalSpeedLimit,
+  onSave,
+}: {
+  globalSpeedLimit: number;
+  onSave: (limit: number) => void;
+}) => {
   const { t } = useTranslation();
-  const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
-  const [open, setOpen] = useState(false);
-  const [limit, setLimit] = useState("");
-
-  useEffect(() => {
-    if (open) {
-      setLimit(globalSpeedLimit > 0 ? String(globalSpeedLimit) : "");
-    }
-  }, [open, globalSpeedLimit]);
+  // Initialize state directly from props - no useEffect needed
+  const [limit, setLimit] = useState(globalSpeedLimit > 0 ? String(globalSpeedLimit) : "");
 
   const handleSave = async () => {
     const val = Number.parseInt(limit, 10);
     const bytesPerSec = Number.isNaN(val) || val < 0 ? 0 : val;
+    onSave(bytesPerSec);
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{t("transfers.settings.title")}</DialogTitle>
+        <DialogDescription>{t("transfers.settings.description")}</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-4 items-center gap-4">
+          <span className="text-right text-sm font-medium">
+            {t("transfers.settings.limitLabel")}
+          </span>
+          <Input
+            id="speed-limit"
+            value={limit}
+            onChange={(e) => setLimit(e.target.value)}
+            className="col-span-3"
+            placeholder={t("transfers.settings.limitPlaceholder")}
+            type="number"
+          />
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {t("transfers.settings.currentLimit")}:{" "}
+          {globalSpeedLimit === 0
+            ? t("transfers.settings.unlimited")
+            : `${formatBytes(globalSpeedLimit)}/s`}
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={handleSave}>{t("transfers.settings.save")}</Button>
+      </DialogFooter>
+    </>
+  );
+};
+
+const SpeedLimitDialog = () => {
+  const { t } = useTranslation();
+  const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
+  const [open, setOpen] = useState(false);
+
+  const handleSave = useCallback(async (bytesPerSec: number) => {
     await transfersStore.setGlobalSpeedLimit(bytesPerSec);
     setOpen(false);
-  };
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -78,34 +120,12 @@ const SpeedLimitDialog = () => {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("transfers.settings.title")}</DialogTitle>
-          <DialogDescription>{t("transfers.settings.description")}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <span className="text-right text-sm font-medium">
-              {t("transfers.settings.limitLabel")}
-            </span>
-            <Input
-              id="speed-limit"
-              value={limit}
-              onChange={(e) => setLimit(e.target.value)}
-              className="col-span-3"
-              placeholder={t("transfers.settings.limitPlaceholder")}
-              type="number"
-            />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {t("transfers.settings.currentLimit")}:{" "}
-            {globalSpeedLimit === 0
-              ? t("transfers.settings.unlimited")
-              : `${formatBytes(globalSpeedLimit)}/s`}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSave}>{t("transfers.settings.save")}</Button>
-        </DialogFooter>
+        {open && (
+          <SpeedLimitDialogContent
+            globalSpeedLimit={globalSpeedLimit}
+            onSave={handleSave}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

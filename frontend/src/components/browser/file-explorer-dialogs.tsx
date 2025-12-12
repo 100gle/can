@@ -1,25 +1,24 @@
+import { CreateBucketDialog } from "@/components/browser/create-bucket-dialog";
 import { DownloadOptionsDialog } from "@/components/objects/download-options-dialog";
 import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
-import { CreateBucketDialog } from "@/components/browser/create-bucket-dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { SymlinkDialog } from "./symlink-dialog";
-import type { FileActionState, FileActionHandlers } from "@/hooks/useFileBrowserActions";
+import type { FileActionHandlers, FileActionState } from "@/hooks/useFileBrowserActions";
 import type { useFileBrowserController } from "@/hooks/useFileBrowserController";
 import { objectsStore } from "@/state/objects";
 import type { FC } from "react";
 import { useTranslation } from "react-i18next";
-import type { useFileBrowserController } from "@/hooks/useFileBrowserController";
+import { toast } from "sonner";
+import { SymlinkDialog } from "./symlink-dialog";
 
 type FileBrowserController = ReturnType<typeof useFileBrowserController>;
 

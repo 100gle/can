@@ -1,15 +1,15 @@
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { ListBuckets, ListObjects } from "@wailsjs/go/app/App";
 import type { buckets } from "@wailsjs/go/models";
 import { ChevronRight, Folder, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type FolderPickerProps = {
@@ -87,23 +87,23 @@ export function FolderPicker({
     void loadFolders();
   }, [accountId, selectedBucket, currentPrefix]);
 
-  const handleEnterFolder = (path: string) => {
+  const handleEnterFolder = useCallback((path: string) => {
     setCurrentPrefix(path);
-  };
+  }, []);
 
-  const handleGoUp = () => {
+  const handleGoUp = useCallback(() => {
     if (!currentPrefix) return;
     const parts = currentPrefix.replace(/\/$/, "").split("/");
     parts.pop();
     const parent = parts.length > 0 ? parts.join("/") + "/" : "";
     setCurrentPrefix(parent);
-  };
+  }, [currentPrefix]);
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (selectedBucket) {
       onSelect(selectedBucket, currentPrefix);
     }
-  };
+  }, [selectedBucket, currentPrefix, onSelect]);
 
   return (
     <div className="flex flex-col gap-4">
