@@ -1,6 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -8,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { backupService } from "@/lib/services";
 import { showError, showSuccess } from "@/lib/toast";
@@ -16,6 +13,8 @@ import { accountsStore, useAccountsStore } from "@/state/accounts";
 import { usePreferencesStore } from "@/state/preferences";
 import { useSessionStore } from "@/state/session";
 import { useTranslation } from "react-i18next";
+import { SettingsItem } from "./settings-item";
+import { SettingsSection } from "./settings-section";
 
 interface DataSecurityCardProps {
   onRequestEncryptedBackup: () => void;
@@ -46,9 +45,6 @@ export function DataSecurityCard({
       .exportAccounts()
       .then((summary) => {
         if (!summary || summary.cancelled) return;
-        // Use manual construction or simple formatting?
-        // Let's use simple string concatenation or t with interpolation if structure permits.
-        // But here we need newlines.
         const message = t("settings.data.exportSuccess", {
           count: summary.count,
           path: summary.filePath || "",
@@ -100,13 +96,10 @@ export function DataSecurityCard({
   };
 
   const handleRestoreBackup = async () => {
-    // Try to restore - backupService will handle password prompt if needed
     const result = await backupService.restoreBackup("");
     if (result.success) {
-      // Success is handled by backupService
       return;
     }
-    // Check if encryption error
     if (result.error.includes("encrypted") || result.error.includes("wrong password")) {
       onRequestRestoreWithPassword();
     } else {
@@ -130,112 +123,79 @@ export function DataSecurityCard({
         : t("settings.session.time.15min");
 
   return (
-    <Card>
-      <CardHeader className="pb-4">
-        <div className="flex items-baseline gap-2">
-          <CardTitle className="text-lg font-semibold">
-            {t("settings.header.dataSecurity")}
-          </CardTitle>
-          <CardDescription className="text-sm">
-            {t("settings.header.dataSecurityDesc")}
-          </CardDescription>
+    <SettingsSection
+      title={t("settings.header.dataSecurity")}
+      description={t("settings.header.dataSecurityDesc")}
+    >
+      {/* Data Management - Import & Export */}
+      <SettingsItem label={t("settings.data.title")} description={t("settings.data.desc")}>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleImport}>
+            {t("settings.data.import")}
+          </Button>
+          <Button size="sm" onClick={handleExport} disabled={!accounts.length}>
+            {t("settings.data.export")} ({accounts.length})
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-8">
-        {/* Data Management Section */}
-        <div className="space-y-5">
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">{t("settings.data.title")}</h3>
-            <p className="text-xs text-muted-foreground">{t("settings.data.desc")}</p>
-          </div>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <Button variant="outline" onClick={handleImport} className="w-full sm:w-auto">
-              {t("settings.data.import")}
-            </Button>
-            <Button onClick={handleExport} disabled={!accounts.length} className="w-full sm:w-auto">
-              {t("settings.data.export")} ({accounts.length})
-            </Button>
-          </div>
+      </SettingsItem>
+
+      {/* System Backup - Encryption */}
+      <SettingsItem
+        label={t("settings.backup.enableEncryption")}
+        description={t("settings.backup.encryptionDesc")}
+      >
+        <Switch
+          id="backup-encryption"
+          checked={backupEncryptionEnabled}
+          onCheckedChange={setBackupEncryptionEnabled}
+        />
+      </SettingsItem>
+
+      {/* System Backup - Restore & Create */}
+      <SettingsItem label={t("settings.backup.title")} description={t("settings.backup.subtitle")}>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleRestoreBackup}>
+            {t("settings.backup.restore")}
+          </Button>
+          <Button size="sm" onClick={handleCreateBackup}>
+            {t("settings.backup.create")}
+          </Button>
         </div>
+      </SettingsItem>
 
-        <Separator />
+      {/* Session Security - Idle Timeout */}
+      <SettingsItem
+        label={t("settings.session.idleTimeout")}
+        description={t("settings.session.currentPolicy", { policy: displayIdleLabel })}
+      >
+        <Select value={String(idleTimeoutMinutes)} onValueChange={handleIdleTimeoutChange}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="15">{t("settings.session.time.15min")}</SelectItem>
+            <SelectItem value="60">{t("settings.session.time.1hour")}</SelectItem>
+            <SelectItem value="0">{t("settings.session.never")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </SettingsItem>
 
-        {/* System Backup Section */}
-        <div className="space-y-5">
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">{t("settings.backup.title")}</h3>
-            <p className="text-xs text-muted-foreground">{t("settings.backup.subtitle")}</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="backup-encryption"
-              checked={backupEncryptionEnabled}
-              onCheckedChange={setBackupEncryptionEnabled}
-            />
-            <Label htmlFor="backup-encryption" className="cursor-pointer">
-              {t("settings.backup.enableEncryption")}
-            </Label>
-          </div>
-          {backupEncryptionEnabled && (
-            <p className="text-xs text-muted-foreground border-l-2 border-amber-500 pl-3">
-              {t("settings.backup.encryptionWarning")}
-            </p>
-          )}
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <Button variant="outline" onClick={handleRestoreBackup} className="w-full sm:w-auto">
-              {t("settings.backup.restore")}
-            </Button>
-            <Button onClick={handleCreateBackup} className="w-full sm:w-auto">
-              {t("settings.backup.create")}
-            </Button>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Session Security Section */}
-        <div className="space-y-5">
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold tracking-tight">
-              {t("settings.session.title")}
-            </h3>
-            <p className="text-xs text-muted-foreground">{t("settings.session.desc")}</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3">
-              <Label htmlFor="idle-timeout">{t("settings.session.idleTimeout")}</Label>
-              <Select value={String(idleTimeoutMinutes)} onValueChange={handleIdleTimeoutChange}>
-                <SelectTrigger id="idle-timeout">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">{t("settings.session.time.15min")}</SelectItem>
-                  <SelectItem value="60">{t("settings.session.time.1hour")}</SelectItem>
-                  <SelectItem value="0">{t("settings.session.never")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t("settings.session.currentPolicy", { policy: displayIdleLabel })}
-              </p>
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="lock-strategy">{t("settings.session.action")}</Label>
-              <Select value={lockStrategy} onValueChange={handleLockStrategyChange}>
-                <SelectTrigger id="lock-strategy">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lock">{t("settings.session.lock")}</SelectItem>
-                  <SelectItem value="logout">{t("settings.session.logout")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t("settings.session.recommendation")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Session Security - Lock Strategy */}
+      <SettingsItem
+        label={t("settings.session.action")}
+        description={t("settings.session.recommendation")}
+        showSeparator={false}
+      >
+        <Select value={lockStrategy} onValueChange={handleLockStrategyChange}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="lock">{t("settings.session.lock")}</SelectItem>
+            <SelectItem value="logout">{t("settings.session.logout")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </SettingsItem>
+    </SettingsSection>
   );
 }

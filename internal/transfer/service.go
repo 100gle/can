@@ -603,6 +603,7 @@ func (s *Service) SetWorkerCount(count int) {
 	if current < count {
 		needed := count - current
 		for i := 0; i < needed; i++ {
+			s.wg.Add(1)
 			go s.worker()
 		}
 	} else if current > count {

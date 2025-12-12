@@ -1,9 +1,8 @@
 import { PasswordDialog } from "@/components/dialogs/password-dialog";
 import { PageHeader } from "@/components/layouts/page-header";
-import { AdvancedSettingsCard } from "@/components/settings/advanced-settings-card";
 import { AppearanceCard } from "@/components/settings/appearance-card";
 import { DataSecurityCard } from "@/components/settings/data-security-card";
-import { SystemInformationCard } from "@/components/settings/system-information-card";
+import { OtherSettingsCard } from "@/components/settings/other-settings-card";
 import { TransferCacheCard } from "@/components/settings/transfer-cache-card";
 import { backupService } from "@/lib/services";
 import { showError, showSuccess } from "@/lib/toast";
@@ -41,13 +40,12 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
         <AppearanceCard />
-        <AdvancedSettingsCard />
         <DataSecurityCard
           onRequestEncryptedBackup={() => setShowBackupPasswordDialog(true)}
           onRequestRestoreWithPassword={() => setShowRestorePasswordDialog(true)}
         />
         <TransferCacheCard />
-        <SystemInformationCard />
+        <OtherSettingsCard />
       </div>
 
       <PasswordDialog

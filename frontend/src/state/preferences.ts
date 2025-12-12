@@ -40,6 +40,7 @@ type PreferencesState = {
   setSystemTheme: (value: ThemeSelection) => void;
   setAdvancedOptions: (patch: Partial<AdvancedOptions>) => void;
   resetAdvancedOptions: () => void;
+  resetAllSettings: () => void;
   setViewMode: (mode: ViewMode) => void;
   setOfflineCacheEnabled: (enabled: boolean) => void;
   setOfflineCacheSize: (size: CacheSize) => void;
@@ -95,6 +96,15 @@ export const usePreferencesStore = create<PreferencesState>()(
           advancedOptions: { ...state.advancedOptions, ...patch },
         })),
       resetAdvancedOptions: () => set({ advancedOptions: cloneDefaultAdvancedOptions() }),
+      resetAllSettings: () =>
+        set({
+          themePreference: "system",
+          advancedOptions: cloneDefaultAdvancedOptions(),
+          viewMode: "grid",
+          offlineCacheEnabled: true,
+          offlineCacheSize: 100,
+          backupEncryptionEnabled: false,
+        }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setOfflineCacheEnabled: (enabled) => set({ offlineCacheEnabled: enabled }),
       setOfflineCacheSize: (size) => set({ offlineCacheSize: size }),
