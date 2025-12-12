@@ -1048,7 +1048,7 @@ const taskList = useMemo(() =>
 **项目级优化**:
 检查 `vite.config.ts` 是否正确配置 `babel-plugin-react-compiler`，以利用 React 19 的自动 memoization 特性，减少手动优化负担。
 
-**计划**: Sprint 18
+**修复状态**: ✅ 已在 `build: enable react compiler plugin` 中完成，`vite.config.ts` 为 `@vitejs/plugin-react` 注入 `babel-plugin-react-compiler`，构建阶段自动应用 React Compiler。
 
 ---
 
