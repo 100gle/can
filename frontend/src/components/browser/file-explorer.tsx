@@ -24,7 +24,7 @@ import { bucketsStore } from "@/state/buckets";
 import { objectsStore, type ObjectModel } from "@/state/objects";
 import { searchStore } from "@/state/search";
 import { Folder, FolderPlus, Loader2, RefreshCcw, Upload } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BrowserToolbar } from "./browser-toolbar";
 import { BucketItem } from "./bucket-item";
@@ -43,6 +43,15 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
   // Use controller hook for state and navigation
   const controller = useFileBrowserController(accountId);
 
+  // Dialog states
+  const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [createBucketOpen, setCreateBucketOpen] = useState(false);
+  const [symlinkDialogOpen, setSymlinkDialogOpen] = useState(false);
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [moveCopyDialogOpen, setMoveCopyDialogOpen] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+
   // Use actions hook for file operations
   const actions = useFileBrowserActions({
     accountId,
@@ -53,10 +62,17 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
         await bucketsStore.deleteBucket(accountId, bucket);
       }
     },
+    onError: () => setErrorDialogOpen(true),
   });
 
-  // Batch delete confirmation dialog state
-  const [deleteSelectedDialogOpen, setDeleteSelectedDialogOpen] = useState(false);
+  const previewHandler = actions.handlePreview;
+  const handlePreview = useCallback(
+    (key: string) => {
+      previewHandler(key);
+      setPreviewOpen(true);
+    },
+    [previewHandler],
+  );
 
   // Render content based on view mode
   const renderContent = () => {
@@ -134,7 +150,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           onSetLastSelectedKey={controller.setLastSelectedKey}
           onClearSelection={controller.clearSelection}
           onEnterFolder={controller.enterFolder}
-          onPreview={actions.handlePreview}
+          onPreview={handlePreview}
           onDownload={actions.handleDownload}
           onCopyLink={actions.handleCopyLink}
           onDelete={actions.setPendingDeleteObject}
@@ -162,7 +178,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           onSelectRange={controller.selectRange}
           onSetLastSelectedKey={controller.setLastSelectedKey}
           onClearSelection={controller.clearSelection}
-          onPreview={actions.handlePreview}
+          onPreview={handlePreview}
           onDownload={actions.handleDownload}
           onCopyLink={actions.handleCopyLink}
           onDelete={actions.setPendingDeleteObject}
@@ -186,7 +202,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             selected={controller.selectedKeys.has((item as any).key)}
             onToggleSelect={controller.toggleSelect}
             onEnterFolder={controller.enterFolder}
-            onPreview={actions.handlePreview}
+            onPreview={handlePreview}
             onDownload={actions.handleDownload}
             onCopyLink={actions.handleCopyLink}
             onDelete={actions.setPendingDeleteObject}
@@ -222,10 +238,10 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             canCreateSymlink={controller.canCreateSymlink}
             uploading={actions.uploading}
             onUploadClick={actions.handleUploadClick}
-            onCreateBucketClick={() => actions.setCreateBucketOpen(true)}
-            onSymlinkClick={() => actions.setSymlinkDialogOpen(true)}
-            onDownloadClick={() => actions.setDownloadDialogOpen(true)}
-            onMoveCopyClick={() => actions.setMoveCopyDialogOpen(true)}
+            onCreateBucketClick={() => setCreateBucketOpen(true)}
+            onSymlinkClick={() => setSymlinkDialogOpen(true)}
+            onDownloadClick={() => setDownloadDialogOpen(true)}
+            onMoveCopyClick={() => setMoveCopyDialogOpen(true)}
             onDeleteSelectedClick={() => setDeleteSelectedDialogOpen(true)}
           />
 
@@ -270,9 +286,9 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                       )}
                   </div>
                 </ContextMenuTrigger>
-                <ContextMenuContent>
+        <ContextMenuContent>
                   {controller.level === "buckets" ? (
-                    <ContextMenuItem onClick={() => actions.setCreateBucketOpen(true)}>
+                    <ContextMenuItem onClick={() => setCreateBucketOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" />
                       {t("contextMenu.newBucket")}
                     </ContextMenuItem>
@@ -305,6 +321,23 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
           actions={actions}
           deleteSelectedDialogOpen={deleteSelectedDialogOpen}
           onDeleteSelectedDialogOpenChange={setDeleteSelectedDialogOpen}
+          previewOpen={previewOpen}
+          onPreviewOpenChange={(open) => {
+            setPreviewOpen(open);
+            if (!open) {
+              actions.clearPreview();
+            }
+          }}
+          createBucketOpen={createBucketOpen}
+          onCreateBucketOpenChange={setCreateBucketOpen}
+          symlinkDialogOpen={symlinkDialogOpen}
+          onSymlinkDialogOpenChange={setSymlinkDialogOpen}
+          downloadDialogOpen={downloadDialogOpen}
+          onDownloadDialogOpenChange={setDownloadDialogOpen}
+          moveCopyDialogOpen={moveCopyDialogOpen}
+          onMoveCopyDialogOpenChange={setMoveCopyDialogOpen}
+          errorDialogOpen={errorDialogOpen}
+          onErrorDialogOpenChange={setErrorDialogOpen}
         />
       </>
     </TooltipProvider>

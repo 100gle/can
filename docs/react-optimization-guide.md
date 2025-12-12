@@ -626,6 +626,8 @@ export function FileExplorer({ ... }) {
 
 **拆分优先级**: 🔴 高
 
+**修复状态**: ✅ 已在 `refactor: extract file explorer dialogs` 和 `refactor: dialog state colocation` 相关提交中完成，`FileExplorerDialogs` 持有全部对话框的 open 状态，`useFileBrowserActions` 仅负责业务操作，父级列表在对话框切换时不再重渲染。
+
 ---
 
 ### 拆分机会 2: OtherSettingsCard 系统指标

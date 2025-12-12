@@ -19,19 +19,10 @@ import { toast } from "sonner";
 import { useCopyToClipboard } from "usehooks-ts";
 
 export interface FileActionState {
-  // Dialog states
   pendingDeleteBucket: string | null;
   pendingDeleteObject: string | null;
-  errorDialogOpen: boolean;
   errorMessage: string;
-  previewOpen: boolean;
   previewObject: ObjectModel | null;
-  downloadDialogOpen: boolean;
-  moveCopyDialogOpen: boolean;
-  symlinkDialogOpen: boolean;
-  createBucketOpen: boolean;
-
-  // Upload states
   uploading: boolean;
 }
 
@@ -48,18 +39,14 @@ export interface FileActionHandlers {
 
   // Preview
   handlePreview: (key: string) => void;
-  setPreviewOpen: (open: boolean) => void;
+  clearPreview: () => void;
 
   // Upload (Desktop only - uses Wails dialogs + backend queue)
   handleUploadClick: () => Promise<void>;
   handleUploadFolder: () => Promise<void>;
 
   // Dialogs
-  setDownloadDialogOpen: (open: boolean) => void;
-  setMoveCopyDialogOpen: (open: boolean) => void;
-  setSymlinkDialogOpen: (open: boolean) => void;
-  setCreateBucketOpen: (open: boolean) => void;
-  setErrorDialogOpen: (open: boolean) => void;
+  reportError: (message: string) => void;
 }
 
 interface UseFileBrowserActionsOptions {
@@ -67,6 +54,7 @@ interface UseFileBrowserActionsOptions {
   currentBucket: string | null;
   prefix: string;
   onDeleteBucket?: (bucket: string) => Promise<void>;
+  onError?: (message: string) => void;
 }
 
 export function useFileBrowserActions({
@@ -74,6 +62,7 @@ export function useFileBrowserActions({
   currentBucket,
   prefix,
   onDeleteBucket,
+  onError,
 }: UseFileBrowserActionsOptions): FileActionState & FileActionHandlers {
   // Object state
   const objects = useObjectsStore((state) => state.objects);
@@ -82,14 +71,8 @@ export function useFileBrowserActions({
   // Dialog states
   const [pendingDeleteBucket, setPendingDeleteBucket] = useState<string | null>(null);
   const [pendingDeleteObject, setPendingDeleteObject] = useState<string | null>(null);
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [previewObject, setPreviewObject] = useState<ObjectModel | null>(null);
-  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-  const [moveCopyDialogOpen, setMoveCopyDialogOpen] = useState(false);
-  const [symlinkDialogOpen, setSymlinkDialogOpen] = useState(false);
-  const [createBucketOpen, setCreateBucketOpen] = useState(false);
 
   // Clipboard
   const [, copyToClipboard] = useCopyToClipboard();
@@ -99,7 +82,7 @@ export function useFileBrowserActions({
     async (key: string) => {
       if (!accountId || !currentBucket) {
         setErrorMessage("请先选择账户和存储桶");
-        setErrorDialogOpen(true);
+        onError?.("请先选择账户和存储桶");
         return;
       }
 
@@ -126,7 +109,7 @@ export function useFileBrowserActions({
       } catch (e) {
         const message = e instanceof Error ? e.message : "下载失败";
         setErrorMessage(message);
-        setErrorDialogOpen(true);
+        onError?.(message);
       }
     },
     [accountId, currentBucket],
@@ -146,7 +129,7 @@ export function useFileBrowserActions({
       } catch (e) {
         const message = e instanceof Error ? e.message : "获取下载链接失败";
         setErrorMessage(message);
-        setErrorDialogOpen(true);
+        onError?.(message);
       }
     },
     [accountId, currentBucket, copyToClipboard],
@@ -216,8 +199,11 @@ export function useFileBrowserActions({
     }
 
     setPreviewObject(target);
-    setPreviewOpen(true);
-  }, []); // Empty deps - callback is now stable
+  }, []);
+
+  const clearPreview = useCallback(() => {
+    setPreviewObject(null);
+  }, []);
 
   // Upload handlers - Desktop only, uses Wails dialogs + backend queue
 
@@ -283,14 +269,8 @@ export function useFileBrowserActions({
     // State
     pendingDeleteBucket,
     pendingDeleteObject,
-    errorDialogOpen,
     errorMessage,
-    previewOpen,
     previewObject,
-    downloadDialogOpen,
-    moveCopyDialogOpen,
-    symlinkDialogOpen,
-    createBucketOpen,
     uploading,
 
     // Handlers
@@ -301,13 +281,12 @@ export function useFileBrowserActions({
     setPendingDeleteBucket,
     setPendingDeleteObject,
     handlePreview,
-    setPreviewOpen,
+    clearPreview,
     handleUploadClick,
     handleUploadFolder,
-    setDownloadDialogOpen,
-    setMoveCopyDialogOpen,
-    setSymlinkDialogOpen,
-    setCreateBucketOpen,
-    setErrorDialogOpen,
+    reportError: (message: string) => {
+      setErrorMessage(message);
+      onError?.(message);
+    },
   };
 }

@@ -29,6 +29,18 @@ type FileExplorerDialogsProps = {
   actions: FileActionState & FileActionHandlers;
   deleteSelectedDialogOpen: boolean;
   onDeleteSelectedDialogOpenChange: (open: boolean) => void;
+  previewOpen: boolean;
+  onPreviewOpenChange: (open: boolean) => void;
+  createBucketOpen: boolean;
+  onCreateBucketOpenChange: (open: boolean) => void;
+  symlinkDialogOpen: boolean;
+  onSymlinkDialogOpenChange: (open: boolean) => void;
+  downloadDialogOpen: boolean;
+  onDownloadDialogOpenChange: (open: boolean) => void;
+  moveCopyDialogOpen: boolean;
+  onMoveCopyDialogOpenChange: (open: boolean) => void;
+  errorDialogOpen: boolean;
+  onErrorDialogOpenChange: (open: boolean) => void;
 };
 
 export const FileExplorerDialogs: FC<FileExplorerDialogsProps> = ({
@@ -37,32 +49,44 @@ export const FileExplorerDialogs: FC<FileExplorerDialogsProps> = ({
   actions,
   deleteSelectedDialogOpen,
   onDeleteSelectedDialogOpenChange,
+  previewOpen,
+  onPreviewOpenChange,
+  createBucketOpen,
+  onCreateBucketOpenChange,
+  symlinkDialogOpen,
+  onSymlinkDialogOpenChange,
+  downloadDialogOpen,
+  onDownloadDialogOpenChange,
+  moveCopyDialogOpen,
+  onMoveCopyDialogOpenChange,
+  errorDialogOpen,
+  onErrorDialogOpenChange,
 }) => {
   const { t } = useTranslation();
 
   return (
     <>
       <FilePreviewModal
-        open={actions.previewOpen}
-        onOpenChange={actions.setPreviewOpen}
+        open={previewOpen}
+        onOpenChange={onPreviewOpenChange}
         accountId={accountId}
         bucket={controller.currentBucket ?? undefined}
         object={actions.previewObject ?? undefined}
       />
 
       <CreateBucketDialog
-        open={actions.createBucketOpen}
-        onOpenChange={actions.setCreateBucketOpen}
+        open={createBucketOpen}
+        onOpenChange={onCreateBucketOpenChange}
         accountId={accountId}
         defaultRegion={controller.activeAccount?.region || "us-east-1"}
         isOSSProvider={controller.activeAccount?.provider?.toLowerCase() === "oss"}
         isCOSProvider={controller.activeAccount?.provider?.toLowerCase() === "cos"}
-        onError={() => actions.setErrorDialogOpen(true)}
+        onError={() => onErrorDialogOpenChange(true)}
       />
 
       <SymlinkDialog
-        open={actions.symlinkDialogOpen}
-        onOpenChange={actions.setSymlinkDialogOpen}
+        open={symlinkDialogOpen}
+        onOpenChange={onSymlinkDialogOpenChange}
         accountId={accountId}
         bucket={controller.currentBucket ?? undefined}
         prefix={controller.prefix}
@@ -70,26 +94,26 @@ export const FileExplorerDialogs: FC<FileExplorerDialogsProps> = ({
       />
 
       <DownloadOptionsDialog
-        open={actions.downloadDialogOpen}
-        onOpenChange={actions.setDownloadDialogOpen}
+        open={downloadDialogOpen}
+        onOpenChange={onDownloadDialogOpenChange}
         objects={controller.objects.filter((o) => controller.selectedKeys.has(o.key))}
         prefix={controller.prefix}
       />
 
       <MoveCopyDialog
-        open={actions.moveCopyDialogOpen}
-        onOpenChange={actions.setMoveCopyDialogOpen}
+        open={moveCopyDialogOpen}
+        onOpenChange={onMoveCopyDialogOpenChange}
         defaultMode="move"
       />
 
-      <AlertDialog open={actions.errorDialogOpen} onOpenChange={actions.setErrorDialogOpen}>
+      <AlertDialog open={errorDialogOpen} onOpenChange={onErrorDialogOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("error.title")}</AlertDialogTitle>
             <AlertDialogDescription>{actions.errorMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => actions.setErrorDialogOpen(false)}>
+            <AlertDialogAction onClick={() => onErrorDialogOpenChange(false)}>
               {t("confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
