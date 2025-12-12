@@ -349,6 +349,8 @@ const handleGoUp = useCallback(() => {
 }, [currentPrefix]);
 ```
 
+**修复状态**: ✅ 已完成，`handleEnterFolder`、`handleGoUp`、`handleConfirm` 均已使用 `useCallback` 优化。
+
 **优先级**: 🟢 低 - 组件较小，影响有限
 
 ---
@@ -373,6 +375,8 @@ const handleClearCompleted = useCallback(() => {
   transfersStore.clearCompleted();
 }, []);
 ```
+
+**修复状态**: ✅ 已完成，`handleClearCompleted`、`handlePauseTask`、`handleResumeTask`、`handleCancelTask`、`handleDeleteTask` 均已使用 `useCallback` 优化，`taskList` 已使用 `useMemo` 缓存，`TaskRow` 已使用 `memo` 包装。
 
 **优先级**: 🟢 低
 
@@ -494,9 +498,9 @@ useEffect(() => {
 
 | 问题 | 文件 | 优化方式 |
 |-----|-----|---------|
-| FolderPicker 回调函数 | folder-picker.tsx | 添加 useCallback |
+| ✅ FolderPicker 回调函数 | folder-picker.tsx | 已添加 useCallback |
 | 对话框重置模式 | 多个文件 | 使用 key 或条件渲染 |
-| TransfersPage 内联函数 | transfers-page.tsx | 提取为 useCallback |
+| ✅ TransfersPage 内联函数 | transfers-page.tsx | 已提取为 useCallback + useMemo + memo |
 
 ---
 
