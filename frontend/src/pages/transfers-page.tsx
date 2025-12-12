@@ -39,7 +39,8 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 const getTaskProgressRatio = (task: TransferViewModel) => {
@@ -114,9 +115,29 @@ export const TransfersPage = () => {
   const { t } = useTranslation();
   const tasks = useTransfersStore((state) => state.tasks);
   const { isOnline } = useNetworkStatus();
-  const taskList = Object.values(tasks).sort(
-    (a, b) => getTaskProgressRatio(b) - getTaskProgressRatio(a),
-  );
+  const taskList = useMemo(() => {
+    return Object.values(tasks).sort((a, b) => getTaskProgressRatio(b) - getTaskProgressRatio(a));
+  }, [tasks]);
+
+  const handleClearCompleted = useCallback(() => {
+    transfersStore.clearCompleted();
+  }, []);
+
+  const handlePauseTask = useCallback((id: string) => {
+    void transfersStore.pauseTask(id);
+  }, []);
+
+  const handleResumeTask = useCallback((id: string) => {
+    void transfersStore.resumeTask(id);
+  }, []);
+
+  const handleCancelTask = useCallback((id: string) => {
+    void transfersStore.cancelTask(id);
+  }, []);
+
+  const handleDeleteTask = useCallback((id: string) => {
+    void transfersStore.deleteTask(id);
+  }, []);
 
   useEffect(() => {
     transfersStore.startPolling();
@@ -140,7 +161,7 @@ export const TransfersPage = () => {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => transfersStore.clearCompleted()}
+              onClick={handleClearCompleted}
               className="gap-2"
             >
               <RotateCcw className="h-4 w-4" />
@@ -193,128 +214,17 @@ export const TransfersPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {taskList.map((task) => {
-                      const progressRatio = getTaskProgressRatio(task);
-                      const progressPercent = progressRatio * 100;
-                      const formattedTotal = task.total > 0 ? formatBytes(task.total) : null;
-
-                      return (
-                        <TableRow key={task.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{task.name}</span>
-                              <span className="text-xs text-muted-foreground">{task.bucket}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {task.type === "upload" ? (
-                              <div className="flex items-center gap-1 text-blue-500">
-                                <ArrowUpCircle className="h-4 w-4" />
-                                <span className="text-xs">{t("transfers.type.upload")}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-green-500">
-                                <ArrowDownCircle className="h-4 w-4" />
-                                <span className="text-xs">{t("transfers.type.download")}</span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                task.status === "completed"
-                                  ? "success"
-                                  : task.status === "running"
-                                    ? "default"
-                                    : "outline"
-                              }
-                            >
-                              {task.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <Progress value={progressPercent} className="h-2" />
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>{progressPercent.toFixed(1)}%</span>
-                                <span>
-                                  {formatBytes(task.progress)}
-                                  {formattedTotal ? ` / ${formattedTotal}` : ""}
-                                </span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {task.status === "running" ? (
-                              <div className="flex flex-col gap-1">
-                                <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
-                                <span>
-                                  {task.eta ? t("transfers.eta", { eta: task.eta }) : "-"}
-                                </span>
-                              </div>
-                            ) : (
-                              "-"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              {task.status === "running" && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => transfersStore.pauseTask(task.id)}
-                                    title={t("transfers.action.pause")}
-                                  >
-                                    <Pause className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => transfersStore.cancelTask(task.id)}
-                                    title={t("transfers.action.cancel")}
-                                  >
-                                    <XCircle className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </>
-                              )}
-                              {task.status === "paused" && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => transfersStore.resumeTask(task.id)}
-                                    title={t("transfers.action.resume")}
-                                  >
-                                    <Play className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => transfersStore.cancelTask(task.id)}
-                                    title={t("transfers.action.cancel")}
-                                  >
-                                    <XCircle className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </>
-                              )}
-                              {task.status === "failed" ||
-                                task.status === "canceled" ||
-                                (task.status === "completed" && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => transfersStore.deleteTask(task.id)}
-                                    title={t("transfers.action.delete")}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                ))}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {taskList.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        t={t}
+                        onPause={handlePauseTask}
+                        onResume={handleResumeTask}
+                        onCancel={handleCancelTask}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
                   </TableBody>
                 </Table>
               )}
@@ -331,3 +241,138 @@ export const TransfersPage = () => {
 };
 
 export default TransfersPage;
+
+type TaskRowProps = {
+  task: TransferViewModel;
+  t: TFunction;
+  onPause: (id: string) => void;
+  onResume: (id: string) => void;
+  onCancel: (id: string) => void;
+  onDelete: (id: string) => void;
+};
+
+const TaskRow = memo(function TaskRow({
+  task,
+  t,
+  onPause,
+  onResume,
+  onCancel,
+  onDelete,
+}: TaskRowProps) {
+  const progressRatio = getTaskProgressRatio(task);
+  const progressPercent = progressRatio * 100;
+  const formattedTotal = task.total > 0 ? formatBytes(task.total) : null;
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        <div className="flex flex-col">
+          <span>{task.name}</span>
+          <span className="text-xs text-muted-foreground">{task.bucket}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        {task.type === "upload" ? (
+          <div className="flex items-center gap-1 text-blue-500">
+            <ArrowUpCircle className="h-4 w-4" />
+            <span className="text-xs">{t("transfers.type.upload")}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-green-500">
+            <ArrowDownCircle className="h-4 w-4" />
+            <span className="text-xs">{t("transfers.type.download")}</span>
+          </div>
+        )}
+      </TableCell>
+      <TableCell>
+        <Badge
+          variant={
+            task.status === "completed"
+              ? "success"
+              : task.status === "running"
+                ? "default"
+                : "outline"
+          }
+        >
+          {task.status}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="space-y-1">
+          <Progress value={progressPercent} className="h-2" />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{progressPercent.toFixed(1)}%</span>
+            <span>
+              {formatBytes(task.progress)}
+              {formattedTotal ? ` / ${formattedTotal}` : ""}
+            </span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">
+        {task.status === "running" ? (
+          <div className="flex flex-col gap-1">
+            <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
+            <span>{task.eta ? t("transfers.eta", { eta: task.eta }) : "-"}</span>
+          </div>
+        ) : (
+          "-"
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          {task.status === "running" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onPause(task.id)}
+                title={t("transfers.action.pause")}
+              >
+                <Pause className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onCancel(task.id)}
+                title={t("transfers.action.cancel")}
+              >
+                <XCircle className="h-4 w-4 text-destructive" />
+              </Button>
+            </>
+          )}
+          {task.status === "paused" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onResume(task.id)}
+                title={t("transfers.action.resume")}
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onCancel(task.id)}
+                title={t("transfers.action.cancel")}
+              >
+                <XCircle className="h-4 w-4 text-destructive" />
+              </Button>
+            </>
+          )}
+          {(task.status === "failed" || task.status === "canceled" || task.status === "completed") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(task.id)}
+              title={t("transfers.action.delete")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});

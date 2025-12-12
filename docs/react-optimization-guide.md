@@ -682,6 +682,8 @@ function MetricsPanel() {
 
 **拆分优先级**: 🔴 高
 
+**修复状态**: ✅ 已在 `refactor: extract metrics panel component` 中完成，系统指标轮询迁移到独立的 `MetricsPanel`，父级 `OtherSettingsCard` 不再因定时刷新触发整页重渲染。
+
 ---
 
 ### 拆分机会 3: OtherSettingsCard 更新检查状态
@@ -725,6 +727,8 @@ function UpdateChecker() {
 **预期收益**: 更新检查状态变化不影响其他设置项
 
 **拆分优先级**: 🟡 中
+
+**修复状态**: ✅ 已在 `refactor: extract update checker component` 中完成，更新检查逻辑封装成 `UpdateChecker` 子组件，状态变动仅影响该组件。
 
 ---
 
@@ -1036,6 +1040,8 @@ const taskList = useMemo(() =>
   [tasks]
 );
 ```
+
+**修复状态**: ✅ 已在 `perf: memoize transfers task list` 中完成，任务列表排序改为 `useMemo` 缓存并拆分 `TaskRow` memo 组件，仅在 `tasks` 变化时才重渲染。
 
 ### 3. React 19 编译器
 
