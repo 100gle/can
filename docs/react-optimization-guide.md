@@ -246,6 +246,9 @@ function DialogContentInner({ onClose }: Props) {
 
 **优先级**: 🟢 低 - 当前模式功能正确，优化主要是代码可维护性
 
+**修复状态**: ✅ 已在 `refactor: dialog conditional rendering` 中完成，`RenameDialog`、`CreateBucketDialog`、`MoveCopyDialog` 均已重构为条件渲染模式，内部 Content 组件仅在对话框打开时挂载，关闭后自动重置状态，不再需要 useEffect 进行状态同步。
+
+
 ---
 
 ## 缺失的性能优化
@@ -499,7 +502,7 @@ useEffect(() => {
 | 问题 | 文件 | 优化方式 |
 |-----|-----|---------|
 | ✅ FolderPicker 回调函数 | folder-picker.tsx | 已添加 useCallback |
-| 对话框重置模式 | 多个文件 | 使用 key 或条件渲染 |
+| ✅ 对话框重置模式 | 多个文件 | 使用条件渲染模式（RenameDialog, CreateBucketDialog, MoveCopyDialog） |
 | ✅ TransfersPage 内联函数 | transfers-page.tsx | 已提取为 useCallback + useMemo + memo |
 
 ---

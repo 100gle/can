@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { objectsStore, useObjectsStore } from "@/state/objects";
 import { ListObjects } from "@wailsjs/go/app/App";
 import { Copy, FolderInput, Loader2, MoveRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FolderPicker } from "./folder-picker";
 
@@ -23,10 +23,33 @@ type MoveCopyDialogProps = {
 };
 
 export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: MoveCopyDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        {/* Conditional rendering: content only mounts when open, auto-resets state */}
+        {open && (
+          <MoveCopyDialogContent
+            defaultMode={defaultMode}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type MoveCopyDialogContentProps = {
+  defaultMode: "move" | "copy";
+  onClose: () => void;
+};
+
+function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentProps) {
   const { t } = useTranslation();
   const { accountId, bucket: currentBucket, selectedKeys } = useObjectsStore((s) => s);
+  
+  // Initialize state directly from props - no useEffect needed
   const [mode, setMode] = useState<"move" | "copy">(defaultMode);
-  const [targetBucket, setTargetBucket] = useState<string>("");
+  const [targetBucket, setTargetBucket] = useState<string>(currentBucket || "");
   const [targetPrefix, setTargetPrefix] = useState<string>("");
   const [conflictStrategy, setConflictStrategy] = useState<"skip" | "overwrite" | "rename">(
     "rename",
@@ -52,8 +75,6 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
       return new Set(result.objects.filter((object) => !object.isDir).map((object) => object.key));
     } catch (e) {
       console.warn("加载目标目录失败", e);
-      // We don't show error to user here, just return empty set to fallback to safe behavior or just fail later
-      // But we can log it or show a toast if we wanted, but the original code just console.warn
       return new Set<string>();
     }
   };
@@ -107,22 +128,6 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
     return candidate;
   };
 
-  // Reset state when opening
-  useEffect(() => {
-    if (open) {
-      setMode(defaultMode);
-      setTargetBucket(currentBucket || "");
-      setTargetPrefix("");
-      setConflictStrategy("rename");
-      setPickingFolder(false);
-      setError(undefined);
-    }
-  }, [open, defaultMode, currentBucket]);
-
-  const handleClose = () => {
-    onOpenChange(false);
-  };
-
   const handleConfirm = async () => {
     if (!accountId || !currentBucket || !targetBucket) {
       setError(t("objects.moveCopy.error.noTarget"));
@@ -133,7 +138,7 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
 
     const keys = Array.from(selectedKeys);
     if (keys.length === 0) {
-      handleClose();
+      onClose();
       return;
     }
 
@@ -199,7 +204,7 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
         return;
       }
       objectsStore.clearSelection();
-      handleClose();
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("objects.moveCopy.error.failed"));
     } finally {
@@ -211,113 +216,112 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
   const targetPathDisplay = `${targetBucket}/${targetPrefix}`;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "copy" ? t("objects.moveCopy.title.copy") : t("objects.moveCopy.title.move")}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {mode === "copy" ? t("objects.moveCopy.title.copy") : t("objects.moveCopy.title.move")}
+        </DialogTitle>
+      </DialogHeader>
 
-        {pickingFolder ? (
-          <div className="py-2">
-            <div className="mb-4 text-sm font-medium">{t("objects.moveCopy.picker.title")}</div>
-            <FolderPicker
-              accountId={accountId || ""}
-              initialBucket={targetBucket}
-              initialPrefix={targetPrefix}
-              onSelect={(bucket, prefix) => {
-                setTargetBucket(bucket);
-                setTargetPrefix(prefix);
-                setPickingFolder(false);
-              }}
-            />
-            <div className="mt-4 flex justify-end">
-              <Button variant="ghost" onClick={() => setPickingFolder(false)}>
-                {t("objects.moveCopy.picker.back")}
-              </Button>
-            </div>
+      {pickingFolder ? (
+        <div className="py-2">
+          <div className="mb-4 text-sm font-medium">{t("objects.moveCopy.picker.title")}</div>
+          <FolderPicker
+            accountId={accountId || ""}
+            initialBucket={targetBucket}
+            initialPrefix={targetPrefix}
+            onSelect={(bucket, prefix) => {
+              setTargetBucket(bucket);
+              setTargetPrefix(prefix);
+              setPickingFolder(false);
+            }}
+          />
+          <div className="mt-4 flex justify-end">
+            <Button variant="ghost" onClick={() => setPickingFolder(false)}>
+              {t("objects.moveCopy.picker.back")}
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-6 py-4">
-            <Tabs
-              value={mode}
-              onValueChange={(v) => setMode(v as "move" | "copy")}
-              className="w-full"
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="copy" className="gap-2">
-                  <Copy className="h-4 w-4" /> {t("objects.moveCopy.tabs.copy")}
-                </TabsTrigger>
-                <TabsTrigger value="move" className="gap-2">
-                  <MoveRight className="h-4 w-4" /> {t("objects.moveCopy.tabs.move")}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+        </div>
+      ) : (
+        <div className="space-y-6 py-4">
+          <Tabs
+            value={mode}
+            onValueChange={(v) => setMode(v as "move" | "copy")}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="copy" className="gap-2">
+                <Copy className="h-4 w-4" /> {t("objects.moveCopy.tabs.copy")}
+              </TabsTrigger>
+              <TabsTrigger value="move" className="gap-2">
+                <MoveRight className="h-4 w-4" /> {t("objects.moveCopy.tabs.move")}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-            <div className="space-y-4 rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label>{t("objects.moveCopy.label.selected")}</Label>
-                  <div className="text-sm text-muted-foreground">
-                    {t("objects.moveCopy.label.count", { count: selectedCount })}
-                  </div>
+          <div className="space-y-4 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label>{t("objects.moveCopy.label.selected")}</Label>
+                <div className="text-sm text-muted-foreground">
+                  {t("objects.moveCopy.label.count", { count: selectedCount })}
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("objects.moveCopy.label.target")}</Label>
-                <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
-                  <FolderInput className="h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1 truncate font-mono">{targetPathDisplay}</span>
-                  <Button variant="link" size="sm" onClick={() => setPickingFolder(true)}>
-                    {t("objects.moveCopy.button.change")}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label>{t("objects.moveCopy.label.conflict")}</Label>
-                <RadioGroup
-                  value={conflictStrategy}
-                  onValueChange={(v) => setConflictStrategy(v as any)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="skip" id="skip" />
-                    <Label htmlFor="skip">{t("objects.moveCopy.conflict.skip")}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="overwrite" id="overwrite" />
-                    <Label htmlFor="overwrite">{t("objects.moveCopy.conflict.overwrite")}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="rename" id="rename" />
-                    <Label htmlFor="rename">{t("objects.moveCopy.conflict.rename")}</Label>
-                  </div>
-                </RadioGroup>
-                <p className="text-xs text-muted-foreground">
-                  {t("objects.moveCopy.conflict.hint")}
-                </p>
               </div>
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-        )}
+            <div className="space-y-2">
+              <Label>{t("objects.moveCopy.label.target")}</Label>
+              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+                <FolderInput className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 truncate font-mono">{targetPathDisplay}</span>
+                <Button variant="link" size="sm" onClick={() => setPickingFolder(true)}>
+                  {t("objects.moveCopy.button.change")}
+                </Button>
+              </div>
+            </div>
 
-        {!pickingFolder && (
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              {t("objects.details.button.cancel")}
-            </Button>
-            <Button onClick={handleConfirm} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("objects.moveCopy.button.confirm")}
-            </Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+            <div className="space-y-3">
+              <Label>{t("objects.moveCopy.label.conflict")}</Label>
+              <RadioGroup
+                value={conflictStrategy}
+                onValueChange={(v) => setConflictStrategy(v as any)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="skip" id="skip" />
+                  <Label htmlFor="skip">{t("objects.moveCopy.conflict.skip")}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="overwrite" id="overwrite" />
+                  <Label htmlFor="overwrite">{t("objects.moveCopy.conflict.overwrite")}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rename" id="rename" />
+                  <Label htmlFor="rename">{t("objects.moveCopy.conflict.rename")}</Label>
+                </div>
+              </RadioGroup>
+              <p className="text-xs text-muted-foreground">
+                {t("objects.moveCopy.conflict.hint")}
+              </p>
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      )}
+
+      {!pickingFolder && (
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            {t("objects.details.button.cancel")}
+          </Button>
+          <Button onClick={handleConfirm} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("objects.moveCopy.button.confirm")}
+          </Button>
+        </DialogFooter>
+      )}
+    </>
   );
 }
+
