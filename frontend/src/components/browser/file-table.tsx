@@ -82,12 +82,11 @@ export function FileTable({
 
   const totalLoaded = data.length;
   const totalPages = Math.max(1, Math.ceil(Math.max(totalLoaded, 1) / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-
-  useEffect(() => {
+  const safePage = useMemo(() => {
     if (!truncated && currentPage > totalPages) {
-      setCurrentPage(totalPages);
+      return totalPages;
     }
+    return currentPage;
   }, [currentPage, totalPages, truncated]);
 
   // Calculate paginated data for current page
@@ -344,7 +343,7 @@ export function FileTable({
         {/* Footer with Paginator */}
         {onLoadMore && (
           <TableFooterPaginator
-            currentPage={currentPage}
+            currentPage={safePage}
             pageSize={pageSize}
             totalPages={totalPages}
             hasMore={truncated}
