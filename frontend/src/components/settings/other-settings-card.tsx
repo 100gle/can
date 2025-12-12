@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatBytes } from "@/lib/utils";
 import { useAccountsStore } from "@/state/accounts";
 import {
   usePreferencesStore,
@@ -26,9 +25,8 @@ import {
   type LogLevel,
 } from "@/state/preferences";
 import { UpdateChecker } from "@/components/settings/update-checker";
-import { GetSystemMetrics } from "@wailsjs/go/app/App";
-import { system } from "@wailsjs/go/models";
-import { useCallback, useEffect, useState } from "react";
+import { MetricsPanel } from "@/components/settings/metrics-panel";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsItem } from "./settings-item";
 import { SettingsSection } from "./settings-section";
@@ -43,7 +41,6 @@ const openExternalLink = (url: string) => {
 export function OtherSettingsCard() {
   const { t } = useTranslation();
   const accounts = useAccountsStore((state) => state.accounts);
-  const [metrics, setMetrics] = useState<system.SystemMetrics | null>(null);
 
   // Advanced settings
   const advancedOptions = usePreferencesStore((state) => state.advancedOptions);
@@ -57,20 +54,6 @@ export function OtherSettingsCard() {
   const handleResetAllSettings = useCallback(() => {
     resetAllSettings();
   }, [resetAllSettings]);
-
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const data = await GetSystemMetrics();
-        setMetrics(data);
-      } catch (e) {
-        console.error("Failed to fetch system metrics", e);
-      }
-    };
-    fetchMetrics();
-    const interval = setInterval(fetchMetrics, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleOpenIssues = () => openExternalLink(ISSUES_URL);
 
@@ -174,28 +157,7 @@ export function OtherSettingsCard() {
         fullWidth
         showSeparator={false}
       >
-        {metrics ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{t("system.metrics.memoryAlloc")}</p>
-              <p className="text-lg font-bold">{formatBytes(metrics.memoryAlloc)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{t("system.metrics.memorySys")}</p>
-              <p className="text-lg font-bold">{formatBytes(metrics.memorySys)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Goroutines</p>
-              <p className="text-lg font-bold">{metrics.numGoroutines}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{t("system.metrics.activeTransfers")}</p>
-              <p className="text-lg font-bold">{metrics.activeTransfers}</p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t("system.metrics.loading")}</p>
-        )}
+        <MetricsPanel />
       </SettingsItem>
     </SettingsSection>
   );
