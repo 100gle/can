@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { useTransferStats } from "@/state/transfers";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Settings, Share2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const TRANSFERS_SEEN_KEY = "transfers-indicator-seen";
+const TRANSFERS_LAST_COUNT_KEY = "transfers-last-seen-count";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -17,19 +18,29 @@ type SidebarProps = {
 export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("common");
-  const { active, failed } = useTransferStats();
+  const { total } = useTransferStats();
   const [hasSeen, setHasSeen] = useState(() => {
-    // Check if user has seen the current state
     return localStorage.getItem(TRANSFERS_SEEN_KEY) === "true";
   });
 
-  // Reset seen state when new active tasks appear
+  // Track previous total count to detect new tasks
+  const getInitialCount = () => {
+    const stored = localStorage.getItem(TRANSFERS_LAST_COUNT_KEY);
+    return stored ? parseInt(stored, 10) : 0;
+  };
+  const prevTotalRef = useRef<number>(getInitialCount());
+
+  // Reset seen state only when new tasks are added (total count increases)
   useEffect(() => {
-    if (active > 0 || failed > 0) {
+    const prevTotal = prevTotalRef.current;
+    if (total > prevTotal && total > 0) {
+      // New task(s) added
       setHasSeen(false);
       localStorage.removeItem(TRANSFERS_SEEN_KEY);
     }
-  }, [active, failed]);
+    prevTotalRef.current = total;
+    localStorage.setItem(TRANSFERS_LAST_COUNT_KEY, String(total));
+  }, [total]);
 
   const handleTransfersClick = useCallback(() => {
     // Mark as seen
@@ -38,8 +49,8 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
     navigate({ to: "/transfers" });
   }, [navigate]);
 
-  // Show red dot if: (1) there are active or failed tasks, AND (2) user hasn't seen them yet
-  const showRedDot = !hasSeen && (active > 0 || failed > 0);
+  // Show red dot if: there are tasks AND user hasn't seen them yet
+  const showRedDot = !hasSeen && total > 0;
 
   return (
     <div className="flex h-full flex-col gap-6 px-4 py-6">

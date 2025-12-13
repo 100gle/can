@@ -81,17 +81,21 @@ export const AccountSwitcher = () => {
       return;
     }
 
+    // Navigate immediately for responsive UX
+    navigate({
+      to: "/accounts/$accountId/dashboard",
+      params: { accountId },
+    });
+
+    // Set active account in background (route will handle if not ready)
     setPendingAccountId(accountId);
     try {
       await accountsStore.setActiveAccount(accountId);
-      navigate({
-        to: "/accounts/$accountId/dashboard",
-        params: { accountId },
-      });
     } finally {
       setPendingAccountId(null);
     }
 
+    // Test connection in background
     void accountsStore.testConnection(accountId).catch((error) => {
       const description = error instanceof Error ? error.message : t("account.switcher.testFailed");
       toast.error(t("account.switcher.testFailed"), { description });
