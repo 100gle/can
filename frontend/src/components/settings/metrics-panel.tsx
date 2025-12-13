@@ -8,9 +8,7 @@ type MetricsPanelProps = {
   pollInterval?: number;
 };
 
-export const MetricsPanel = memo(function MetricsPanel({
-  pollInterval = 2000,
-}: MetricsPanelProps) {
+export const MetricsPanel = memo(function MetricsPanel({ pollInterval = 2000 }: MetricsPanelProps) {
   const { t } = useTranslation();
   const [metrics, setMetrics] = useState<system.SystemMetrics | null>(null);
 

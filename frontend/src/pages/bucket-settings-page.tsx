@@ -101,94 +101,97 @@ export const BucketSettingsPage = () => {
     );
   }
 
-  const sections = useMemo<BucketSettingsSection[]>(() => [
-    {
-      id: "acl",
-      label: t("bucket.acl.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.acl}>
-          <AccessControlPanel provider={account.provider} />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "public-access",
-      label: t("bucket.publicAccess.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.publicAccess}>
-          <BlockPublicAccessPanel provider={account.provider} />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "versioning",
-      label: t("bucket.versioning.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.versioning}>
-          <VersioningPanel />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "encryption",
-      label: t("bucket.encryption.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.encryption}>
-          <EncryptionPanel />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "lifecycle",
-      label: t("bucket.lifecycle.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.lifecycle}>
-          <LifecyclePanel />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "cors",
-      label: t("bucket.cors.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.cors}>
-          <CORSPanel />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "policy",
-      label: t("bucket.policy.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.policy}>
-          <PolicyPanel />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "referer",
-      label: t("bucket.referer.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.referer}>
-          <RefererProtectionPanel provider={account.provider} />
-        </CapabilityGate>
-      ),
-    },
-    {
-      id: "snapshot",
-      label: t("bucket.snapshot.title"),
-      render: () => <SnapshotPanel />,
-    },
-    {
-      id: "website",
-      label: t("bucket.website.title"),
-      render: () => (
-        <CapabilityGate capability={featureMatrix.website}>
-          <WebsitePanel />
-        </CapabilityGate>
-      ),
-    },
-  ], [t, featureMatrix, account.provider]);
+  const sections = useMemo<BucketSettingsSection[]>(
+    () => [
+      {
+        id: "acl",
+        label: t("bucket.acl.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.acl}>
+            <AccessControlPanel provider={account.provider} />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "public-access",
+        label: t("bucket.publicAccess.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.publicAccess}>
+            <BlockPublicAccessPanel provider={account.provider} />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "versioning",
+        label: t("bucket.versioning.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.versioning}>
+            <VersioningPanel />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "encryption",
+        label: t("bucket.encryption.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.encryption}>
+            <EncryptionPanel />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "lifecycle",
+        label: t("bucket.lifecycle.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.lifecycle}>
+            <LifecyclePanel />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "cors",
+        label: t("bucket.cors.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.cors}>
+            <CORSPanel />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "policy",
+        label: t("bucket.policy.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.policy}>
+            <PolicyPanel />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "referer",
+        label: t("bucket.referer.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.referer}>
+            <RefererProtectionPanel provider={account.provider} />
+          </CapabilityGate>
+        ),
+      },
+      {
+        id: "snapshot",
+        label: t("bucket.snapshot.title"),
+        render: () => <SnapshotPanel />,
+      },
+      {
+        id: "website",
+        label: t("bucket.website.title"),
+        render: () => (
+          <CapabilityGate capability={featureMatrix.website}>
+            <WebsitePanel />
+          </CapabilityGate>
+        ),
+      },
+    ],
+    [t, featureMatrix, account.provider],
+  );
 
   return (
     <main className="flex-1 overflow-auto p-6 space-y-6">

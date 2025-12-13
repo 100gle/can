@@ -7,12 +7,12 @@
 
 import { Badge } from "@/components/ui/badge";
 import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,21 +21,21 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { BrowseLevel, ViewMode } from "@/hooks/useFileBrowserController";
 import { isDesktopMode } from "@/lib/bridge";
 import {
-    Download,
-    FolderTree,
-    LayoutGrid,
-    Link2,
-    List,
-    Loader2,
-    MoreHorizontal,
-    Move,
-    Plus,
-    Search,
-    SlidersHorizontal,
-    Trash2,
-    Upload,
-    WifiOff,
-    X,
+  Download,
+  FolderTree,
+  LayoutGrid,
+  Link2,
+  List,
+  Loader2,
+  MoreHorizontal,
+  Move,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  Upload,
+  WifiOff,
+  X,
 } from "lucide-react";
 import React, { memo } from "react";
 import { useTranslation } from "react-i18next";
@@ -90,17 +90,15 @@ const BatchActionsMenu = memo(function BatchActionsMenu({
   onDeleteSelectedClick,
 }: BatchActionsMenuProps) {
   const { t } = useTranslation();
-  
+
   if (selectedCount === 0) return null;
-  
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5">
           <MoreHorizontal className="h-3.5 w-3.5" />
-          <span className="text-sm">
-            {t("toolbar.action.selected", { count: selectedCount })}
-          </span>
+          <span className="text-sm">{t("toolbar.action.selected", { count: selectedCount })}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-48 p-1" align="end">
@@ -370,4 +368,3 @@ export function BrowserToolbar({
     </div>
   );
 }
-

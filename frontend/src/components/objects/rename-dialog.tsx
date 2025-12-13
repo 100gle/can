@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,13 +46,13 @@ type RenameDialogContentProps = {
 
 function RenameDialogContent({ objectKey, prefix, onClose }: RenameDialogContentProps) {
   const { t } = useTranslation();
-  
+
   // Extract basename from key (without prefix)
   const getBasename = (key: string) => {
     const relativePath = prefix && key.startsWith(prefix) ? key.slice(prefix.length) : key;
     return relativePath.replace(/\/$/, "");
   };
-  
+
   // Initialize state directly from props - no useEffect needed
   const [newName, setNewName] = useState(getBasename(objectKey));
   const [loading, setLoading] = useState(false);

@@ -3,14 +3,14 @@ import { DownloadOptionsDialog } from "@/components/objects/download-options-dia
 import { FilePreviewModal } from "@/components/objects/file-preview-modal";
 import { MoveCopyDialog } from "@/components/objects/move-copy-dialog";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { FileActionHandlers, FileActionState } from "@/hooks/useFileBrowserActions";
 import type { useFileBrowserController } from "@/hooks/useFileBrowserController";
@@ -119,10 +119,7 @@ export const FileExplorerDialogs: FC<FileExplorerDialogsProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={deleteSelectedDialogOpen}
-        onOpenChange={onDeleteSelectedDialogOpenChange}
-      >
+      <AlertDialog open={deleteSelectedDialogOpen} onOpenChange={onDeleteSelectedDialogOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("explorer.dialog.batchDelete.title")}</AlertDialogTitle>
@@ -171,7 +168,9 @@ export const FileExplorerDialogs: FC<FileExplorerDialogsProps> = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={actions.handleDeleteBucket}>{t("delete")}</AlertDialogAction>
+            <AlertDialogAction onClick={actions.handleDeleteBucket}>
+              {t("delete")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -189,7 +188,9 @@ export const FileExplorerDialogs: FC<FileExplorerDialogsProps> = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={actions.handleDeleteObject}>{t("delete")}</AlertDialogAction>
+            <AlertDialogAction onClick={actions.handleDeleteObject}>
+              {t("delete")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

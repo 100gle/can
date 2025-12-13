@@ -1,21 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -80,7 +80,7 @@ function CreateBucketDialogContent({
   onClose,
 }: CreateBucketDialogContentProps) {
   const { t } = useTranslation();
-  
+
   // Initialize state directly - no useEffect needed due to conditional rendering
   const [newBucketName, setNewBucketName] = useState("");
   const [newBucketRegion, setNewBucketRegion] = useState(defaultRegion);
@@ -239,4 +239,3 @@ function CreateBucketDialogContent({
     </>
   );
 }
-

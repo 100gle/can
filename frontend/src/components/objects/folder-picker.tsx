@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { ListBuckets, ListObjects } from "@wailsjs/go/app/App";
 import type { buckets } from "@wailsjs/go/models";

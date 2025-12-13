@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -28,10 +28,7 @@ export function MoveCopyDialog({ open, onOpenChange, defaultMode = "copy" }: Mov
       <DialogContent className="max-w-xl">
         {/* Conditional rendering: content only mounts when open, auto-resets state */}
         {open && (
-          <MoveCopyDialogContent
-            defaultMode={defaultMode}
-            onClose={() => onOpenChange(false)}
-          />
+          <MoveCopyDialogContent defaultMode={defaultMode} onClose={() => onOpenChange(false)} />
         )}
       </DialogContent>
     </Dialog>
@@ -46,7 +43,7 @@ type MoveCopyDialogContentProps = {
 function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentProps) {
   const { t } = useTranslation();
   const { accountId, bucket: currentBucket, selectedKeys } = useObjectsStore((s) => s);
-  
+
   // Initialize state directly from props - no useEffect needed
   const [mode, setMode] = useState<"move" | "copy">(defaultMode);
   const [targetBucket, setTargetBucket] = useState<string>(currentBucket || "");
@@ -300,9 +297,7 @@ function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentPr
                   <Label htmlFor="rename">{t("objects.moveCopy.conflict.rename")}</Label>
                 </div>
               </RadioGroup>
-              <p className="text-xs text-muted-foreground">
-                {t("objects.moveCopy.conflict.hint")}
-              </p>
+              <p className="text-xs text-muted-foreground">{t("objects.moveCopy.conflict.hint")}</p>
             </div>
           </div>
 
@@ -324,4 +319,3 @@ function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentPr
     </>
   );
 }
-

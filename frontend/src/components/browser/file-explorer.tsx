@@ -286,7 +286,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                       )}
                   </div>
                 </ContextMenuTrigger>
-        <ContextMenuContent>
+                <ContextMenuContent>
                   {controller.level === "buckets" ? (
                     <ContextMenuItem onClick={() => setCreateBucketOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" />
