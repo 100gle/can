@@ -1,6 +1,4 @@
 import { isDesktopMode } from "@/lib/bridge";
-import { offlineManager } from "@/lib/offline";
-import { usePreferencesStore } from "@/state/preferences";
 import { CreateBucket, DeleteBucket, ListBuckets } from "@wailsjs/go/app/App";
 import type { buckets as BucketModels } from "@wailsjs/go/models";
 import { create } from "zustand";
@@ -16,8 +14,6 @@ export type BucketsState = {
   creating: boolean;
   deleting: Record<string, boolean>;
   error?: string;
-  isFromCache: boolean;
-  lastSync?: number;
 };
 
 export type BucketsActions = {
@@ -37,7 +33,6 @@ const createInitialState = (): BucketsState => ({
   creating: false,
   deleting: {},
   error: undefined,
-  isFromCache: false,
 });
 
 const FALLBACK_BUCKETS: BucketModel[] = [
@@ -76,27 +71,11 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
       accountId,
       buckets: switchingAccount ? [] : get().buckets,
       selectedBucket: switchingAccount ? undefined : get().selectedBucket,
-      isFromCache: false,
     });
     const useBridge = isDesktopMode();
-    const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
-      let buckets: BucketModel[] = [];
-      let isFromCache = false;
-      let lastSync = Date.now();
-
-      if (offlineEnabled) {
-        const result = await offlineManager.listBuckets(accountId, async () => {
-          const payload = useBridge ? await ListBuckets(accountId) : FALLBACK_BUCKETS;
-          return payload.map((bucket) => normalizeBucket(bucket));
-        });
-        buckets = result.items.map((bucket) => normalizeBucket(bucket));
-        isFromCache = result.source === "cache";
-        lastSync = result.lastSyncedAt ?? Date.now();
-      } else {
-        const payload = useBridge ? await ListBuckets(accountId) : FALLBACK_BUCKETS;
-        buckets = payload.map((bucket) => normalizeBucket(bucket));
-      }
+      const payload = useBridge ? await ListBuckets(accountId) : FALLBACK_BUCKETS;
+      const buckets = payload.map((bucket) => normalizeBucket(bucket));
 
       const previous = get().selectedBucket;
       const nextSelected =
@@ -108,8 +87,6 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
         loading: false,
         error: undefined,
         selectedBucket: nextSelected,
-        isFromCache,
-        lastSync,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "加载 Bucket 失败";
@@ -184,10 +161,6 @@ const useBucketsStoreBase = create<BucketsStore>((set, get) => ({
         const { [name]: _, ...rest } = state.deleting;
         return { buckets: filtered, deleting: rest, selectedBucket };
       });
-      // Update cache
-      if (usePreferencesStore.getState().offlineCacheEnabled) {
-        void get().refresh();
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "删除 Bucket 失败";
       set((state) => {

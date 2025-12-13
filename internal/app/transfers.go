@@ -14,6 +14,57 @@ func (a *App) ListTransferTasks() ([]*transfer.TransferTask, error) {
 	return a.transfers.ListTasks(ctx)
 }
 
+// ListTransferTasksInput contains pagination parameters.
+type ListTransferTasksInput struct {
+	Page     int `json:"page"`     // 1-based page number
+	PageSize int `json:"pageSize"` // Items per page, default 20, max 100
+}
+
+// ListTransferTasksResult contains paginated task results.
+type ListTransferTasksResult struct {
+	Tasks      []*transfer.TransferTask `json:"tasks"`
+	Total      int64                    `json:"total"`
+	Page       int                      `json:"page"`
+	PageSize   int                      `json:"pageSize"`
+	TotalPages int                      `json:"totalPages"`
+}
+
+// ListTransferTasksPaged returns paginated transfer tasks.
+func (a *App) ListTransferTasksPaged(input ListTransferTasksInput) (*ListTransferTasksResult, error) {
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+
+	page := input.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := input.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	result, err := a.transfers.ListTasksPaged(ctx, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int(result.Total) / pageSize
+	if int(result.Total)%pageSize > 0 {
+		totalPages++
+	}
+
+	return &ListTransferTasksResult{
+		Tasks:      result.Tasks,
+		Total:      result.Total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
 // CancelTransferTask stops an in-progress transfer.
 func (a *App) CancelTransferTask(taskID string) error {
 	ctx, cancel := a.backgroundContext()
@@ -145,4 +196,3 @@ func (a *App) UploadFilesFromPaths(input UploadFilesInput) UploadFilesResult {
 
 	return result
 }
-

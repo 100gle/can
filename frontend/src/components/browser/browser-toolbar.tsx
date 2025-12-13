@@ -5,7 +5,6 @@
  * Includes breadcrumbs, search, view mode toggle, and action buttons.
  */
 
-import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,8 +33,8 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
-  WifiOff,
   X,
+  XCircle,
 } from "lucide-react";
 import React, { memo } from "react";
 import { useTranslation } from "react-i18next";
@@ -56,9 +55,6 @@ export interface BrowserToolbarProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
 
-  // Cache indicators
-  isFromCache: boolean;
-  lastSync: number | undefined;
   // Selection
   selectedKeys: Set<string>;
 
@@ -73,6 +69,7 @@ export interface BrowserToolbarProps {
   onDownloadClick: () => void;
   onMoveCopyClick: () => void;
   onDeleteSelectedClick: () => void;
+  onClearSelection: () => void;
 }
 
 // Memoized batch actions menu to prevent toolbar re-renders when selection changes
@@ -81,6 +78,7 @@ type BatchActionsMenuProps = {
   onDownloadClick: () => void;
   onMoveCopyClick: () => void;
   onDeleteSelectedClick: () => void;
+  onClearSelection: () => void;
 };
 
 const BatchActionsMenu = memo(function BatchActionsMenu({
@@ -88,6 +86,7 @@ const BatchActionsMenu = memo(function BatchActionsMenu({
   onDownloadClick,
   onMoveCopyClick,
   onDeleteSelectedClick,
+  onClearSelection,
 }: BatchActionsMenuProps) {
   const { t } = useTranslation();
 
@@ -134,6 +133,15 @@ const BatchActionsMenu = memo(function BatchActionsMenu({
         <Button
           variant="ghost"
           size="sm"
+          className="w-full justify-start gap-2 h-9"
+          onClick={onClearSelection}
+        >
+          <XCircle className="h-4 w-4" />
+          <span>{t("toolbar.action.clearSelection")}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           className="w-full justify-start gap-2 h-9 text-destructive hover:text-destructive"
           onClick={() => {
             if (selectedCount > 0) {
@@ -158,8 +166,6 @@ export function BrowserToolbar({
   onCloseSearch,
   viewMode,
   onViewModeChange,
-  isFromCache,
-  lastSync,
   selectedKeys,
   canCreateSymlink,
   uploading,
@@ -169,6 +175,7 @@ export function BrowserToolbar({
   onDownloadClick,
   onMoveCopyClick,
   onDeleteSelectedClick,
+  onClearSelection,
 }: BrowserToolbarProps) {
   const { t } = useTranslation();
   return (
@@ -266,23 +273,6 @@ export function BrowserToolbar({
                 </div>
               </div>
 
-              {/* Offline Indicator */}
-              {isFromCache && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="default" className="h-8 gap-1 px-2 whitespace-nowrap shrink-0">
-                      <WifiOff className="h-3.5 w-3.5" />
-                      <span className="hidden xl:inline">{t("toolbar.badge.offline")}</span>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {t("toolbar.badge.offlineTooltip", {
-                      time: new Date(lastSync || 0).toLocaleString(),
-                    })}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
               {/* View Mode Toggle */}
               <div className="flex items-center rounded-md border border-border/40 bg-background shrink-0">
                 <Button
@@ -348,6 +338,7 @@ export function BrowserToolbar({
                   onDownloadClick={onDownloadClick}
                   onMoveCopyClick={onMoveCopyClick}
                   onDeleteSelectedClick={onDeleteSelectedClick}
+                  onClearSelection={onClearSelection}
                 />
               )}
               {level === "buckets" && (

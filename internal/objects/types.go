@@ -194,17 +194,3 @@ type AccessLink struct {
 	QRCode          string            `json:"qrCode"`
 	ResponseHeaders map[string]string `json:"responseHeaders"`
 }
-
-// LinkHistoryEntry persists generated links for quick recall.
-type LinkHistoryEntry struct {
-	ID              string            `json:"id"`
-	AccountID       string            `json:"accountId"`
-	Bucket          string            `json:"bucket"`
-	Key             string            `json:"key"`
-	Method          string            `json:"method"`
-	URL             string            `json:"url"`
-	FileName        string            `json:"fileName"`
-	ExpiresAt       time.Time         `json:"expiresAt" ts_type:"string"`
-	CreatedAt       time.Time         `json:"createdAt" ts_type:"string"`
-	ResponseHeaders map[string]string `json:"responseHeaders"`
-}

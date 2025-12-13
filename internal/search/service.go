@@ -40,7 +40,7 @@ type listTask struct {
 // NewService constructs a search service instance.
 func NewService(accounts *accounts.Service, pool storage.ClientPool, store SavedQueryStore) *Service {
 	if store == nil {
-		store = NewMemorySavedQueryStore()
+		panic("saved query store is required")
 	}
 	return &Service{
 		accounts:     accounts,

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,6 +13,10 @@ import (
 	"can/internal/storage"
 
 	"can/internal/types"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestRenameObjectSucceeds(t *testing.T) {
@@ -328,6 +333,19 @@ func (s *stubObjectDriver) ListObjects(context.Context, storage.ListObjectsInput
 	return storage.ListObjectsResult{}, nil
 }
 
+func newTestAccountsStore(t *testing.T) accounts.Store {
+	path := filepath.Join(t.TempDir(), "accounts.db")
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	store, err := accounts.NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("init accounts store: %v", err)
+	}
+	return store
+}
+
 func (s *stubObjectDriver) UploadObject(context.Context, string, string, io.Reader, int64, string) error {
 	return nil
 }
@@ -360,7 +378,7 @@ func (s *stubObjectDriver) AbortMultipartUpload(context.Context, string, string,
 	return nil
 }
 
-func TestGenerateAccessLinksStoresHistory(t *testing.T) {
+func TestGenerateAccessLinks(t *testing.T) {
 	driver := newStubObjectDriver()
 	svc, accountID := newTestObjectsService(t, driver)
 	ctx := context.Background()
@@ -378,22 +396,15 @@ func TestGenerateAccessLinksStoresHistory(t *testing.T) {
 		t.Fatalf("expected 2 links, got %d", len(links))
 	}
 	for _, link := range links {
+		if link.ID == "" {
+			t.Errorf("link %s missing ID", link.Method)
+		}
 		if !strings.HasPrefix(link.QRCode, "data:image/png;base64,") {
 			t.Fatalf("link %s missing qr data", link.Method)
 		}
 		if link.Markdown == "" || link.HTML == "" {
 			t.Fatalf("link %s missing representations", link.Method)
 		}
-	}
-	history, err := svc.ListAccessLinkHistory(ctx, accountID, 10)
-	if err != nil {
-		t.Fatalf("list history: %v", err)
-	}
-	if len(history) != 2 {
-		t.Fatalf("expected 2 history entries, got %d", len(history))
-	}
-	if err := svc.DeleteAccessLinkHistory(ctx, accountID, history[0].ID); err != nil {
-		t.Fatalf("delete history: %v", err)
 	}
 }
 
@@ -555,7 +566,7 @@ func (s *stubStorageClient) Security() storage.SecurityDriver {
 
 func newTestObjectsService(t *testing.T, driver storage.ObjectDriver) (*Service, string) {
 	t.Helper()
-	store := accounts.NewMemoryStore()
+	store := newTestAccountsStore(t)
 	cipher := accounts.NoopCipher{}
 	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()
@@ -577,6 +588,6 @@ func newTestObjectsService(t *testing.T, driver storage.ObjectDriver) (*Service,
 	factory := &stubStorageFactory{client: &stubStorageClient{objects: driver}}
 	pool := storage.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
-	service := NewService(accountSvc, pool, nil, NewMemoryLinkHistoryStore())
+	service := NewService(accountSvc, pool, nil)
 	return service, account.ID
 }

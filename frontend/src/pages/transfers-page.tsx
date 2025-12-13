@@ -1,18 +1,7 @@
 import { PageHeader } from "@/components/layouts/page-header";
-import { OfflineQueuePanel } from "@/components/objects/offline-queue-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -22,26 +11,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { formatBytes } from "@/lib/utils";
-import { offlineQueueStore } from "@/state/offlineQueue";
 import type { TransferViewModel } from "@/state/transfers";
-import { transfersStore, useTransfersStore } from "@/state/transfers";
+import { transfersStore } from "@/state/transfers";
+import { ListTransferTasksPaged, ShowPathInFileManager } from "@wailsjs/go/app/App";
 import type { TFunction } from "i18next";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  ChevronLeft,
+  ChevronRight,
   CloudOff,
   Pause,
   Play,
   RotateCcw,
-  Settings2,
   Trash2,
   XCircle,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+const PAGE_SIZE = 20;
+const POLL_INTERVAL = 5000;
+
+type TaskStatus = "pending" | "running" | "paused" | "completed" | "failed" | "canceled";
+
+const deriveName = (key: string) => {
+  const segments = key.split("/").filter(Boolean);
+  return segments.pop() || key;
+};
 
 const getTaskProgressRatio = (task: TransferViewModel) => {
   if (!task.total || task.total <= 0) {
@@ -50,95 +49,59 @@ const getTaskProgressRatio = (task: TransferViewModel) => {
   return task.progress / task.total;
 };
 
-const SpeedLimitDialogContent = ({
-  globalSpeedLimit,
-  onSave,
-}: {
-  globalSpeedLimit: number;
-  onSave: (limit: number) => void;
-}) => {
-  const { t } = useTranslation();
-  // Initialize state directly from props - no useEffect needed
-  const [limit, setLimit] = useState(globalSpeedLimit > 0 ? String(globalSpeedLimit) : "");
-
-  const handleSave = async () => {
-    const val = Number.parseInt(limit, 10);
-    const bytesPerSec = Number.isNaN(val) || val < 0 ? 0 : val;
-    onSave(bytesPerSec);
-  };
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>{t("transfers.settings.title")}</DialogTitle>
-        <DialogDescription>{t("transfers.settings.description")}</DialogDescription>
-      </DialogHeader>
-      <div className="grid gap-4 py-4">
-        <div className="grid grid-cols-4 items-center gap-4">
-          <span className="text-right text-sm font-medium">
-            {t("transfers.settings.limitLabel")}
-          </span>
-          <Input
-            id="speed-limit"
-            value={limit}
-            onChange={(e) => setLimit(e.target.value)}
-            className="col-span-3"
-            placeholder={t("transfers.settings.limitPlaceholder")}
-            type="number"
-          />
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {t("transfers.settings.currentLimit")}:{" "}
-          {globalSpeedLimit === 0
-            ? t("transfers.settings.unlimited")
-            : `${formatBytes(globalSpeedLimit)}/s`}
-        </div>
-      </div>
-      <DialogFooter>
-        <Button onClick={handleSave}>{t("transfers.settings.save")}</Button>
-      </DialogFooter>
-    </>
-  );
-};
-
-const SpeedLimitDialog = () => {
-  const { t } = useTranslation();
-  const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
-  const [open, setOpen] = useState(false);
-
-  const handleSave = useCallback(async (bytesPerSec: number) => {
-    await transfersStore.setGlobalSpeedLimit(bytesPerSec);
-    setOpen(false);
-  }, []);
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Settings2 className="h-4 w-4" />
-          {t("transfers.settings")}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        {open && (
-          <SpeedLimitDialogContent globalSpeedLimit={globalSpeedLimit} onSave={handleSave} />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 export const TransfersPage = () => {
   const { t } = useTranslation();
-  const tasks = useTransfersStore((state) => state.tasks);
   const { isOnline } = useNetworkStatus();
-  const taskList = useMemo(() => {
-    return Object.values(tasks).sort((a, b) => getTaskProgressRatio(b) - getTaskProgressRatio(a));
-  }, [tasks]);
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [taskList, setTaskList] = useState<TransferViewModel[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTasks = useCallback(async (pageNum: number) => {
+    try {
+      const result = await ListTransferTasksPaged({ page: pageNum, pageSize: PAGE_SIZE });
+      const tasks: TransferViewModel[] = (result.tasks || []).map((task) => ({
+        id: task.id,
+        accountId: task.accountId,
+        bucket: task.bucket,
+        key: task.key,
+        localPath: task.localPath || undefined,
+        name: deriveName(task.key),
+        type: task.type === "download" ? "download" : "upload",
+        status: (task.status as TaskStatus) || "pending",
+        progress: task.progress || 0,
+        total: task.total || 0,
+        speed: task.speed || undefined,
+        eta: task.estimatedTime || undefined,
+        source: "backend",
+        uploadId: task.uploadId || undefined,
+        error: task.error || undefined,
+      }));
+      setTaskList(tasks);
+      setTotal(result.total);
+      setTotalPages(result.totalPages || 1);
+    } catch (err) {
+      console.error("Failed to fetch tasks:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchTasks(page);
+    const timer = window.setInterval(() => {
+      void fetchTasks(page);
+    }, POLL_INTERVAL);
+    return () => window.clearInterval(timer);
+  }, [page, fetchTasks]);
 
   const handleClearCompleted = useCallback(() => {
     transfersStore.clearCompleted();
-  }, []);
+    void fetchTasks(page);
+  }, [fetchTasks, page]);
 
   const handlePauseTask = useCallback((id: string) => {
     void transfersStore.pauseTask(id);
@@ -152,19 +115,21 @@ export const TransfersPage = () => {
     void transfersStore.cancelTask(id);
   }, []);
 
-  const handleDeleteTask = useCallback((id: string) => {
-    void transfersStore.deleteTask(id);
-  }, []);
+  const handleDeleteTask = useCallback(
+    (id: string) => {
+      void transfersStore.deleteTask(id);
+      void fetchTasks(page);
+    },
+    [fetchTasks, page],
+  );
 
-  useEffect(() => {
-    transfersStore.startPolling();
-    offlineQueueStore.startSyncWorker();
+  const handlePrevPage = useCallback(() => {
+    if (page > 1) setPage(page - 1);
+  }, [page]);
 
-    return () => {
-      transfersStore.stopPolling();
-      offlineQueueStore.stopSyncWorker();
-    };
-  }, []);
+  const handleNextPage = useCallback(() => {
+    if (page < totalPages) setPage(page + 1);
+  }, [page, totalPages]);
 
   return (
     <div className="space-y-6 p-6">
@@ -173,13 +138,10 @@ export const TransfersPage = () => {
         description={t("transfers.description")}
         showBack
         actions={
-          <>
-            <SpeedLimitDialog />
-            <Button variant="secondary" size="sm" onClick={handleClearCompleted} className="gap-2">
-              <RotateCcw className="h-4 w-4" />
-              {t("transfers.clearCompleted")}
-            </Button>
-          </>
+          <Button variant="secondary" size="sm" onClick={handleClearCompleted} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            {t("transfers.clearCompleted")}
+          </Button>
         }
       />
 
@@ -190,64 +152,84 @@ export const TransfersPage = () => {
         </div>
       )}
 
-      <Tabs defaultValue="active" className="w-full">
-        <TabsList>
-          <TabsTrigger value="active">{t("transfers.tab.active")}</TabsTrigger>
-          <TabsTrigger value="offline">{t("transfers.tab.offline")}</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("transfers.queue.title")}</CardTitle>
+          <CardDescription>{t("transfers.queue.count", { count: total })}</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex h-32 items-center justify-center text-muted-foreground">
+              {t("loading")}
+            </div>
+          ) : taskList.length === 0 ? (
+            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+              <CloudOff className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="text-sm font-medium">{t("transfers.queue.empty")}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                {t("transfers.queue.emptyDesc")}
+              </p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("transfers.table.name")}</TableHead>
+                    <TableHead>{t("transfers.table.type")}</TableHead>
+                    <TableHead>{t("transfers.table.status")}</TableHead>
+                    <TableHead className="w-[200px]">{t("transfers.table.progress")}</TableHead>
+                    <TableHead>{t("transfers.table.speedEta")}</TableHead>
+                    <TableHead className="text-right">{t("transfers.table.actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {taskList.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      t={t}
+                      onPause={handlePauseTask}
+                      onResume={handleResumeTask}
+                      onCancel={handleCancelTask}
+                      onDelete={handleDeleteTask}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
 
-        <TabsContent value="active">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("transfers.queue.title")}</CardTitle>
-              <CardDescription>
-                {t("transfers.queue.count", { count: taskList.length })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              {taskList.length === 0 ? (
-                <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
-                  <CloudOff className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                  <p className="text-sm font-medium">{t("transfers.queue.empty")}</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
-                    {t("transfers.queue.emptyDesc")}
-                  </p>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t px-4 py-3">
+                  <span className="text-sm text-muted-foreground">
+                    {t("transfers.pagination.info", { page, totalPages, total })}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePrevPage}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      {t("transfers.pagination.prev")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextPage}
+                      disabled={page >= totalPages}
+                    >
+                      {t("transfers.pagination.next")}
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("transfers.table.name")}</TableHead>
-                      <TableHead>{t("transfers.table.type")}</TableHead>
-                      <TableHead>{t("transfers.table.status")}</TableHead>
-                      <TableHead className="w-[200px]">{t("transfers.table.progress")}</TableHead>
-                      <TableHead>{t("transfers.table.speedEta")}</TableHead>
-                      <TableHead className="text-right">{t("transfers.table.actions")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {taskList.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        t={t}
-                        onPause={handlePauseTask}
-                        onResume={handleResumeTask}
-                        onCancel={handleCancelTask}
-                        onDelete={handleDeleteTask}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="offline">
-          <OfflineQueuePanel />
-        </TabsContent>
-      </Tabs>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -275,45 +257,87 @@ const TaskRow = memo(function TaskRow({
   const progressPercent = progressRatio * 100;
   const formattedTotal = task.total > 0 ? formatBytes(task.total) : null;
 
+  // Get translated status text
+  const getStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+      pending: t("transfers.status.pending"),
+      running: t("transfers.status.running"),
+      paused: t("transfers.status.paused"),
+      completed: t("transfers.status.completed"),
+      failed: t("transfers.status.failed"),
+      canceled: t("transfers.status.canceled"),
+    };
+    return statusMap[status] || status;
+  };
+
+  // Get badge variant based on status
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "success";
+      case "running":
+        return "default";
+      case "failed":
+        return "destructive";
+      case "paused":
+        return "secondary";
+      case "canceled":
+        return "outline";
+      default:
+        return "outline";
+    }
+  };
+
   return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <div className="flex flex-col">
-          <span>{task.name}</span>
-          <span className="text-xs text-muted-foreground">{task.bucket}</span>
-        </div>
+    <TableRow className="hover:bg-muted/50 transition-colors">
+      <TableCell className="font-medium max-w-[300px]">
+        {task.status === "completed" && task.localPath ? (
+          <button
+            type="button"
+            className="text-left hover:text-primary hover:underline transition-colors cursor-pointer truncate block max-w-full"
+            onClick={() => ShowPathInFileManager(task.localPath!)}
+          >
+            {task.name}
+          </button>
+        ) : (
+          <span className="truncate block">{task.name}</span>
+        )}
       </TableCell>
       <TableCell>
         {task.type === "upload" ? (
-          <div className="flex items-center gap-1 text-blue-500">
-            <ArrowUpCircle className="h-4 w-4" />
-            <span className="text-xs">{t("transfers.type.upload")}</span>
+          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+            <ArrowUpCircle className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-medium">{t("transfers.type.upload")}</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1 text-green-500">
-            <ArrowDownCircle className="h-4 w-4" />
-            <span className="text-xs">{t("transfers.type.download")}</span>
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+            <ArrowDownCircle className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-medium">{t("transfers.type.download")}</span>
           </div>
         )}
       </TableCell>
       <TableCell>
         <Badge
           variant={
-            task.status === "completed"
-              ? "success"
-              : task.status === "running"
-                ? "default"
-                : "outline"
+            getBadgeVariant(task.status) as
+              | "default"
+              | "destructive"
+              | "outline"
+              | "secondary"
+              | "success"
           }
         >
-          {task.status}
+          {getStatusText(task.status)}
         </Badge>
       </TableCell>
       <TableCell>
-        <div className="space-y-1">
-          <Progress value={progressPercent} className="h-2" />
+        <div className="space-y-1.5 min-w-[180px]">
+          <Progress
+            value={progressPercent}
+            className={`h-2 ${task.status === "failed" ? "[&>div]:bg-destructive" : ""}`}
+          />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{progressPercent.toFixed(1)}%</span>
+            <span className="font-medium">{progressPercent.toFixed(0)}%</span>
             <span>
               {formatBytes(task.progress)}
               {formattedTotal ? ` / ${formattedTotal}` : ""}
@@ -321,23 +345,24 @@ const TaskRow = memo(function TaskRow({
           </div>
         </div>
       </TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {task.status === "running" ? (
-          <div className="flex flex-col gap-1">
-            <span>{task.speed ? `${formatBytes(task.speed)}/s` : "-"}</span>
+      <TableCell className="text-muted-foreground">
+        {task.status === "running" && task.speed ? (
+          <div className="flex flex-col gap-0.5 text-xs">
+            <span className="font-medium text-foreground">{formatBytes(task.speed)}/s</span>
             <span>{task.eta ? t("transfers.eta", { eta: task.eta }) : "-"}</span>
           </div>
         ) : (
-          "-"
+          <span className="text-xs">-</span>
         )}
       </TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
+      <TableCell>
+        <div className="flex justify-end gap-1">
           {task.status === "running" && (
             <>
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8"
                 onClick={() => onPause(task.id)}
                 title={t("transfers.action.pause")}
               >
@@ -346,10 +371,11 @@ const TaskRow = memo(function TaskRow({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => onCancel(task.id)}
                 title={t("transfers.action.cancel")}
               >
-                <XCircle className="h-4 w-4 text-destructive" />
+                <XCircle className="h-4 w-4" />
               </Button>
             </>
           )}
@@ -358,6 +384,7 @@ const TaskRow = memo(function TaskRow({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8"
                 onClick={() => onResume(task.id)}
                 title={t("transfers.action.resume")}
               >
@@ -366,10 +393,11 @@ const TaskRow = memo(function TaskRow({
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => onCancel(task.id)}
                 title={t("transfers.action.cancel")}
               >
-                <XCircle className="h-4 w-4 text-destructive" />
+                <XCircle className="h-4 w-4" />
               </Button>
             </>
           )}
@@ -379,6 +407,7 @@ const TaskRow = memo(function TaskRow({
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(task.id)}
               title={t("transfers.action.delete")}
             >

@@ -1,12 +1,13 @@
 import logo from "@/assets/images/logo-universal.png";
 import { AccountSwitcher } from "@/components/accounts/account-switcher";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useTransferStats } from "@/state/transfers";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, Settings, Share2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+const TRANSFERS_SEEN_KEY = "transfers-indicator-seen";
 
 type SidebarProps = {
   onCreateAccount?: () => void;
@@ -16,7 +17,29 @@ type SidebarProps = {
 export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("common");
-  const { active, failed, total } = useTransferStats();
+  const { active, failed } = useTransferStats();
+  const [hasSeen, setHasSeen] = useState(() => {
+    // Check if user has seen the current state
+    return localStorage.getItem(TRANSFERS_SEEN_KEY) === "true";
+  });
+
+  // Reset seen state when new active tasks appear
+  useEffect(() => {
+    if (active > 0 || failed > 0) {
+      setHasSeen(false);
+      localStorage.removeItem(TRANSFERS_SEEN_KEY);
+    }
+  }, [active, failed]);
+
+  const handleTransfersClick = useCallback(() => {
+    // Mark as seen
+    localStorage.setItem(TRANSFERS_SEEN_KEY, "true");
+    setHasSeen(true);
+    navigate({ to: "/transfers" });
+  }, [navigate]);
+
+  // Show red dot if: (1) there are active or failed tasks, AND (2) user hasn't seen them yet
+  const showRedDot = !hasSeen && (active > 0 || failed > 0);
 
   return (
     <div className="flex h-full flex-col gap-6 px-4 py-6">
@@ -51,20 +74,17 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
         </Button>
 
         <div className="relative">
-          <Button variant="outline" size="sm" className="w-full gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={handleTransfersClick}
+          >
             <Share2 className="h-4 w-4" />
             {t("nav.transfers", "Transfers")}
           </Button>
-          {total > 0 && (
-            <Badge
-              variant={failed > 0 ? null : active > 0 ? "default" : "outline"}
-              className={cn(
-                "absolute -top-2 -right-2 h-5 min-w-5 px-1.5 text-xs flex items-center justify-center",
-                failed > 0 && "border-red-500/50 bg-red-500/90 text-white hover:bg-red-500",
-              )}
-            >
-              {active > 0 ? active : total}
-            </Badge>
+          {showRedDot && (
+            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500" />
           )}
         </div>
 

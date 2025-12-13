@@ -7,6 +7,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
 	"can/internal/storage"
 
 	"can/internal/types"
@@ -21,7 +25,7 @@ func (f *fakeDialer) TestConnection(ctx context.Context, creds storage.Connectio
 func TestServiceExportImportRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	svc := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
+	svc := NewService(newTestStore(t), cipher, &fakeDialer{}, NewMemorySessionStore())
 
 	if _, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Account A",
@@ -58,7 +62,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("expected 2 accounts exported, got %d", exportData.Count)
 	}
 
-	dest := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
+	dest := NewService(newTestStore(t), cipher, &fakeDialer{}, NewMemorySessionStore())
 	result, err := dest.ImportData(ctx, exportData.Blob)
 	if err != nil {
 		t.Fatalf("import data: %v", err)
@@ -92,7 +96,7 @@ func TestServiceExportImportRoundTrip(t *testing.T) {
 func TestImportSkipsDuplicates(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	exporter := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
+	exporter := NewService(newTestStore(t), cipher, &fakeDialer{}, NewMemorySessionStore())
 	input := CreateAccountInput{
 		Name:            "Duplicate",
 		Tag:             "dup",
@@ -112,7 +116,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 		t.Fatalf("export data: %v", err)
 	}
 
-	importer := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
+	importer := NewService(newTestStore(t), cipher, &fakeDialer{}, NewMemorySessionStore())
 	if _, err := importer.CreateAccount(ctx, input); err != nil {
 		t.Fatalf("seed importer account: %v", err)
 	}
@@ -134,7 +138,7 @@ func TestImportSkipsDuplicates(t *testing.T) {
 func TestImportRejectsInvalidPayload(t *testing.T) {
 	ctx := context.Background()
 	cipher := testCipher(t)
-	svc := NewService(NewMemoryStore(), cipher, &fakeDialer{}, NewMemorySessionStore())
+	svc := NewService(newTestStore(t), cipher, &fakeDialer{}, NewMemorySessionStore())
 	if _, err := svc.ImportData(ctx, []byte("not-json")); err == nil {
 		t.Fatalf("expected error for invalid payload")
 	}
@@ -144,7 +148,11 @@ func TestSQLiteStorePersistsData(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	dsn := filepath.Join(root, "accounts.db")
-	store, err := NewSQLiteStore(dsn)
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	store, err := NewSQLiteStore(db)
 	if err != nil {
 		t.Fatalf("new sqlite store: %v", err)
 	}
@@ -175,7 +183,7 @@ func TestSQLiteStorePersistsData(t *testing.T) {
 
 func TestActiveAccountPersistsViaSessionStore(t *testing.T) {
 	ctx := context.Background()
-	store := NewMemoryStore()
+	store := newTestStore(t)
 	sessionStore := NewMemorySessionStore()
 	cipher := testCipher(t)
 	dialer := &fakeDialer{}
@@ -211,7 +219,7 @@ func TestActiveAccountPersistsViaSessionStore(t *testing.T) {
 
 func TestServiceActiveAccountConcurrentAccess(t *testing.T) {
 	ctx := context.Background()
-	svc := NewService(NewMemoryStore(), testCipher(t), &fakeDialer{}, NewMemorySessionStore())
+	svc := NewService(newTestStore(t), testCipher(t), &fakeDialer{}, NewMemorySessionStore())
 	accA, err := svc.CreateAccount(ctx, CreateAccountInput{
 		Name:            "Concurrent-A",
 		Provider:        types.ProviderAWS,
@@ -319,4 +327,17 @@ func testCipher(t *testing.T) Cipher {
 		t.Fatalf("new aes cipher: %v", err)
 	}
 	return cipher
+}
+
+func newTestStore(t *testing.T) Store {
+	path := filepath.Join(t.TempDir(), "accounts.db")
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("init store: %v", err)
+	}
+	return store
 }

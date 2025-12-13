@@ -130,7 +130,7 @@ func (r *taskRuntime) getReason() stopReason {
 // NewService wires the dependencies required by the transfer subsystem.
 func NewService(accounts *accounts.Service, pool storage.ClientPool, store Store, opts ...Option) *Service {
 	if store == nil {
-		store = NewMemoryStore()
+		panic("transfer store is required")
 	}
 	cfg := &serviceConfig{
 		workers:   defaultWorkerCount,
@@ -348,16 +348,22 @@ func normalizeConflictStrategy(strategy FileConflictStrategy) FileConflictStrate
 }
 
 func ensureArchiveName(name string, entries []DownloadEntry) string {
-	trimmed := filepath.Base(strings.TrimSpace(name))
-	if trimmed == "" {
+	trimmed := strings.TrimSpace(name)
+	// filepath.Base("") returns "." so we need to check for that too
+	if trimmed != "" && trimmed != "." {
+		trimmed = filepath.Base(trimmed)
+	} else {
+		trimmed = ""
+	}
+	if trimmed == "" || trimmed == "." {
 		if len(entries) == 1 {
 			candidate := filepath.Base(entries[0].RelativePath)
-			if candidate != "" {
+			if candidate != "" && candidate != "." {
 				trimmed = candidate
 			}
 		}
 	}
-	if trimmed == "" {
+	if trimmed == "" || trimmed == "." {
 		trimmed = fmt.Sprintf("download-%s.zip", time.Now().Format("20060102150405"))
 	}
 	if !strings.HasSuffix(strings.ToLower(trimmed), ".zip") {
@@ -416,6 +422,29 @@ func (s *Service) ListTasks(ctx context.Context) ([]*TransferTask, error) {
 		tasks[i] = task.clone()
 	}
 	return tasks, nil
+}
+
+// ListTasksPaged returns paginated transfers sorted by start time (desc).
+func (s *Service) ListTasksPaged(ctx context.Context, page, pageSize int) (*ListPagedResult, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20 // default page size
+	}
+	if pageSize > 100 {
+		pageSize = 100 // max page size
+	}
+
+	offset := (page - 1) * pageSize
+	result, err := s.store.ListPaged(ctx, ListPagedInput{
+		Offset: offset,
+		Limit:  pageSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // CountActiveTasks returns the number of currently running or pending tasks.

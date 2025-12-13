@@ -1,18 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { offlineCache } from "@/lib/offline";
-import { showSuccess } from "@/lib/toast";
-import { formatBytes } from "@/lib/utils";
-import { usePreferencesStore, type CacheSize } from "@/state/preferences";
 import { transfersStore, useTransfersStore } from "@/state/transfers";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -40,11 +27,6 @@ export function TransferCacheCard() {
   const globalSpeedLimit = useTransfersStore((state) => state.globalSpeedLimit);
   // Input stored as MB string for user-friendly display
   const [speedLimitInput, setSpeedLimitInput] = useState("");
-  const offlineCacheEnabled = usePreferencesStore((state) => state.offlineCacheEnabled);
-  const setOfflineCacheEnabled = usePreferencesStore((state) => state.setOfflineCacheEnabled);
-  const offlineCacheSize = usePreferencesStore((state) => state.offlineCacheSize);
-  const setOfflineCacheSize = usePreferencesStore((state) => state.setOfflineCacheSize);
-  const [cacheUsage, setCacheUsage] = useState<{ usage: number; quota: number } | null>(null);
 
   // Sync input with store value (convert bytes to MB)
   useEffect(() => {
@@ -56,10 +38,6 @@ export function TransferCacheCard() {
       setSpeedLimitInput(Number.isInteger(mb) ? String(mb) : mb.toFixed(1));
     }
   }, [globalSpeedLimit]);
-
-  useEffect(() => {
-    offlineCache.getUsage().then(setCacheUsage);
-  }, []);
 
   const handleWorkerCountChange = (val: number[]) => {
     if (val.length > 0) {
@@ -115,18 +93,6 @@ export function TransferCacheCard() {
     handleSpeedLimitChangeMB(newMB);
   };
 
-  const handleClearOfflineCache = async () => {
-    await offlineCache.clear();
-    const usage = await offlineCache.getUsage();
-    setCacheUsage(usage);
-    showSuccess(t("settings.offline.clearSuccess"));
-  };
-
-  const handleCacheSizeChange = (value: string) => {
-    const numeric = Number(value) as CacheSize;
-    setOfflineCacheSize(numeric);
-  };
-
   return (
     <SettingsSection title={t("settings.transfer.title")} description={t("settings.transfer.desc")}>
       {/* Concurrency Workers */}
@@ -153,6 +119,7 @@ export function TransferCacheCard() {
       <SettingsItem
         label={t("settings.transfer.speedLimit")}
         description={t("settings.transfer.speedLimitDesc")}
+        showSeparator={false}
       >
         <div className="flex items-center gap-2">
           <div className="relative flex items-center">
@@ -190,51 +157,6 @@ export function TransferCacheCard() {
           <span className="text-sm text-muted-foreground">MB/s</span>
         </div>
       </SettingsItem>
-
-      {/* Offline Cache Toggle */}
-      <SettingsItem
-        label={t("settings.offline.enable")}
-        description={t("settings.offline.enableDesc")}
-      >
-        <Switch checked={offlineCacheEnabled} onCheckedChange={setOfflineCacheEnabled} />
-      </SettingsItem>
-
-      {offlineCacheEnabled && (
-        <>
-          {/* Cache Size */}
-          <SettingsItem
-            label={t("settings.offline.size")}
-            description={t("settings.offline.sizeDesc")}
-          >
-            <Select value={String(offlineCacheSize)} onValueChange={handleCacheSizeChange}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 MB</SelectItem>
-                <SelectItem value="50">50 MB</SelectItem>
-                <SelectItem value="100">100 MB</SelectItem>
-                <SelectItem value="500">500 MB</SelectItem>
-              </SelectContent>
-            </Select>
-          </SettingsItem>
-
-          {/* Cache Usage & Clear */}
-          <SettingsItem
-            label={t("settings.offline.currentUsage")}
-            description={
-              cacheUsage
-                ? `${formatBytes(cacheUsage.usage)} / ${formatBytes(cacheUsage.quota)}`
-                : t("settings.offline.calculating")
-            }
-            showSeparator={false}
-          >
-            <Button variant="outline" size="sm" onClick={handleClearOfflineCache}>
-              {t("settings.offline.clear")}
-            </Button>
-          </SettingsItem>
-        </>
-      )}
     </SettingsSection>
   );
 }

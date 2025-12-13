@@ -4,13 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // sqliteStore persists transfer tasks using SQLite via GORM.
@@ -18,18 +13,10 @@ type sqliteStore struct {
 	db *gorm.DB
 }
 
-// NewSQLiteStore opens (and migrates) a SQLite database located at the provided path/DSN.
-func NewSQLiteStore(dsn string) (Store, error) {
-	dsn = strings.TrimSpace(dsn)
-	if dsn == "" {
-		return nil, fmt.Errorf("sqlite dsn is required")
-	}
-	if err := os.MkdirAll(filepath.Dir(dsn), 0o755); err != nil {
-		return nil, fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	if err != nil {
-		return nil, fmt.Errorf("open sqlite database: %w", err)
+// NewSQLiteStore creates a new store using the provided GORM database connection.
+func NewSQLiteStore(db *gorm.DB) (Store, error) {
+	if db == nil {
+		return nil, fmt.Errorf("db is required")
 	}
 	if err := db.AutoMigrate(&taskRecord{}); err != nil {
 		return nil, fmt.Errorf("auto migrate transfer tasks: %w", err)
@@ -94,6 +81,47 @@ func mapRecords(records []taskRecord) ([]*TransferTask, error) {
 		tasks = append(tasks, task)
 	}
 	return tasks, nil
+}
+
+func (s *sqliteStore) ListPaged(ctx context.Context, input ListPagedInput) (*ListPagedResult, error) {
+	var records []taskRecord
+	var total int64
+
+	// Build base query with optional status filter
+	baseQuery := s.db.WithContext(ctx).Model(&taskRecord{})
+	if len(input.Statuses) > 0 {
+		baseQuery = baseQuery.Where("status IN ?", input.Statuses)
+	}
+
+	// Get total count first
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Get paged results
+	query := s.db.WithContext(ctx).Order("start_time DESC")
+	if len(input.Statuses) > 0 {
+		query = query.Where("status IN ?", input.Statuses)
+	}
+	if input.Offset > 0 {
+		query = query.Offset(input.Offset)
+	}
+	if input.Limit > 0 {
+		query = query.Limit(input.Limit)
+	}
+	if err := query.Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	tasks, err := mapRecords(records)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListPagedResult{
+		Tasks: tasks,
+		Total: total,
+	}, nil
 }
 
 func (s *sqliteStore) CountByStatus(ctx context.Context, statuses ...TaskStatus) (int, error) {

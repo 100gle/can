@@ -25,15 +25,11 @@ type Service struct {
 	accounts  *accounts.Service
 	pool      storage.ClientPool
 	transfers *transfer.Service
-	history   LinkHistoryStore
 }
 
 // NewService wires dependencies for object management.
-func NewService(accounts *accounts.Service, pool storage.ClientPool, transfers *transfer.Service, history LinkHistoryStore) *Service {
-	if history == nil {
-		history = NewMemoryLinkHistoryStore()
-	}
-	return &Service{accounts: accounts, pool: pool, transfers: transfers, history: history}
+func NewService(accounts *accounts.Service, pool storage.ClientPool, transfers *transfer.Service) *Service {
+	return &Service{accounts: accounts, pool: pool, transfers: transfers}
 }
 
 // ListObjects returns a single page of objects for the requested prefix.
@@ -774,10 +770,6 @@ func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, inp
 		label = filepath.Base(key)
 	}
 	results := make([]AccessLink, 0, len(methods))
-	now := time.Now()
-	if s.history != nil {
-		_ = s.history.Cleanup(ctx, now)
-	}
 	for _, method := range methods {
 		req := storage.PresignRequest{
 			Bucket:          bucket,
@@ -795,26 +787,10 @@ func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, inp
 		if err != nil {
 			return nil, err
 		}
-		expiresAt := now.Add(expiresIn)
-		entry := LinkHistoryEntry{
-			ID:              uuid.NewString(),
-			AccountID:       accountID,
-			Bucket:          bucket,
-			Key:             key,
-			Method:          method,
-			URL:             url,
-			FileName:        input.FileName,
-			ExpiresAt:       expiresAt,
-			CreatedAt:       now,
-			ResponseHeaders: cloneHeaders(baseHeaders),
-		}
-		if s.history != nil {
-			if err := s.history.Save(ctx, &entry); err != nil {
-				return nil, err
-			}
-		}
+
+		expiresAt := time.Now().Add(expiresIn)
 		results = append(results, AccessLink{
-			ID:              entry.ID,
+			ID:              uuid.NewString(), // Generate ID since history entry is gone
 			Method:          method,
 			URL:             url,
 			ExpiresAt:       expiresAt,
@@ -825,28 +801,6 @@ func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, inp
 		})
 	}
 	return results, nil
-}
-
-// ListAccessLinkHistory returns the latest generated links for an account.
-func (s *Service) ListAccessLinkHistory(ctx context.Context, accountID string, limit int) ([]LinkHistoryEntry, error) {
-	if s.history == nil {
-		return nil, nil
-	}
-	if limit <= 0 {
-		limit = 20
-	}
-	if err := s.history.Cleanup(ctx, time.Now()); err != nil {
-		return nil, err
-	}
-	return s.history.List(ctx, accountID, limit)
-}
-
-// DeleteAccessLinkHistory removes a saved link from history.
-func (s *Service) DeleteAccessLinkHistory(ctx context.Context, accountID, id string) error {
-	if s.history == nil {
-		return nil
-	}
-	return s.history.Delete(ctx, accountID, strings.TrimSpace(id))
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, error) {

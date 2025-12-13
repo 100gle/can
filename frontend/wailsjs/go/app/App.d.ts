@@ -9,8 +9,8 @@ import {transfer} from '../models';
 import {search} from '../models';
 import {config} from '../models';
 import {types} from '../models';
-import {options} from '../models';
 import {app} from '../models';
+import {options} from '../models';
 
 export function AbortMultipartUpload(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
@@ -43,8 +43,6 @@ export function CreateBucketSnapshot(arg1:string,arg2:string):Promise<backup.Bac
 export function CreateFolder(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function CreateSymlink(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
-
-export function DeleteAccessLinkHistory(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteAccount(arg1:string):Promise<void>;
 
@@ -108,6 +106,8 @@ export function GetBucketVersioning(arg1:string,arg2:string):Promise<config.Buck
 
 export function GetBucketWebsite(arg1:string,arg2:string):Promise<config.BucketWebsite>;
 
+export function GetDefaultDownloadDir():Promise<string>;
+
 export function GetObjectAttributes(arg1:string,arg2:string,arg3:string):Promise<objects.ObjectAttributes>;
 
 export function GetObjectLegalHold(arg1:string,arg2:string,arg3:string,arg4:string):Promise<objects.ObjectLegalHoldState>;
@@ -144,8 +144,6 @@ export function ImportAccounts():Promise<accounts.ImportSummary>;
 
 export function InitiateMultipartUpload(arg1:string,arg2:string,arg3:string):Promise<string>;
 
-export function ListAccessLinkHistory(arg1:string,arg2:number):Promise<Array<objects.LinkHistoryEntry>>;
-
 export function ListAccounts():Promise<Array<accounts.Account>>;
 
 export function ListBucketSnapshots(arg1:string,arg2:string):Promise<Array<backup.BackupHeader>>;
@@ -157,6 +155,8 @@ export function ListObjects(arg1:string,arg2:objects.ListObjectsInput):Promise<o
 export function ListSavedSearchQueries():Promise<Array<search.SavedQuery>>;
 
 export function ListTransferTasks():Promise<Array<transfer.TransferTask>>;
+
+export function ListTransferTasksPaged(arg1:app.ListTransferTasksInput):Promise<app.ListTransferTasksResult>;
 
 export function MoveObjects(arg1:string,arg2:Array<objects.MoveObjectRequest>):Promise<objects.MoveObjectsResult>;
 
@@ -213,6 +213,8 @@ export function SetPublicAccessBlock(arg1:string,arg2:string,arg3:config.PublicA
 export function SetTransferConcurrency(arg1:number):Promise<void>;
 
 export function SetTransferSpeedLimit(arg1:number):Promise<void>;
+
+export function ShowPathInFileManager(arg1:string):Promise<void>;
 
 export function SupportedProviders():Promise<Array<types.ProviderMetadata>>;
 

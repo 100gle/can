@@ -66,10 +66,6 @@ export function CreateSymlink(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CreateSymlink'](arg1, arg2, arg3, arg4);
 }
 
-export function DeleteAccessLinkHistory(arg1, arg2) {
-  return window['go']['app']['App']['DeleteAccessLinkHistory'](arg1, arg2);
-}
-
 export function DeleteAccount(arg1) {
   return window['go']['app']['App']['DeleteAccount'](arg1);
 }
@@ -194,6 +190,10 @@ export function GetBucketWebsite(arg1, arg2) {
   return window['go']['app']['App']['GetBucketWebsite'](arg1, arg2);
 }
 
+export function GetDefaultDownloadDir() {
+  return window['go']['app']['App']['GetDefaultDownloadDir']();
+}
+
 export function GetObjectAttributes(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetObjectAttributes'](arg1, arg2, arg3);
 }
@@ -266,10 +266,6 @@ export function InitiateMultipartUpload(arg1, arg2, arg3) {
   return window['go']['app']['App']['InitiateMultipartUpload'](arg1, arg2, arg3);
 }
 
-export function ListAccessLinkHistory(arg1, arg2) {
-  return window['go']['app']['App']['ListAccessLinkHistory'](arg1, arg2);
-}
-
 export function ListAccounts() {
   return window['go']['app']['App']['ListAccounts']();
 }
@@ -292,6 +288,10 @@ export function ListSavedSearchQueries() {
 
 export function ListTransferTasks() {
   return window['go']['app']['App']['ListTransferTasks']();
+}
+
+export function ListTransferTasksPaged(arg1) {
+  return window['go']['app']['App']['ListTransferTasksPaged'](arg1);
 }
 
 export function MoveObjects(arg1, arg2) {
@@ -404,6 +404,10 @@ export function SetTransferConcurrency(arg1) {
 
 export function SetTransferSpeedLimit(arg1) {
   return window['go']['app']['App']['SetTransferSpeedLimit'](arg1);
+}
+
+export function ShowPathInFileManager(arg1) {
+  return window['go']['app']['App']['ShowPathInFileManager'](arg1);
 }
 
 export function SupportedProviders() {

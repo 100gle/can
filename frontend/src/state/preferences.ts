@@ -1,4 +1,3 @@
-import { offlineManager } from "@/lib/offline";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
@@ -9,8 +8,6 @@ export type ThemeSelection = "light" | "dark";
 export type DatabaseDriver = "sqlite" | "memory";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
-
-export type CacheSize = 10 | 50 | 100 | 500; // MB
 
 export type AdvancedOptions = {
   databaseDriver: DatabaseDriver;
@@ -33,8 +30,6 @@ type PreferencesState = {
   systemTheme: ThemeSelection;
   advancedOptions: AdvancedOptions;
   viewMode: ViewMode;
-  offlineCacheEnabled: boolean;
-  offlineCacheSize: CacheSize;
   backupEncryptionEnabled: boolean;
   setThemePreference: (value: ThemePreference) => void;
   setSystemTheme: (value: ThemeSelection) => void;
@@ -42,8 +37,6 @@ type PreferencesState = {
   resetAdvancedOptions: () => void;
   resetAllSettings: () => void;
   setViewMode: (mode: ViewMode) => void;
-  setOfflineCacheEnabled: (enabled: boolean) => void;
-  setOfflineCacheSize: (size: CacheSize) => void;
   setBackupEncryptionEnabled: (enabled: boolean) => void;
 };
 
@@ -72,10 +65,9 @@ const getBrowserStorage = (): StateStorage => {
   return storage as StateStorage;
 };
 
-const jsonStorage =
-  createJSONStorage<Pick<PreferencesState, "themePreference" | "advancedOptions">>(
-    getBrowserStorage,
-  );
+const jsonStorage = createJSONStorage<
+  Pick<PreferencesState, "themePreference" | "advancedOptions">
+>(() => getBrowserStorage());
 
 const cloneDefaultAdvancedOptions = (): AdvancedOptions => ({ ...DEFAULT_ADVANCED_OPTIONS });
 
@@ -86,8 +78,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       systemTheme: "light",
       advancedOptions: cloneDefaultAdvancedOptions(),
       viewMode: "grid",
-      offlineCacheEnabled: true,
-      offlineCacheSize: 100,
       backupEncryptionEnabled: false,
       setThemePreference: (value) => set({ themePreference: value }),
       setSystemTheme: (value) => set({ systemTheme: value }),
@@ -101,13 +91,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           themePreference: "system",
           advancedOptions: cloneDefaultAdvancedOptions(),
           viewMode: "grid",
-          offlineCacheEnabled: true,
-          offlineCacheSize: 100,
           backupEncryptionEnabled: false,
         }),
       setViewMode: (mode) => set({ viewMode: mode }),
-      setOfflineCacheEnabled: (enabled) => set({ offlineCacheEnabled: enabled }),
-      setOfflineCacheSize: (size) => set({ offlineCacheSize: size }),
       setBackupEncryptionEnabled: (enabled) => set({ backupEncryptionEnabled: enabled }),
     }),
     {
@@ -117,8 +103,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         themePreference: state.themePreference,
         advancedOptions: state.advancedOptions,
         viewMode: state.viewMode,
-        offlineCacheEnabled: state.offlineCacheEnabled,
-        offlineCacheSize: state.offlineCacheSize,
         backupEncryptionEnabled: state.backupEncryptionEnabled,
       }),
     },
@@ -169,13 +153,4 @@ const hydrateFromLegacyKeys = () => {
 
 if (typeof window !== "undefined") {
   hydrateFromLegacyKeys();
-
-  // Subscribe to offlineCacheSize changes
-  let previousSize = usePreferencesStore.getState().offlineCacheSize;
-  usePreferencesStore.subscribe((state) => {
-    if (state.offlineCacheSize !== previousSize) {
-      previousSize = state.offlineCacheSize;
-      offlineManager.configure({ cacheSizeMB: state.offlineCacheSize });
-    }
-  });
 }

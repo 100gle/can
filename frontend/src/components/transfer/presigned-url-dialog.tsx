@@ -14,10 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { isDesktopMode } from "@/lib/bridge";
 import { GenerateAccessLinks } from "@wailsjs/go/app/App";
 import { objects } from "@wailsjs/go/models";
-import { Clipboard, History, Loader2, QrCode, X } from "lucide-react";
+import { Clipboard, Loader2, QrCode, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LinkHistoryPanel } from "./link-history-panel";
+
 import { SecurityTips } from "./security-tips";
 
 type HeaderEntry = { id: string; key: string; value: string };
@@ -60,7 +60,6 @@ export const PresignedURLDialog = ({
   const [generatedLink, setGeneratedLink] = useState<objects.AccessLink | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   const bridgeReady = isDesktopMode();
 
@@ -138,9 +137,6 @@ export const PresignedURLDialog = ({
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle>{t("presigned.title")}</DialogTitle>
-              <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)}>
-                <History className="mr-1 h-4 w-4" /> {t("presigned.button.history")}
-              </Button>
             </div>
             <div className="text-sm text-muted-foreground truncate max-w-lg">
               {bucket}/{objectKey}
@@ -363,8 +359,6 @@ export const PresignedURLDialog = ({
           </div>
         </DialogContent>
       </Dialog>
-
-      <LinkHistoryPanel open={historyOpen} onOpenChange={setHistoryOpen} />
     </>
   );
 };

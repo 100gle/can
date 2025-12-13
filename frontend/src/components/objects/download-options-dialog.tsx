@@ -13,10 +13,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { showWarning } from "@/lib/toast";
 import type { ObjectModel } from "@/state/objects";
 import { objectsStore, useObjectsStore } from "@/state/objects";
-import { SelectLocalFolder } from "@wailsjs/go/app/App";
+import { GetDefaultDownloadDir, SelectLocalFolder } from "@wailsjs/go/app/App";
 import { objects as ObjectModels } from "@wailsjs/go/models";
 import { FolderSearch2, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type DownloadOptionsDialogProps = {
@@ -59,6 +59,17 @@ export function DownloadOptionsDialog({
   const totalSize = useMemo(() => {
     return objects.reduce((sum, object) => sum + (object.size ?? 0), 0);
   }, [objects]);
+
+  // Load default download directory when dialog opens
+  useEffect(() => {
+    if (open && !targetDir) {
+      GetDefaultDownloadDir()
+        .then((dir) => {
+          if (dir) setTargetDir(dir);
+        })
+        .catch(console.error);
+    }
+  }, [open, targetDir]);
 
   const resetState = () => {
     setTargetDir("");
@@ -142,11 +153,9 @@ export function DownloadOptionsDialog({
           <div className="space-y-2">
             <Label>{t("objects.downloadOptions.label.targetDir")}</Label>
             <div className="flex items-center gap-2">
-              <Input
-                value={targetDir}
-                onChange={(e) => setTargetDir(e.target.value)}
-                placeholder={t("objects.downloadOptions.placeholder.targetDir")}
-              />
+              <div className="flex-1 rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground truncate">
+                {targetDir || t("objects.downloadOptions.placeholder.targetDir")}
+              </div>
               <Button variant="outline" onClick={handlePickDirectory}>
                 <FolderSearch2 className="mr-2 h-4 w-4" />{" "}
                 {t("objects.downloadOptions.button.browse")}

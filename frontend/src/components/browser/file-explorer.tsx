@@ -232,8 +232,6 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             onCloseSearch={controller.goToRoot}
             viewMode={controller.viewMode}
             onViewModeChange={controller.setViewMode}
-            isFromCache={controller.isFromCache}
-            lastSync={controller.lastSync}
             selectedKeys={controller.selectedKeys}
             canCreateSymlink={controller.canCreateSymlink}
             uploading={actions.uploading}
@@ -243,6 +241,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
             onDownloadClick={() => setDownloadDialogOpen(true)}
             onMoveCopyClick={() => setMoveCopyDialogOpen(true)}
             onDeleteSelectedClick={() => setDeleteSelectedDialogOpen(true)}
+            onClearSelection={controller.clearSelection}
           />
 
           {controller.level === "search" ? (

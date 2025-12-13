@@ -16,6 +16,10 @@ import (
 	"can/internal/storage"
 
 	"can/internal/types"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func TestEnqueueUploadCompletes(t *testing.T) {
@@ -381,7 +385,7 @@ func tempFile(t *testing.T, data []byte) string {
 
 func newTestTransferService(t *testing.T, driver storage.ObjectDriver) (*Service, string) {
 	t.Helper()
-	store := accounts.NewMemoryStore()
+	store := newTestAccountsStore(t)
 	cipher := accounts.NoopCipher{}
 	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()
@@ -403,7 +407,7 @@ func newTestTransferService(t *testing.T, driver storage.ObjectDriver) (*Service
 	factory := &fakeStorageFactory{client: &fakeStorageClient{objects: driver}}
 	pool := storage.NewClientPool(factory)
 	accountSvc.SetClientPool(pool)
-	transferStore := NewMemoryStore()
+	transferStore := newTestTransferStore(t)
 	svc := NewService(accountSvc, pool, transferStore, WithWorkerCount(1), WithQueueSize(1))
 	return svc, account.ID
 }
@@ -603,14 +607,14 @@ func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, storage.PutObject
 
 func TestWorkerScalingRace(t *testing.T) {
 	driver := newFakeObjectDriver()
-	store := accounts.NewMemoryStore()
+	store := newTestAccountsStore(t)
 	cipher := accounts.NoopCipher{}
 	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, session)
 	pool := storage.NewClientPool(&fakeStorageFactory{client: &fakeStorageClient{objects: driver}})
 	// Start with 100 workers to increase chance of race
-	svc := NewService(accountSvc, pool, NewMemoryStore(), WithWorkerCount(100))
+	svc := NewService(accountSvc, pool, newTestTransferStore(t), WithWorkerCount(100))
 
 	waitForActiveWorkers(t, svc, 100, 2*time.Second)
 
@@ -636,4 +640,30 @@ func waitForActiveWorkers(t *testing.T, svc *Service, expected int, timeout time
 	active := svc.activeWorkers
 	svc.mu.RUnlock()
 	t.Fatalf("expected %d active workers within %s, but have %d", expected, timeout, active)
+}
+
+func newTestTransferStore(t *testing.T) Store {
+	path := filepath.Join(t.TempDir(), "transfer.db")
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("init store: %v", err)
+	}
+	return store
+}
+
+func newTestAccountsStore(t *testing.T) accounts.Store {
+	path := filepath.Join(t.TempDir(), "accounts.db")
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	store, err := accounts.NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("init accounts store: %v", err)
+	}
+	return store
 }

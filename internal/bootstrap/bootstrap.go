@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"can/internal/accounts"
-	"can/internal/objects"
 	"can/internal/search"
 	"can/internal/transfer"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const defaultRequestTimeout = 60 * time.Second
@@ -31,88 +34,58 @@ func ResolveRequestTimeout() time.Duration {
 	return defaultRequestTimeout
 }
 
-func InitAccountsStore() accounts.Store {
-	driver := strings.TrimSpace(os.Getenv("CAN_DB_DRIVER"))
-	if driver == "" {
-		driver = "sqlite"
+// Shared global DB instance to prevent multiple connections
+var sharedDB *gorm.DB
+
+func InitSharedStore() *gorm.DB {
+	if sharedDB != nil {
+		return sharedDB
 	}
-	switch strings.ToLower(driver) {
-	case "memory":
-		return accounts.NewMemoryStore()
-	case "sqlite":
-		dsn := strings.TrimSpace(os.Getenv("CAN_DB_DSN"))
-		if dsn == "" {
-			path, err := DefaultSQLitePath()
-			if err != nil {
-				fmt.Printf("failed to resolve default sqlite path, fallback to memory: %v\n", err)
-				break
-			}
-			dsn = path
-		}
-		store, err := accounts.NewSQLiteStore(dsn)
+
+	path := strings.TrimSpace(os.Getenv("CAN_DB_DSN"))
+	if path == "" {
+		dir, err := DefaultDataDir()
 		if err != nil {
-			fmt.Printf("failed to init sqlite store (%s): %v\n", dsn, err)
-			break
+			panic(fmt.Sprintf("failed to resolve default data dir: %v", err))
 		}
-		return store
-	default:
-		fmt.Printf("unknown CAN_DB_DRIVER %q, fallback to sqlite\n", driver)
-		os.Setenv("CAN_DB_DRIVER", "sqlite")
-		return InitAccountsStore()
+		path = filepath.Join(dir, "can.db")
 	}
-	return accounts.NewMemoryStore()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		panic(fmt.Sprintf("prepare db directory: %v", err))
+	}
+
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		panic(fmt.Sprintf("failed to open shared database (%s): %v", path, err))
+	}
+	sharedDB = db
+	return db
 }
 
-func InitTransferStore() transfer.Store {
-	path := strings.TrimSpace(os.Getenv("CAN_TRANSFER_DB"))
-	if path == "" {
-		var err error
-		path, err = DefaultTransferPath()
-		if err != nil {
-			fmt.Printf("failed to resolve default transfer db path, using memory store: %v\n", err)
-			return transfer.NewMemoryStore()
-		}
-	}
-	store, err := transfer.NewSQLiteStore(path)
+func InitAccountsStore() accounts.Store {
+	db := InitSharedStore()
+	store, err := accounts.NewSQLiteStore(db)
 	if err != nil {
-		fmt.Printf("failed to init transfer sqlite store (%s): %v\n", path, err)
-		return transfer.NewMemoryStore()
+		panic(fmt.Sprintf("failed to init accounts store: %v", err))
 	}
 	return store
 }
 
-func InitLinkHistoryStore() objects.LinkHistoryStore {
-	path := strings.TrimSpace(os.Getenv("CAN_LINK_DB"))
-	if path == "" {
-		if dir, derr := DefaultDataDir(); derr == nil {
-			path = filepath.Join(dir, "links.db")
-		} else {
-			fmt.Printf("failed to resolve default link history path, using memory store: %v\n", derr)
-			return objects.NewMemoryLinkHistoryStore()
-		}
-	}
-	store, err := objects.NewSQLiteLinkHistoryStore(path)
+func InitTransferStore() transfer.Store {
+	db := InitSharedStore()
+	store, err := transfer.NewSQLiteStore(db)
 	if err != nil {
-		fmt.Printf("failed to init link history sqlite store (%s): %v\n", path, err)
-		return objects.NewMemoryLinkHistoryStore()
+		panic(fmt.Sprintf("failed to init transfer store: %v", err))
 	}
 	return store
 }
 
 func InitSearchStore() search.SavedQueryStore {
-	path := strings.TrimSpace(os.Getenv("CAN_SEARCH_DB"))
-	if path == "" {
-		var err error
-		path, err = defaultSearchPath()
-		if err != nil {
-			fmt.Printf("failed to resolve default search db path, using memory store: %v\n", err)
-			return search.NewMemorySavedQueryStore()
-		}
-	}
-	store, err := search.NewSQLiteStore(path)
+	db := InitSharedStore()
+	store, err := search.NewSQLiteStore(db)
 	if err != nil {
-		fmt.Printf("failed to init search sqlite store (%s): %v\n", path, err)
-		return search.NewMemorySavedQueryStore()
+		panic(fmt.Sprintf("failed to init search store: %v", err))
 	}
 	return store
 }
@@ -122,31 +95,7 @@ func DefaultSQLitePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "accounts.db"), nil
-}
-
-func DefaultTransferPath() (string, error) {
-	dir, err := DefaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "transfers.db"), nil
-}
-
-func defaultSearchPath() (string, error) {
-	dir, err := DefaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "search.db"), nil
-}
-
-func DefaultAuditPath() (string, error) {
-	dir, err := DefaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "audit.db"), nil
+	return filepath.Join(dir, "can.db"), nil
 }
 
 func DefaultDataDir() (string, error) {

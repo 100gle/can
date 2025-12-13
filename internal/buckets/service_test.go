@@ -9,6 +9,9 @@ import (
 	"can/internal/accounts"
 	"can/internal/storage"
 
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+
 	"can/internal/types"
 )
 
@@ -143,7 +146,14 @@ func TestClientRequiresAccountID(t *testing.T) {
 
 func newTestBucketService(t *testing.T, driver *fakeBucketDriver) (*Service, string) {
 	t.Helper()
-	store := accounts.NewMemoryStore()
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open memory db: %v", err)
+	}
+	store, err := accounts.NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("failed to create sqlite store: %v", err)
+	}
 	cipher := accounts.NoopCipher{}
 	dialer := &fakeDialer{}
 	session := accounts.NewMemorySessionStore()

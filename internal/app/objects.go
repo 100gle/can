@@ -272,17 +272,3 @@ func (a *App) UpdateObjectLegalHold(accountID string, input objects.UpdateObject
 	defer cancel()
 	return a.objects.UpdateObjectLegalHold(ctx, accountID, input)
 }
-
-// ListAccessLinkHistory returns stored presigned link history for an account.
-func (a *App) ListAccessLinkHistory(accountID string, limit int) ([]objects.LinkHistoryEntry, error) {
-	ctx, cancel := a.backgroundContext()
-	defer cancel()
-	return a.objects.ListAccessLinkHistory(ctx, accountID, limit)
-}
-
-// DeleteAccessLinkHistory removes a single history item.
-func (a *App) DeleteAccessLinkHistory(accountID, linkID string) error {
-	ctx, cancel := a.backgroundContext()
-	defer cancel()
-	return a.objects.DeleteAccessLinkHistory(ctx, accountID, linkID)
-}

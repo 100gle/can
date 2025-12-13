@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -35,6 +36,32 @@ func (a *App) SelectLocalFolder(title string) (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: title,
 	})
+}
+
+// GetDefaultDownloadDir returns the user's default downloads directory.
+// Falls back to temp directory if downloads directory is not available.
+func (a *App) GetDefaultDownloadDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return os.TempDir()
+	}
+	downloadsDir := filepath.Join(home, "Downloads")
+	if info, err := os.Stat(downloadsDir); err == nil && info.IsDir() {
+		return downloadsDir
+	}
+	return os.TempDir()
+}
+
+// ShowPathInFileManager reveals a file or folder in the system file manager.
+// On macOS this opens Finder with the file selected.
+func (a *App) ShowPathInFileManager(path string) error {
+	path = filepath.Clean(path)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("path does not exist: %s", path)
+	}
+	// On macOS, use 'open -R' to reveal in Finder
+	cmd := exec.Command("open", "-R", path)
+	return cmd.Start()
 }
 
 // SaveFileDialog prompts the user to select a save location for a file.

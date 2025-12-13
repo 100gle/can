@@ -2,11 +2,16 @@ package search
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-func TestMemorySavedQueryStore_CRUD(t *testing.T) {
-	store := NewMemorySavedQueryStore()
+func TestSQLiteSavedQueryStore_CRUD(t *testing.T) {
+	store := newTestSavedQueryStore(t)
 	ctx := context.Background()
 
 	// Create
@@ -69,8 +74,8 @@ func TestMemorySavedQueryStore_CRUD(t *testing.T) {
 	}
 }
 
-func TestMemorySavedQueryStore_GetNotFound(t *testing.T) {
-	store := NewMemorySavedQueryStore()
+func TestSQLiteSavedQueryStore_GetNotFound(t *testing.T) {
+	store := newTestSavedQueryStore(t)
 	ctx := context.Background()
 
 	_, err := store.Get(ctx, "non-existent-id")
@@ -79,8 +84,8 @@ func TestMemorySavedQueryStore_GetNotFound(t *testing.T) {
 	}
 }
 
-func TestMemorySavedQueryStore_UpdateNotFound(t *testing.T) {
-	store := NewMemorySavedQueryStore()
+func TestSQLiteSavedQueryStore_UpdateNotFound(t *testing.T) {
+	store := newTestSavedQueryStore(t)
 	ctx := context.Background()
 
 	query := &SavedQuery{
@@ -94,7 +99,7 @@ func TestMemorySavedQueryStore_UpdateNotFound(t *testing.T) {
 }
 
 func TestSaveQuery_Validation(t *testing.T) {
-	svc := NewService(nil, nil, nil)
+	svc := NewService(nil, nil, newTestSavedQueryStore(t))
 	ctx := context.Background()
 
 	// Empty name
@@ -111,7 +116,7 @@ func TestSaveQuery_Validation(t *testing.T) {
 }
 
 func TestDeleteSavedQuery_Validation(t *testing.T) {
-	svc := NewService(nil, nil, nil)
+	svc := NewService(nil, nil, newTestSavedQueryStore(t))
 	ctx := context.Background()
 
 	err := svc.DeleteSavedQuery(ctx, "")
@@ -121,7 +126,7 @@ func TestDeleteSavedQuery_Validation(t *testing.T) {
 }
 
 func TestServiceSavedQueries_Integration(t *testing.T) {
-	svc := NewService(nil, nil, nil)
+	svc := NewService(nil, nil, newTestSavedQueryStore(t))
 	ctx := context.Background()
 
 	// Save a query
@@ -160,4 +165,17 @@ func TestServiceSavedQueries_Integration(t *testing.T) {
 	if len(list) != 0 {
 		t.Errorf("Expected empty list after delete, got %d", len(list))
 	}
+}
+
+func newTestSavedQueryStore(t *testing.T) SavedQueryStore {
+	path := filepath.Join(t.TempDir(), "search.db")
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatalf("init store: %v", err)
+	}
+	return store
 }

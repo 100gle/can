@@ -5,15 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // sqliteStore persists saved queries using GORM + SQLite.
@@ -35,18 +30,10 @@ func (sqlSavedQuery) TableName() string {
 	return "saved_queries"
 }
 
-// NewSQLiteStore creates or opens the SQLite database for saved queries.
-func NewSQLiteStore(dsn string) (SavedQueryStore, error) {
-	dsn = strings.TrimSpace(dsn)
-	if dsn == "" {
-		return nil, errors.New("sqlite dsn is required")
-	}
-	if err := os.MkdirAll(filepath.Dir(dsn), 0o755); err != nil {
-		return nil, fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	if err != nil {
-		return nil, fmt.Errorf("open sqlite database: %w", err)
+// NewSQLiteStore creates a new store using the provided GORM database connection.
+func NewSQLiteStore(db *gorm.DB) (SavedQueryStore, error) {
+	if db == nil {
+		return nil, errors.New("db is required")
 	}
 	if err := db.AutoMigrate(&sqlSavedQuery{}); err != nil {
 		return nil, fmt.Errorf("auto migrate saved_queries: %w", err)

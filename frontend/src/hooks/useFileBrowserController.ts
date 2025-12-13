@@ -41,10 +41,6 @@ export interface FileBrowserState {
   pageSize: number;
   totalLoaded: number;
 
-  // Cache states
-  isFromCache: boolean;
-  lastSync: number | undefined;
-
   // Computed
   breadcrumbs: Array<{ label: string; onClick?: () => void }>;
   filteredItems: Array<any>;
@@ -88,8 +84,6 @@ export function useFileBrowserController(
   const buckets = useBucketsStore((state) => state.buckets);
   const bucketsLoading = useBucketsStore((state) => state.loading);
   const bucketsError = useBucketsStore((state) => state.error);
-  const bucketsIsFromCache = useBucketsStore((state) => state.isFromCache);
-  const bucketsLastSync = useBucketsStore((state) => state.lastSync);
 
   // Object state
   const objects = useObjectsStore((state) => state.objects);
@@ -98,8 +92,6 @@ export function useFileBrowserController(
   const objectsError = useObjectsStore((state) => state.error);
   const prefix = useObjectsStore((state) => state.prefix);
   const truncated = useObjectsStore((state) => state.truncated);
-  const objectsIsFromCache = useObjectsStore((state) => state.isFromCache);
-  const objectsLastSync = useObjectsStore((state) => state.lastSync);
   const selectedKeys = useObjectsStore((state) => state.selectedKeys);
   const selectedKeysVersion = useObjectsStore((state) => state.selectedKeysVersion);
   const lastSelectedKey = useObjectsStore((state) => state.lastSelectedKey);
@@ -146,8 +138,6 @@ export function useFileBrowserController(
   // Computed: loading and error
   const loading = level === "buckets" ? bucketsLoading : objectsLoading;
   const error = level === "buckets" ? bucketsError : objectsError;
-  const isFromCache = level === "buckets" ? bucketsIsFromCache : objectsIsFromCache;
-  const lastSync = level === "buckets" ? bucketsLastSync : objectsLastSync;
 
   // Computed: breadcrumbs
   const breadcrumbs = useMemo(() => {
@@ -289,8 +279,6 @@ export function useFileBrowserController(
     loadingMore,
     pageSize,
     totalLoaded: objects.length,
-    isFromCache,
-    lastSync,
     breadcrumbs,
     filteredItems,
     hasActiveFilters,

@@ -14,8 +14,22 @@ type Store interface {
 	Get(ctx context.Context, id string) (*TransferTask, error)
 	List(ctx context.Context) ([]*TransferTask, error)
 	ListByStatus(ctx context.Context, statuses ...TaskStatus) ([]*TransferTask, error)
+	ListPaged(ctx context.Context, input ListPagedInput) (*ListPagedResult, error)
 	CountByStatus(ctx context.Context, statuses ...TaskStatus) (int, error)
 	Delete(ctx context.Context, id string) error
+}
+
+// ListPagedInput contains pagination parameters for listing tasks.
+type ListPagedInput struct {
+	Offset   int          // Starting position (0-based)
+	Limit    int          // Max items to return
+	Statuses []TaskStatus // Optional status filter
+}
+
+// ListPagedResult contains paginated task results.
+type ListPagedResult struct {
+	Tasks []*TransferTask
+	Total int64 // Total count for pagination
 }
 
 type taskRecord struct {

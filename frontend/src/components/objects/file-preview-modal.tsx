@@ -23,10 +23,7 @@ import { useTranslation } from "react-i18next";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { offlineManager } from "@/lib/offline";
 import { objectsStore } from "@/state/objects";
-import { usePreferencesStore } from "@/state/preferences";
 
 type FilePreviewModalProps = {
   open: boolean;
@@ -137,7 +134,6 @@ export function FilePreviewModal({
   const [contentType, setContentType] = useState<string>("text/plain; charset=utf-8");
   const [attributesLoaded, setAttributesLoaded] = useState(false);
   const [textTooLarge, setTextTooLarge] = useState(false);
-  const [isFromCache, setIsFromCache] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fileName = object?.key.split("/").filter(Boolean).pop() ?? "object";
@@ -199,56 +195,13 @@ export function FilePreviewModal({
     setEtag(null);
     setAttributesLoaded(false);
     setTextTooLarge(false);
-    setIsFromCache(false);
   };
 
   const loadPreview = async (account: string, bucketName: string, key: string) => {
     setLoading(true);
     setError(null);
-    setIsFromCache(false);
-    const offlineEnabled = usePreferencesStore.getState().offlineCacheEnabled;
     try {
       const headers = { "content-disposition": "inline" };
-      const supportsOfflineText =
-        offlineEnabled && (previewKind === "text" || previewKind === "markdown");
-
-      if (supportsOfflineText) {
-        let latestUrl: string | null = null;
-        const result = await offlineManager.getFileContent(
-          { accountId: account, bucket: bucketName, key },
-          async () => {
-            const [url, attrs] = await Promise.all([
-              GetPresignedDownloadURLWithHeaders(account, bucketName, key, 10, headers),
-              GetObjectAttributes(account, bucketName, key),
-            ]);
-            latestUrl = url;
-            const response = await fetch(url);
-            if (!response.ok) {
-              throw new Error(t("objects.preview.error.load"));
-            }
-            const text = await response.text();
-            const contentTypeValue =
-              attrs.object.contentType || contentTypeFromExtension(extension);
-            setAttributesLoaded(true);
-            return {
-              content: text,
-              contentType: contentTypeValue,
-              etag: attrs.object.etag || undefined,
-            };
-          },
-        );
-
-        if (typeof result.content === "string") {
-          setTextContent(result.content);
-          setEditorValue(result.content);
-        }
-        setContentType(result.contentType);
-        setEtag(result.etag || null);
-        setAttributesLoaded(true);
-        setIsFromCache(result.source === "cache");
-        setPreviewUrl(latestUrl);
-        return;
-      }
 
       // 1. Get URL first (Critical)
       const url = await GetPresignedDownloadURLWithHeaders(account, bucketName, key, 10, headers);
@@ -290,10 +243,6 @@ export function FilePreviewModal({
     if (!accountId || !bucket || !object) return;
     if (!attributesLoaded) {
       toast.error(t("objects.preview.error.noMetadata"));
-      return;
-    }
-    if (isFromCache) {
-      toast.error(t("objects.preview.error.offlineSave"));
       return;
     }
     if (mode !== "edit") {
@@ -565,11 +514,6 @@ export function FilePreviewModal({
             {renderPreviewPane()}
 
             <div className="grid gap-4 rounded-md border border-border/60 p-4 text-sm relative">
-              {isFromCache && (
-                <Badge variant="default" className="absolute right-2 top-2">
-                  {t("objects.preview.offlineParams")}
-                </Badge>
-              )}
               <div className="grid gap-2 md:grid-cols-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">

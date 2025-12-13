@@ -73,7 +73,7 @@ export function TreeView({
   onSelectAll: _onSelectAll,
   onSelectRange,
   onSetLastSelectedKey,
-  onClearSelection,
+  onClearSelection: _onClearSelection,
   onPreview,
   onDownload,
   onCopyLink,
@@ -235,19 +235,9 @@ export function TreeView({
       onToggleSelect(key);
       onSetLastSelectedKey(key);
     } else {
-      // Plain click
-      const isSelected = selectedKeys.has(key);
-      const isOnlyOne = selectedKeys.size === 1 && isSelected;
-
-      if (isOnlyOne) {
-        // Clicking the only selected item again clears selection
-        onClearSelection();
-      } else {
-        // Select only this item
-        onClearSelection();
-        onToggleSelect(key);
-        onSetLastSelectedKey(key);
-      }
+      // Plain click: Toggle selection (same as checkbox behavior)
+      onToggleSelect(key);
+      onSetLastSelectedKey(key);
     }
   };
 
