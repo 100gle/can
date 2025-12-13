@@ -52,33 +52,11 @@ export default function HomePage() {
       });
   };
 
-  const handleImportAccounts = () => {
-    void accountsStore
-      .importAccounts()
-      .then((summary) => {
-        if (!summary || summary.cancelled) return;
-        const message = [
-          t("home.import.success", { imported: summary.imported, total: summary.total }),
-          summary.skipped ? t("home.import.skipped", { skipped: summary.skipped }) : null,
-          summary.failed ? t("home.import.failed", { failed: summary.failed }) : null,
-        ].filter(Boolean);
-        if (summary.issues?.length) {
-          message.push(t("home.import.details"));
-          summary.issues.forEach((issue) => message.push(`- ${issue}`));
-        }
-        showSuccess(message.join("\n"));
-      })
-      .catch((err: Error) => {
-        showError(t("home.import.error", { error: err?.message ?? "Unknown error" }));
-      });
-  };
-
   return (
     <HomeLayout>
       <AccountSelector
         onCreateAccount={() => openDrawer("create")}
         onEditAccount={(account) => openDrawer("edit", account)}
-        onImportAccount={handleImportAccounts}
         onExportAccount={handleExportAccounts}
       />
       {drawerState.open && (

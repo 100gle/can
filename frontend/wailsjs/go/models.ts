@@ -36,6 +36,64 @@ export namespace accounts {
 	        this.updatedAt = source["updatedAt"];
 	    }
 	}
+	export class BatchImportError {
+	    index: number;
+	    name: string;
+	    field: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchImportError(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.name = source["name"];
+	        this.field = source["field"];
+	        this.message = source["message"];
+	    }
+	}
+	export class BatchImportSummary {
+	    total: number;
+	    imported: number;
+	    skipped: number;
+	    failed: number;
+	    errors: BatchImportError[];
+	    cancelled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchImportSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.imported = source["imported"];
+	        this.skipped = source["skipped"];
+	        this.failed = source["failed"];
+	        this.errors = this.convertValues(source["errors"], BatchImportError);
+	        this.cancelled = source["cancelled"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ConnectionTestResult {
 	    accountId: string;
 	    provider: string;

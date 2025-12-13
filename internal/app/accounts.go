@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"can/internal/accounts"
@@ -166,4 +167,88 @@ func (a *App) HasProviderCapability(accountID string, featureID string) (bool, e
 		return false, err
 	}
 	return types.HasCapability(creds.Provider, types.FeatureID(featureID)), nil
+}
+
+// ImportAccountsBatch batch imports accounts from a CSV or JSON file selected via OpenFileDialog.
+func (a *App) ImportAccountsBatch() (accounts.BatchImportSummary, error) {
+	var summary accounts.BatchImportSummary
+	if a.ctx == nil {
+		return summary, errors.New("application context not ready")
+	}
+
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "批量导入账户",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "CSV 文件 (*.csv)", Pattern: "*.csv"},
+			{DisplayName: "JSON 文件 (*.json)", Pattern: "*.json"},
+		},
+	})
+	if err != nil {
+		return summary, err
+	}
+	if path == "" {
+		summary.Cancelled = true
+		return summary, nil
+	}
+
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return summary, err
+	}
+
+	// Determine format from file extension
+	format := "json"
+	if strings.HasSuffix(strings.ToLower(path), ".csv") {
+		format = "csv"
+	}
+
+	ctx, cancel := a.backgroundContext()
+	defer cancel()
+
+	result, err := a.accounts.ImportBatchData(ctx, blob, format)
+	if err != nil {
+		return summary, err
+	}
+
+	summary.Total = result.Total
+	summary.Imported = result.Imported
+	summary.Skipped = result.Skipped
+	summary.Failed = result.Failed
+	summary.Errors = result.Errors
+
+	return summary, nil
+}
+
+// DownloadImportTemplate saves an import template file via SaveFileDialog.
+func (a *App) DownloadImportTemplate(format string) error {
+	if a.ctx == nil {
+		return errors.New("application context not ready")
+	}
+
+	var filename string
+	var content []byte
+
+	switch strings.ToLower(format) {
+	case "csv":
+		filename = "账户导入模板.csv"
+		content = accounts.GenerateCSVTemplate()
+	case "json":
+		filename = "账户导入模板.json"
+		content = accounts.GenerateJSONTemplate()
+	default:
+		return fmt.Errorf("不支持的格式: %s", format)
+	}
+
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "保存导入模板",
+		DefaultFilename: filename,
+	})
+	if err != nil {
+		return err
+	}
+	if path == "" {
+		return nil // User cancelled
+	}
+
+	return os.WriteFile(path, content, 0o644)
 }

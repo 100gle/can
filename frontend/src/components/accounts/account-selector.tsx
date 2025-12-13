@@ -24,18 +24,17 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccountCardGrid } from "./account-card-grid";
+import { ImportDialog } from "./import-dialog";
 
 type AccountSelectorProps = {
   onCreateAccount: () => void;
   onEditAccount: (account: AccountModel) => void;
-  onImportAccount?: () => void;
   onExportAccount?: () => void;
 };
 
 export const AccountSelector = ({
   onCreateAccount,
   onEditAccount,
-  onImportAccount,
   onExportAccount,
 }: AccountSelectorProps) => {
   const { t } = useTranslation("common");
@@ -45,6 +44,7 @@ export const AccountSelector = ({
   const error = useAccountsStore((state) => state.error);
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [pendingDelete, setPendingDelete] = useState<AccountModel | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     void accountsStore.bootstrap();
@@ -97,7 +97,7 @@ export const AccountSelector = ({
     }
 
     if (!accounts.length) {
-      return <EmptyState onCreate={onCreateAccount} onImport={onImportAccount} />;
+      return <EmptyState onCreate={onCreateAccount} onImport={() => setImportOpen(true)} />;
     }
 
     return (
@@ -131,7 +131,12 @@ export const AccountSelector = ({
                 {/* Mobile Tabs List for smaller screens */}
 
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" className="gap-2" onClick={onImportAccount}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setImportOpen(true)}
+                  >
                     <UploadCloud className="h-4 w-4" />
                     {t("account.selector.action.import")}
                   </Button>
@@ -191,6 +196,12 @@ export const AccountSelector = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onSuccess={() => void accountsStore.refresh()}
+      />
     </section>
   );
 };

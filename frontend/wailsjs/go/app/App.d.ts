@@ -72,6 +72,8 @@ export function DisableBucketMAZ(arg1:string,arg2:string):Promise<void>;
 
 export function DownloadBatch(arg1:string,arg2:objects.DownloadBatchInput):Promise<transfer.TransferTask>;
 
+export function DownloadImportTemplate(arg1:string):Promise<void>;
+
 export function DownloadObject(arg1:string,arg2:string,arg3:string,arg4:string):Promise<transfer.TransferTask>;
 
 export function DownloadObjectWithOptions(arg1:string,arg2:objects.DownloadObjectInput):Promise<transfer.TransferTask>;
@@ -141,6 +143,8 @@ export function HeadBucket(arg1:string,arg2:string):Promise<void>;
 export function HeadObject(arg1:string,arg2:string,arg3:string):Promise<objects.ObjectInfo>;
 
 export function ImportAccounts():Promise<accounts.ImportSummary>;
+
+export function ImportAccountsBatch():Promise<accounts.BatchImportSummary>;
 
 export function InitiateMultipartUpload(arg1:string,arg2:string,arg3:string):Promise<string>;
 

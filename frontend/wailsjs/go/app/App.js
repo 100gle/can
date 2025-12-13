@@ -122,6 +122,10 @@ export function DownloadBatch(arg1, arg2) {
   return window['go']['app']['App']['DownloadBatch'](arg1, arg2);
 }
 
+export function DownloadImportTemplate(arg1) {
+  return window['go']['app']['App']['DownloadImportTemplate'](arg1);
+}
+
 export function DownloadObject(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['DownloadObject'](arg1, arg2, arg3, arg4);
 }
@@ -260,6 +264,10 @@ export function HeadObject(arg1, arg2, arg3) {
 
 export function ImportAccounts() {
   return window['go']['app']['App']['ImportAccounts']();
+}
+
+export function ImportAccountsBatch() {
+  return window['go']['app']['App']['ImportAccountsBatch']();
 }
 
 export function InitiateMultipartUpload(arg1, arg2, arg3) {

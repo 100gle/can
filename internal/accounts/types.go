@@ -116,3 +116,43 @@ type ImportSummary struct {
 	Issues    []string `json:"issues"`
 	Cancelled bool     `json:"cancelled"`
 }
+
+// BatchImportInput represents a single account entry for CSV/JSON batch import (plaintext format).
+type BatchImportInput struct {
+	Name            string `json:"name"`
+	Tag             string `json:"tag"`
+	Provider        string `json:"provider"`
+	Endpoint        string `json:"endpoint"`
+	Region          string `json:"region"`
+	UseSSL          bool   `json:"useSSL"`
+	Port            int    `json:"port"`
+	AccessKeyID     string `json:"accessKeyId"`
+	SecretAccessKey string `json:"secretAccessKey"`
+}
+
+// BatchImportError describes a single record import failure.
+type BatchImportError struct {
+	Index   int    `json:"index"`   // Record index (1-based)
+	Name    string `json:"name"`    // Account name (if parseable)
+	Field   string `json:"field"`   // Field that caused the error (optional)
+	Message string `json:"message"` // Error message
+}
+
+// BatchImportResult captures the outcome of batch importing accounts.
+type BatchImportResult struct {
+	Total    int                `json:"total"`    // Total record count
+	Imported int                `json:"imported"` // Successfully imported
+	Skipped  int                `json:"skipped"`  // Skipped (duplicates)
+	Failed   int                `json:"failed"`   // Failed count
+	Errors   []BatchImportError `json:"errors"`   // Failure details
+}
+
+// BatchImportSummary is returned to the frontend after batch import.
+type BatchImportSummary struct {
+	Total     int                `json:"total"`
+	Imported  int                `json:"imported"`
+	Skipped   int                `json:"skipped"`
+	Failed    int                `json:"failed"`
+	Errors    []BatchImportError `json:"errors"`
+	Cancelled bool               `json:"cancelled"`
+}
