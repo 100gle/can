@@ -23,7 +23,7 @@ import (
 )
 
 func TestEnqueueUploadCompletes(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	svc, accountID := newTestTransferService(t, driver)
 	file := tempFile(t, []byte("hello world"))
 	task, err := svc.EnqueueUpload(context.Background(), UploadRequest{
@@ -42,7 +42,7 @@ func TestEnqueueUploadCompletes(t *testing.T) {
 }
 
 func TestEnqueueDownloadCreatesFile(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	driver.setObject("docs", "report.pdf", []byte("download-me"))
 	svc, accountID := newTestTransferService(t, driver)
 	dir := t.TempDir()
@@ -67,7 +67,7 @@ func TestEnqueueDownloadCreatesFile(t *testing.T) {
 }
 
 func TestDownloadResumesFromExistingFile(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	payload := bytes.Repeat([]byte("resume"), 512)
 	driver.setObject("docs", "big.bin", payload)
 	svc, accountID := newTestTransferService(t, driver)
@@ -103,7 +103,7 @@ func TestDownloadResumesFromExistingFile(t *testing.T) {
 }
 
 func TestArchiveDownloadCreatesZip(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	driver.setObject("docs", "a.txt", []byte("alpha"))
 	driver.setObject("docs", "folder/b.txt", []byte("beta"))
 	svc, accountID := newTestTransferService(t, driver)
@@ -152,7 +152,7 @@ func TestArchiveDownloadCreatesZip(t *testing.T) {
 }
 
 func TestArchiveDownloadUnknownSizesUpdateTotal(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	alpha := []byte("alpha")
 	beta := []byte("beta-data")
 	driver.setObject("docs", "alpha.bin", alpha)
@@ -180,7 +180,7 @@ func TestArchiveDownloadUnknownSizesUpdateTotal(t *testing.T) {
 }
 
 func TestDownloadRenameConflict(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	driver.setObject("docs", "report.pdf", []byte("new"))
 	svc, accountID := newTestTransferService(t, driver)
 	dir := t.TempDir()
@@ -213,7 +213,7 @@ func TestDownloadRenameConflict(t *testing.T) {
 }
 
 func TestPauseTaskUpdatesStatus(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	// Create a large file to give us time to pause
 	payload := bytes.Repeat([]byte("x"), 1024*100)
 	driver.setObject("docs", "large.bin", payload)
@@ -253,7 +253,7 @@ func TestPauseTaskUpdatesStatus(t *testing.T) {
 }
 
 func TestPauseAllAndResumePendingRespectReason(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	payload := bytes.Repeat([]byte("net"), 1024*256)
 	driver.setObject("docs", "one.bin", payload)
 	driver.setObject("docs", "two.bin", payload)
@@ -314,7 +314,7 @@ func TestPauseAllAndResumePendingRespectReason(t *testing.T) {
 }
 
 func TestCancelTaskStopsExecution(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	// Create a file
 	driver.setObject("docs", "file.bin", []byte("content"))
 	svc, accountID := newTestTransferService(t, driver)
@@ -383,7 +383,7 @@ func tempFile(t *testing.T, data []byte) string {
 	return file.Name()
 }
 
-func newTestTransferService(t *testing.T, driver storage.ObjectDriver) (*Service, string) {
+func newTestTransferService(t *testing.T, driver storage.ObjectAPI) (*Service, string) {
 	t.Helper()
 	store := newTestAccountsStore(t)
 	cipher := accounts.NoopCipher{}
@@ -430,7 +430,7 @@ func (f *fakeStorageFactory) NewClient(context.Context, storage.ConnectionCreden
 }
 
 type fakeStorageClient struct {
-	objects storage.ObjectDriver
+	objects storage.ObjectAPI
 }
 
 func (f *fakeStorageClient) Provider() types.Provider {
@@ -441,51 +441,59 @@ func (f *fakeStorageClient) Capabilities() []types.ProviderCapability {
 	return nil
 }
 
-func (f *fakeStorageClient) Buckets() storage.BucketDriver {
+func (f *fakeStorageClient) Bucket() storage.BucketAPI {
 	return nil
 }
 
-func (f *fakeStorageClient) Objects() storage.ObjectDriver {
+func (f *fakeStorageClient) Object() storage.ObjectAPI {
 	return f.objects
 }
 
-func (f *fakeStorageClient) Security() storage.SecurityDriver {
+func (f *fakeStorageClient) Buckets() storage.BucketAPI {
 	return nil
 }
 
-type fakeObjectDriver struct {
+func (f *fakeStorageClient) Objects() storage.ObjectAPI {
+	return f.objects
+}
+
+func (f *fakeStorageClient) Security() storage.SecurityAPI {
+	return nil
+}
+
+type fakeObjectAPI struct {
 	mu      sync.Mutex
 	objects map[string][]byte
 	last    storage.DownloadObjectInput
 }
 
-func newFakeObjectDriver() *fakeObjectDriver {
-	return &fakeObjectDriver{
+func newFakeObjectAPI() *fakeObjectAPI {
+	return &fakeObjectAPI{
 		objects: make(map[string][]byte),
 	}
 }
 
-func (d *fakeObjectDriver) store(bucket, key string, data []byte) {
+func (d *fakeObjectAPI) store(bucket, key string, data []byte) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.objects[bucket+":"+key] = append([]byte(nil), data...)
 }
 
-func (d *fakeObjectDriver) object(bucket, key string) []byte {
+func (d *fakeObjectAPI) object(bucket, key string) []byte {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return append([]byte(nil), d.objects[bucket+":"+key]...)
 }
 
-func (d *fakeObjectDriver) setObject(bucket, key string, data []byte) {
+func (d *fakeObjectAPI) setObject(bucket, key string, data []byte) {
 	d.store(bucket, key, data)
 }
 
-func (d *fakeObjectDriver) ListObjects(context.Context, storage.ListObjectsInput) (storage.ListObjectsResult, error) {
+func (d *fakeObjectAPI) ListObjects(context.Context, storage.ListObjectsInput) (storage.ListObjectsResult, error) {
 	return storage.ListObjectsResult{}, nil
 }
 
-func (d *fakeObjectDriver) UploadObject(ctx context.Context, bucket, key string, body io.Reader, _ int64, _ string) error {
+func (d *fakeObjectAPI) UploadObject(ctx context.Context, bucket, key string, body io.Reader, _ int64, _ string) error {
 	payload, err := io.ReadAll(body)
 	if err != nil {
 		return err
@@ -494,7 +502,7 @@ func (d *fakeObjectDriver) UploadObject(ctx context.Context, bucket, key string,
 	return nil
 }
 
-func (d *fakeObjectDriver) DownloadObject(ctx context.Context, input storage.DownloadObjectInput) (storage.ObjectDownload, error) {
+func (d *fakeObjectAPI) DownloadObject(ctx context.Context, input storage.DownloadObjectInput) (storage.ObjectDownload, error) {
 	d.mu.Lock()
 	d.last = input
 	d.mu.Unlock()
@@ -521,92 +529,92 @@ func (d *fakeObjectDriver) DownloadObject(ctx context.Context, input storage.Dow
 	}, nil
 }
 
-func (d *fakeObjectDriver) DeleteObject(context.Context, string, string) error {
+func (d *fakeObjectAPI) DeleteObject(context.Context, string, string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) DeleteObjects(_ context.Context, _ string, keys []string) (storage.DeleteObjectsResult, error) {
+func (d *fakeObjectAPI) DeleteObjects(_ context.Context, _ string, keys []string) (storage.DeleteObjectsResult, error) {
 	return storage.DeleteObjectsResult{Deleted: keys}, nil
 }
 
-func (d *fakeObjectDriver) CopyObject(context.Context, string, string, string, string) error {
+func (d *fakeObjectAPI) CopyObject(context.Context, string, string, string, string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) HeadObject(context.Context, string, string) (storage.ObjectDescriptor, error) {
+func (d *fakeObjectAPI) HeadObject(context.Context, string, string) (storage.ObjectDescriptor, error) {
 	return storage.ObjectDescriptor{}, nil
 }
 
-func (d *fakeObjectDriver) PresignURL(context.Context, storage.PresignRequest) (string, error) {
+func (d *fakeObjectAPI) PresignURL(context.Context, storage.PresignRequest) (string, error) {
 	return "", nil
 }
 
-func (d *fakeObjectDriver) InitiateMultipartUpload(context.Context, string, string) (string, error) {
+func (d *fakeObjectAPI) InitiateMultipartUpload(context.Context, string, string) (string, error) {
 	return "", nil
 }
 
-func (d *fakeObjectDriver) UploadPart(context.Context, string, string, string, int, io.Reader, int64) (string, error) {
+func (d *fakeObjectAPI) UploadPart(context.Context, string, string, string, int, io.Reader, int64) (string, error) {
 	return "", nil
 }
 
-func (d *fakeObjectDriver) CompleteMultipartUpload(context.Context, string, string, string, map[int]string) error {
+func (d *fakeObjectAPI) CompleteMultipartUpload(context.Context, string, string, string, map[int]string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) AbortMultipartUpload(context.Context, string, string, string) error {
+func (d *fakeObjectAPI) AbortMultipartUpload(context.Context, string, string, string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) GetObjectTags(context.Context, string, string) (map[string]string, error) {
+func (d *fakeObjectAPI) GetObjectTags(context.Context, string, string) (map[string]string, error) {
 	return nil, nil
 }
 
-func (d *fakeObjectDriver) PutObjectTags(context.Context, string, string, map[string]string) error {
+func (d *fakeObjectAPI) PutObjectTags(context.Context, string, string, map[string]string) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) UpdateObjectMetadata(context.Context, string, string, storage.ObjectMetadataUpdate) error {
+func (d *fakeObjectAPI) UpdateObjectMetadata(context.Context, string, string, storage.ObjectMetadataUpdate) error {
 	return nil
 }
 
-func (d *fakeObjectDriver) GetObjectACL(context.Context, string, string) (storage.ObjectACL, error) {
+func (d *fakeObjectAPI) GetObjectACL(context.Context, string, string) (storage.ObjectACL, error) {
 	return storage.ObjectACL{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) PutObjectACL(context.Context, string, string, string) error {
+func (d *fakeObjectAPI) PutObjectACL(context.Context, string, string, string) error {
 	return storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) CreateSymlink(context.Context, string, string, string) error {
+func (d *fakeObjectAPI) CreateSymlink(context.Context, string, string, string) error {
 	return storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetSymlink(context.Context, string, string) (string, error) {
+func (d *fakeObjectAPI) GetSymlink(context.Context, string, string) (string, error) {
 	return "", storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetObjectLockConfiguration(context.Context, string) (storage.ObjectLockConfiguration, error) {
+func (d *fakeObjectAPI) GetObjectLockConfiguration(context.Context, string) (storage.ObjectLockConfiguration, error) {
 	return storage.ObjectLockConfiguration{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetObjectRetention(context.Context, string, string, string) (storage.ObjectRetentionState, error) {
+func (d *fakeObjectAPI) GetObjectRetention(context.Context, string, string, string) (storage.ObjectRetentionState, error) {
 	return storage.ObjectRetentionState{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) PutObjectRetention(context.Context, storage.PutObjectRetentionInput) error {
+func (d *fakeObjectAPI) PutObjectRetention(context.Context, storage.PutObjectRetentionInput) error {
 	return storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) GetObjectLegalHold(context.Context, string, string, string) (storage.ObjectLegalHoldState, error) {
+func (d *fakeObjectAPI) GetObjectLegalHold(context.Context, string, string, string) (storage.ObjectLegalHoldState, error) {
 	return storage.ObjectLegalHoldState{}, storage.ErrUnsupportedCapability
 }
 
-func (d *fakeObjectDriver) PutObjectLegalHold(context.Context, storage.PutObjectLegalHoldInput) error {
+func (d *fakeObjectAPI) PutObjectLegalHold(context.Context, storage.PutObjectLegalHoldInput) error {
 	return storage.ErrUnsupportedCapability
 }
 
 func TestWorkerScalingRace(t *testing.T) {
-	driver := newFakeObjectDriver()
+	driver := newFakeObjectAPI()
 	store := newTestAccountsStore(t)
 	cipher := accounts.NoopCipher{}
 	dialer := &fakeDialer{}

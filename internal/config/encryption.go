@@ -22,7 +22,7 @@ func (s *BucketConfigService) GetEncryption(ctx context.Context, accountID, buck
 	if err != nil {
 		return nil, err
 	}
-	config, err := client.Buckets().GetBucketEncryption(ctx, strings.TrimSpace(bucket))
+	config, err := client.Bucket().GetBucketEncryption(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "ServerSideEncryptionConfigurationNotFoundError" {
@@ -95,7 +95,7 @@ func (s *BucketConfigService) SetEncryption(ctx context.Context, accountID, buck
 		},
 	}
 
-	err = client.Buckets().PutBucketEncryption(ctx, strings.TrimSpace(bucket), config)
+	err = client.Bucket().PutBucketEncryption(ctx, strings.TrimSpace(bucket), config)
 	if err != nil {
 		return fmt.Errorf("put bucket encryption: %w", err)
 	}
@@ -111,7 +111,7 @@ func (s *BucketConfigService) DeleteEncryption(ctx context.Context, accountID, b
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().DeleteBucketEncryption(ctx, strings.TrimSpace(bucket))
+	err = client.Bucket().DeleteBucketEncryption(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket encryption: %w", err)
 	}

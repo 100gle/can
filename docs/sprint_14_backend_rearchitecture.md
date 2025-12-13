@@ -81,19 +81,19 @@ flowchart TB
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  Provider() types.Provider                             │  │
 │  │  Capabilities() []types.ProviderCapability             │  │
-│  │  Buckets() BucketDriver                                │  │
-│  │  Objects() ObjectDriver                                │  │
-│  │  Security() SecurityDriver                             │  │
+│  │  Buckets() BucketAPI                                │  │
+│  │  Objects() ObjectAPI                                │  │
+│  │  Security() SecurityAPI                             │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                              │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │  BucketDriver (Bucket 操作)                            │  │
+│  │  BucketAPI (Bucket 操作)                            │  │
 │  │  - ListBuckets(ctx) ([]BucketDescriptor, error)       │  │
 │  │  - CreateBucket(ctx, input) error                      │  │
 │  │  - GetBucketReferer(ctx, name) (BucketReferer, error) │  │
 │  └───────────────────────────────────────────────────────┘  │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │  ObjectDriver (Object 操作)                            │  │
+│  │  ObjectAPI (Object 操作)                            │  │
 │  │  - ListObjects(ctx, input) (ListObjectsResult, error) │  │
 │  │  - CreateSymlink(ctx, bucket, key, target) error      │  │
 │  └───────────────────────────────────────────────────────┘  │
@@ -114,8 +114,8 @@ import (
     "can/internal/types"
 )
 
-// BucketDriver exposes bucket-level operations for a provider.
-type BucketDriver interface {
+// BucketAPI exposes bucket-level operations for a provider.
+type BucketAPI interface {
     ListBuckets(ctx context.Context) ([]BucketDescriptor, error)
     CreateBucket(ctx context.Context, input BucketCreateInput) error
     DeleteBucket(ctx context.Context, name string) error
@@ -131,8 +131,8 @@ type BucketDriver interface {
     // ... 更多方法见 internal/storage/client.go
 }
 
-// ObjectDriver exposes object-level operations for a provider.
-type ObjectDriver interface {
+// ObjectAPI exposes object-level operations for a provider.
+type ObjectAPI interface {
     ListObjects(ctx context.Context, input ListObjectsInput) (ListObjectsResult, error)
     UploadObject(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error
     DownloadObject(ctx context.Context, input DownloadObjectInput) (ObjectDownload, error)
@@ -146,9 +146,9 @@ type ObjectDriver interface {
 type StorageClient interface {
     Provider() types.Provider
     Capabilities() []types.ProviderCapability
-    Buckets() BucketDriver
-    Objects() ObjectDriver
-    Security() SecurityDriver
+    Buckets() BucketAPI
+    Objects() ObjectAPI
+    Security() SecurityAPI
 }
 
 // StorageFactory resolves a storage client for the given credentials.
@@ -191,9 +191,9 @@ func NewStorageClient(ctx context.Context, creds storage.ConnectionCredentials) 
 }
 
 // 覆写 Buckets() 返回 OSS-specific bucket adapter
-func (a *ossAdapter) Buckets() storage.BucketDriver {
+func (a *ossAdapter) Buckets() storage.BucketAPI {
     return &bucketAdapter{
-        BucketDriver: a.StorageClient.Buckets(),
+        BucketAPI: a.StorageClient.Buckets(),
         client:       a.ossClient,
     }
 }
@@ -224,7 +224,7 @@ _ = client.Objects().CreateSymlink(ctx, bucket, linkKey, targetKey)
 provider := client.Provider()  // types.ProviderOSS, types.ProviderCOS, etc.
 ```
 
-> **注意**：Vendor-specific 功能（如 OSS Symlink）直接在 `ObjectDriver` 接口，
+> **注意**：Vendor-specific 功能（如 OSS Symlink）直接在 `ObjectAPI` 接口，
 > 调用时会根据 provider 实现返回结果或 `ErrUnsupportedCapability`。
 
 
@@ -258,7 +258,7 @@ internal/
 │   ├── types_config.go         # Bucket/Object 配置模型
 │   ├── s3/                     # S3 通用实现
 │   │   ├── client.go           # AWS SDK 配置 + S3Client interface
-│   │   ├── drivers.go          # BucketDriver/ObjectDriver 实现
+│   │   ├── drivers.go          # BucketAPI/ObjectAPI 实现
 │   │   ├── dialer.go           # 凭证探测
 │   │   ├── errors.go
 │   │   ├── presign.go
@@ -316,16 +316,16 @@ func NewStorageClient(ctx context.Context, creds storage.ConnectionCredentials) 
     return &ossAdapter{StorageClient: base, ossClient: client}, nil
 }
 
-func (a *ossAdapter) Buckets() storage.BucketDriver {
+func (a *ossAdapter) Buckets() storage.BucketAPI {
     return &bucketAdapter{
-        BucketDriver: a.StorageClient.Buckets(),
+        BucketAPI: a.StorageClient.Buckets(),
         client:       a.ossClient,
     }
 }
 
-func (a *ossAdapter) Objects() storage.ObjectDriver {
+func (a *ossAdapter) Objects() storage.ObjectAPI {
     return &objectAdapter{
-        ObjectDriver: a.StorageClient.Objects(),
+        ObjectAPI: a.StorageClient.Objects(),
         client:       a.ossClient,
     }
 }
@@ -450,8 +450,8 @@ require (
 1. **storage.Client 接口对齐**：重写 Section 3，使用 `StorageClient.Buckets()`/`Objects()` Driver 接口模式替代原文档中的 `Client.SDK` 嵌套结构
 2. **分页参数命名**：修正为实际使用的 `Marker`/`NextMarker`，而非 `Cursor`/`NextCursor`
 3. **MutationOptions 透传**：`app/objects.go` 中 `*WithOptions` 方法现已记录 `requestId`/`origin` 用于追踪
-4. **OSS Symlink**：在 Section 3.4 说明 Symlink 通过 `ObjectDriver.CreateSymlink` 调用
-5. **COS MAZ 能力矩阵**：新增 `BucketDriver.GetBucketMAZConfig` 等接口，COS adapter 在创建时写入 `BucketAZConfig=MAZ` 并可回读状态，能力矩阵恢复为 ✅（仅限创建阶段）
+4. **OSS Symlink**：在 Section 3.4 说明 Symlink 通过 `ObjectAPI.CreateSymlink` 调用
+5. **COS MAZ 能力矩阵**：新增 `BucketAPI.GetBucketMAZConfig` 等接口，COS adapter 在创建时写入 `BucketAZConfig=MAZ` 并可回读状态，能力矩阵恢复为 ✅（仅限创建阶段）
 6. **文档整体回归**：确保代码对应关系表、验收标准与实现一致
 
 > **注意**：

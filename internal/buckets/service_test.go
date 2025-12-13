@@ -17,7 +17,7 @@ import (
 
 func TestListBucketsSortsAlphabetically(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{
+	driver := &fakeBucketAPI{
 		buckets: []storage.BucketDescriptor{
 			{Name: "zebra", Region: "us-east-1"},
 			{Name: "alpha", Region: "us-west-2"},
@@ -41,7 +41,7 @@ func TestListBucketsSortsAlphabetically(t *testing.T) {
 
 func TestListBucketsBackfillsEmptyRegion(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{
+	driver := &fakeBucketAPI{
 		buckets: []storage.BucketDescriptor{
 			{Name: "no-region", Region: ""},
 		},
@@ -66,7 +66,7 @@ func TestListBucketsBackfillsEmptyRegion(t *testing.T) {
 // the app layer (Controller), not the Service layer per Sprint 14 architecture.
 func TestCreateBucketPassesToDriver(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{}
+	driver := &fakeBucketAPI{}
 	svc, accountID := newTestBucketService(t, driver)
 
 	// Normal valid input
@@ -84,7 +84,7 @@ func TestCreateBucketPassesToDriver(t *testing.T) {
 
 func TestCreateBucketUsesDefaultRegion(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{}
+	driver := &fakeBucketAPI{}
 	svc, accountID := newTestBucketService(t, driver)
 
 	err := svc.CreateBucket(ctx, accountID, CreateBucketInput{Name: "my-bucket"})
@@ -99,7 +99,7 @@ func TestCreateBucketUsesDefaultRegion(t *testing.T) {
 
 func TestCreateBucketPassesAdvancedOptions(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{}
+	driver := &fakeBucketAPI{}
 	svc, accountID := newTestBucketService(t, driver)
 
 	input := CreateBucketInput{
@@ -122,7 +122,7 @@ func TestCreateBucketPassesAdvancedOptions(t *testing.T) {
 
 func TestDeleteBucketRequiresName(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{}
+	driver := &fakeBucketAPI{}
 	svc, accountID := newTestBucketService(t, driver)
 
 	err := svc.DeleteBucket(ctx, accountID, "   ")
@@ -133,7 +133,7 @@ func TestDeleteBucketRequiresName(t *testing.T) {
 
 func TestClientRequiresAccountID(t *testing.T) {
 	ctx := context.Background()
-	driver := &fakeBucketDriver{}
+	driver := &fakeBucketAPI{}
 	svc, _ := newTestBucketService(t, driver)
 
 	_, err := svc.ListBuckets(ctx, "")
@@ -144,7 +144,7 @@ func TestClientRequiresAccountID(t *testing.T) {
 
 // --- Test Fixtures ---
 
-func newTestBucketService(t *testing.T, driver *fakeBucketDriver) (*Service, string) {
+func newTestBucketService(t *testing.T, driver *fakeBucketAPI) (*Service, string) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
@@ -200,7 +200,7 @@ func (f *fakeStorageFactory) NewClient(context.Context, storage.ConnectionCreden
 }
 
 type fakeStorageClient struct {
-	buckets *fakeBucketDriver
+	buckets *fakeBucketAPI
 }
 
 func (f *fakeStorageClient) Provider() types.Provider {
@@ -211,19 +211,27 @@ func (f *fakeStorageClient) Capabilities() []types.ProviderCapability {
 	return nil
 }
 
-func (f *fakeStorageClient) Buckets() storage.BucketDriver {
+func (f *fakeStorageClient) Bucket() storage.BucketAPI {
 	return f.buckets
 }
 
-func (f *fakeStorageClient) Objects() storage.ObjectDriver {
+func (f *fakeStorageClient) Object() storage.ObjectAPI {
 	return nil
 }
 
-func (f *fakeStorageClient) Security() storage.SecurityDriver {
+func (f *fakeStorageClient) Buckets() storage.BucketAPI {
+	return f.buckets
+}
+
+func (f *fakeStorageClient) Objects() storage.ObjectAPI {
 	return nil
 }
 
-type fakeBucketDriver struct {
+func (f *fakeStorageClient) Security() storage.SecurityAPI {
+	return nil
+}
+
+type fakeBucketAPI struct {
 	buckets             []storage.BucketDescriptor
 	createdName         string
 	createdRegion       string
@@ -234,11 +242,11 @@ type fakeBucketDriver struct {
 	locationName        string
 }
 
-func (d *fakeBucketDriver) ListBuckets(ctx context.Context) ([]storage.BucketDescriptor, error) {
+func (d *fakeBucketAPI) ListBuckets(ctx context.Context) ([]storage.BucketDescriptor, error) {
 	return d.buckets, nil
 }
 
-func (d *fakeBucketDriver) CreateBucket(ctx context.Context, input storage.BucketCreateInput) error {
+func (d *fakeBucketAPI) CreateBucket(ctx context.Context, input storage.BucketCreateInput) error {
 	d.createdName = input.Name
 	d.createdRegion = input.Region
 	d.createdStorageClass = input.StorageClass
@@ -246,98 +254,98 @@ func (d *fakeBucketDriver) CreateBucket(ctx context.Context, input storage.Bucke
 	return nil
 }
 
-func (d *fakeBucketDriver) DeleteBucket(ctx context.Context, name string) error {
+func (d *fakeBucketAPI) DeleteBucket(ctx context.Context, name string) error {
 	d.deletedName = name
 	return nil
 }
 
-func (d *fakeBucketDriver) HeadBucket(ctx context.Context, name string) error {
+func (d *fakeBucketAPI) HeadBucket(ctx context.Context, name string) error {
 	d.headedName = name
 	return nil
 }
 
-func (d *fakeBucketDriver) BucketLocation(ctx context.Context, name string) (string, error) {
+func (d *fakeBucketAPI) BucketLocation(ctx context.Context, name string) (string, error) {
 	d.locationName = name
 	return "us-east-1", nil
 }
 
-func (d *fakeBucketDriver) GetBucketACL(ctx context.Context, name string) (storage.BucketACL, error) {
+func (d *fakeBucketAPI) GetBucketACL(ctx context.Context, name string) (storage.BucketACL, error) {
 	return storage.BucketACL{}, nil
 }
 
-func (d *fakeBucketDriver) PutBucketACL(ctx context.Context, name string, acl storage.BucketACLInput) error {
+func (d *fakeBucketAPI) PutBucketACL(ctx context.Context, name string, acl storage.BucketACLInput) error {
 	return nil
 }
 
-func (d *fakeBucketDriver) GetPublicAccessBlock(ctx context.Context, name string) (storage.PublicAccessBlock, error) {
+func (d *fakeBucketAPI) GetPublicAccessBlock(ctx context.Context, name string) (storage.PublicAccessBlock, error) {
 	return storage.PublicAccessBlock{}, nil
 }
 
-func (d *fakeBucketDriver) PutPublicAccessBlock(ctx context.Context, name string, block storage.PublicAccessBlock) error {
+func (d *fakeBucketAPI) PutPublicAccessBlock(ctx context.Context, name string, block storage.PublicAccessBlock) error {
 	return nil
 }
 
-func (d *fakeBucketDriver) GetBucketReferer(ctx context.Context, name string) (storage.BucketReferer, error) {
+func (d *fakeBucketAPI) GetBucketReferer(ctx context.Context, name string) (storage.BucketReferer, error) {
 	return storage.BucketReferer{}, nil
 }
 
-func (d *fakeBucketDriver) PutBucketReferer(ctx context.Context, name string, referer storage.BucketReferer) error {
+func (d *fakeBucketAPI) PutBucketReferer(ctx context.Context, name string, referer storage.BucketReferer) error {
 	return nil
 }
 
 // Missing methods implementation
-func (d *fakeBucketDriver) GetBucketEncryption(ctx context.Context, bucket string) (*storage.BucketEncryptionConfiguration, error) {
+func (d *fakeBucketAPI) GetBucketEncryption(ctx context.Context, bucket string) (*storage.BucketEncryptionConfiguration, error) {
 	return nil, nil
 }
-func (d *fakeBucketDriver) PutBucketEncryption(ctx context.Context, bucket string, config storage.BucketEncryptionConfiguration) error {
+func (d *fakeBucketAPI) PutBucketEncryption(ctx context.Context, bucket string, config storage.BucketEncryptionConfiguration) error {
 	return nil
 }
-func (d *fakeBucketDriver) DeleteBucketEncryption(ctx context.Context, bucket string) error {
+func (d *fakeBucketAPI) DeleteBucketEncryption(ctx context.Context, bucket string) error {
 	return nil
 }
-func (d *fakeBucketDriver) GetBucketPolicy(ctx context.Context, bucket string) (string, error) {
+func (d *fakeBucketAPI) GetBucketPolicy(ctx context.Context, bucket string) (string, error) {
 	return "", nil
 }
-func (d *fakeBucketDriver) PutBucketPolicy(ctx context.Context, bucket, policy string) error {
+func (d *fakeBucketAPI) PutBucketPolicy(ctx context.Context, bucket, policy string) error {
 	return nil
 }
-func (d *fakeBucketDriver) DeleteBucketPolicy(ctx context.Context, bucket string) error { return nil }
-func (d *fakeBucketDriver) GetBucketVersioning(ctx context.Context, bucket string) (storage.BucketVersioningStatus, error) {
+func (d *fakeBucketAPI) DeleteBucketPolicy(ctx context.Context, bucket string) error { return nil }
+func (d *fakeBucketAPI) GetBucketVersioning(ctx context.Context, bucket string) (storage.BucketVersioningStatus, error) {
 	return "", nil
 }
-func (d *fakeBucketDriver) PutBucketVersioning(ctx context.Context, bucket string, status storage.BucketVersioningStatus) error {
+func (d *fakeBucketAPI) PutBucketVersioning(ctx context.Context, bucket string, status storage.BucketVersioningStatus) error {
 	return nil
 }
-func (d *fakeBucketDriver) GetBucketLifecycleConfiguration(ctx context.Context, bucket string) ([]storage.LifecycleRule, error) {
+func (d *fakeBucketAPI) GetBucketLifecycleConfiguration(ctx context.Context, bucket string) ([]storage.LifecycleRule, error) {
 	return nil, nil
 }
-func (d *fakeBucketDriver) PutBucketLifecycleConfiguration(ctx context.Context, bucket string, rules []storage.LifecycleRule) error {
+func (d *fakeBucketAPI) PutBucketLifecycleConfiguration(ctx context.Context, bucket string, rules []storage.LifecycleRule) error {
 	return nil
 }
-func (d *fakeBucketDriver) DeleteBucketLifecycle(ctx context.Context, bucket string) error {
+func (d *fakeBucketAPI) DeleteBucketLifecycle(ctx context.Context, bucket string) error {
 	return nil
 }
-func (d *fakeBucketDriver) GetBucketCors(ctx context.Context, bucket string) ([]storage.CORSRule, error) {
+func (d *fakeBucketAPI) GetBucketCors(ctx context.Context, bucket string) ([]storage.CORSRule, error) {
 	return nil, nil
 }
-func (d *fakeBucketDriver) PutBucketCors(ctx context.Context, bucket string, rules []storage.CORSRule) error {
+func (d *fakeBucketAPI) PutBucketCors(ctx context.Context, bucket string, rules []storage.CORSRule) error {
 	return nil
 }
-func (d *fakeBucketDriver) DeleteBucketCors(ctx context.Context, bucket string) error { return nil }
-func (d *fakeBucketDriver) GetBucketWebsite(ctx context.Context, bucket string) (*storage.BucketWebsiteConfiguration, error) {
+func (d *fakeBucketAPI) DeleteBucketCors(ctx context.Context, bucket string) error { return nil }
+func (d *fakeBucketAPI) GetBucketWebsite(ctx context.Context, bucket string) (*storage.BucketWebsiteConfiguration, error) {
 	return nil, nil
 }
-func (d *fakeBucketDriver) PutBucketWebsite(ctx context.Context, bucket string, config storage.BucketWebsiteConfiguration) error {
+func (d *fakeBucketAPI) PutBucketWebsite(ctx context.Context, bucket string, config storage.BucketWebsiteConfiguration) error {
 	return nil
 }
-func (d *fakeBucketDriver) DeleteBucketWebsite(ctx context.Context, bucket string) error { return nil }
-func (d *fakeBucketDriver) GetBucketMAZConfig(ctx context.Context, name string) (*storage.MAZConfiguration, error) {
+func (d *fakeBucketAPI) DeleteBucketWebsite(ctx context.Context, bucket string) error { return nil }
+func (d *fakeBucketAPI) GetBucketMAZConfig(ctx context.Context, name string) (*storage.MAZConfiguration, error) {
 	return &storage.MAZConfiguration{Status: storage.MAZStatusDisabled}, nil
 }
-func (d *fakeBucketDriver) EnableBucketMAZ(ctx context.Context, name string) error  { return nil }
-func (d *fakeBucketDriver) DisableBucketMAZ(ctx context.Context, name string) error { return nil }
+func (d *fakeBucketAPI) EnableBucketMAZ(ctx context.Context, name string) error  { return nil }
+func (d *fakeBucketAPI) DisableBucketMAZ(ctx context.Context, name string) error { return nil }
 
-var _ storage.BucketDriver = (*fakeBucketDriver)(nil)
+var _ storage.BucketAPI = (*fakeBucketAPI)(nil)
 var _ storage.StorageClient = (*fakeStorageClient)(nil)
 var _ storage.StorageFactory = (*fakeStorageFactory)(nil)
 var _ = time.Now // Suppress unused import if time not used

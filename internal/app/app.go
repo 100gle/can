@@ -12,14 +12,12 @@ import (
 	"can/internal/objects"
 	"can/internal/search"
 	"can/internal/storage"
-	"can/internal/storage/cos"
-	"can/internal/storage/oss"
 	"can/internal/storage/s3"
+	"can/internal/types"
 
 	"can/internal/system"
 	"can/internal/system/backup"
 	"can/internal/transfer"
-	"can/internal/types"
 )
 
 // App struct
@@ -47,14 +45,9 @@ func New() *App {
 	store := bootstrap.InitAccountsStore()
 	cipher := accounts.DefaultCipher()
 
-	// Audit removed
+	clientPool := storage.NewClientPool(nil)
+	storageFactory := storage.NewStorageFactory()
 
-	storageFactory := storage.NewStorageFactory(
-		storage.WithDefaultStorageBuilder(s3.NewStorageClient),
-		storage.WithStorageBuilder(types.ProviderOSS, oss.NewStorageClient),
-		storage.WithStorageBuilder(types.ProviderCOS, cos.NewStorageClient),
-	)
-	clientPool := storage.NewClientPool(storageFactory)
 	dialer := s3.NewDialer()
 	sessionStore := bootstrap.InitSessionStore()
 	accountSvc := accounts.NewService(store, cipher, dialer, sessionStore)

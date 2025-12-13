@@ -869,7 +869,7 @@ func (s *Service) executeSingleDownload(ctx context.Context, task *TransferTask)
 		start := offset
 		input.RangeStart = &start
 	}
-	download, err := client.Objects().DownloadObject(ctx, input)
+	download, err := client.Object().DownloadObject(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -994,7 +994,7 @@ func (s *Service) executeArchiveDownload(ctx context.Context, task *TransferTask
 			Key:       entry.Key,
 			VersionID: entry.VersionID,
 		}
-		download, err := client.Objects().DownloadObject(ctx, input)
+		download, err := client.Object().DownloadObject(ctx, input)
 		if err != nil {
 			return fmt.Errorf("archive entry %s: %w", entry.Key, err)
 		}
@@ -1054,7 +1054,7 @@ func (s *Service) executeUpload(ctx context.Context, task *TransferTask) error {
 		finalReader = s.wrapWithRateLimiter(ctx, reader)
 	}
 	contentType := detectContentType(task.Key)
-	if err := client.Objects().UploadObject(ctx, task.Bucket, task.Key, finalReader, stat.Size(), contentType); err != nil {
+	if err := client.Object().UploadObject(ctx, task.Bucket, task.Key, finalReader, stat.Size(), contentType); err != nil {
 		return err
 	}
 	s.persistTask(task)

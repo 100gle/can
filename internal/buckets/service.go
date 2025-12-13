@@ -27,7 +27,7 @@ func (s *Service) ListBuckets(ctx context.Context, accountID string) ([]BucketIn
 	if err != nil {
 		return nil, err
 	}
-	descriptors, err := client.Buckets().ListBuckets(ctx)
+	descriptors, err := client.Bucket().ListBuckets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (s *Service) CreateBucket(ctx context.Context, accountID string, input Crea
 		StorageClass: strings.TrimSpace(input.StorageClass),
 		COSMultiAZ:   input.COSMultiAZ,
 	}
-	return client.Buckets().CreateBucket(ctx, options)
+	return client.Bucket().CreateBucket(ctx, options)
 }
 
 // DeleteBucket removes the specified bucket. Caller must ensure it's empty.
@@ -83,7 +83,7 @@ func (s *Service) DeleteBucket(ctx context.Context, accountID, name string) erro
 	if bucketName == "" {
 		return errors.New("bucket name is required")
 	}
-	return client.Buckets().DeleteBucket(ctx, bucketName)
+	return client.Bucket().DeleteBucket(ctx, bucketName)
 }
 
 // HeadBucket checks whether the bucket exists and is accessible.
@@ -96,7 +96,7 @@ func (s *Service) HeadBucket(ctx context.Context, accountID, name string) error 
 	if bucketName == "" {
 		return errors.New("bucket name is required")
 	}
-	return client.Buckets().HeadBucket(ctx, bucketName)
+	return client.Bucket().HeadBucket(ctx, bucketName)
 }
 
 // BucketLocation returns the resolved region for a bucket.
@@ -109,7 +109,7 @@ func (s *Service) BucketLocation(ctx context.Context, accountID, name string) (s
 	if bucketName == "" {
 		return "", errors.New("bucket name is required")
 	}
-	return client.Buckets().BucketLocation(ctx, bucketName)
+	return client.Bucket().BucketLocation(ctx, bucketName)
 }
 
 func (s *Service) client(ctx context.Context, accountID string) (storage.StorageClient, storage.ConnectionCredentials, error) {

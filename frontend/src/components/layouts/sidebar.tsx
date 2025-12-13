@@ -55,8 +55,7 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
           className="h-10 w-10 rounded-xl border border-border/40 bg-background/70 p-1.5"
         />
         <div className="text-left">
-          <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">CAN</p>
-          <p className="text-sm font-semibold">Object Studio</p>
+          <p className="text-md font-bold tracking-wider text-primary font-mono">Can Studio</p>
         </div>
       </Button>
       <div className="flex-1 overflow-y-auto pr-1">

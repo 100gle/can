@@ -21,7 +21,7 @@ func (s *BucketConfigService) GetWebsite(ctx context.Context, accountID, bucket 
 	if err != nil {
 		return nil, err
 	}
-	config, err := client.Buckets().GetBucketWebsite(ctx, strings.TrimSpace(bucket))
+	config, err := client.Bucket().GetBucketWebsite(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchWebsiteConfiguration" {
@@ -69,7 +69,7 @@ func (s *BucketConfigService) SetWebsite(ctx context.Context, accountID, bucket 
 	if errorKey := strings.TrimSpace(website.ErrorKey); errorKey != "" {
 		config.ErrorDocument = &storage.ErrorDocument{Key: errorKey}
 	}
-	err = client.Buckets().PutBucketWebsite(ctx, strings.TrimSpace(bucket), config)
+	err = client.Bucket().PutBucketWebsite(ctx, strings.TrimSpace(bucket), config)
 	if err != nil {
 		return fmt.Errorf("put bucket website: %w", err)
 	}
@@ -85,7 +85,7 @@ func (s *BucketConfigService) DeleteWebsite(ctx context.Context, accountID, buck
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().DeleteBucketWebsite(ctx, strings.TrimSpace(bucket))
+	err = client.Bucket().DeleteBucketWebsite(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket website: %w", err)
 	}

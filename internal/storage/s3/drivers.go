@@ -32,6 +32,13 @@ func NewStorageClient(ctx context.Context, creds storage.ConnectionCredentials) 
 	return newS3StorageClient(ctx, creds, factory)
 }
 
+// NewS3 creates the raw S3 client for use in wireVendor.
+// This is the single entry point for building the underlying S3 SDK client.
+func NewS3(ctx context.Context, creds storage.ConnectionCredentials) (S3Client, error) {
+	factory := NewClientFactory()
+	return factory.NewClient(ctx, creds)
+}
+
 func newS3StorageClient(ctx context.Context, creds storage.ConnectionCredentials, factory ClientFactory) (storage.StorageClient, error) {
 	client, err := factory.NewClient(ctx, creds)
 	if err != nil {
@@ -52,27 +59,51 @@ func (c *s3StorageClient) Capabilities() []types.ProviderCapability {
 	return types.ProviderCapabilities(c.provider)
 }
 
-func (c *s3StorageClient) Buckets() storage.BucketDriver {
-	return &s3BucketDriver{client: c.client, creds: c.creds}
+// Bucket returns the bucket API (singular form per design doc).
+func (c *s3StorageClient) Bucket() storage.BucketAPI {
+	return &s3BucketAPI{client: c.client, creds: c.creds}
 }
 
-func (c *s3StorageClient) Objects() storage.ObjectDriver {
-	return &s3ObjectDriver{client: c.client}
+// Object returns the object API (singular form per design doc).
+func (c *s3StorageClient) Object() storage.ObjectAPI {
+	return &s3ObjectAPI{client: c.client}
 }
 
-func (c *s3StorageClient) Security() storage.SecurityDriver {
+// Buckets returns the bucket driver (StorageClient interface compatibility).
+func (c *s3StorageClient) Buckets() storage.BucketAPI {
+	return c.Bucket()
+}
+
+// Objects returns the object driver (StorageClient interface compatibility).
+func (c *s3StorageClient) Objects() storage.ObjectAPI {
+	return c.Object()
+}
+
+func (c *s3StorageClient) Security() storage.SecurityAPI {
 	if c.provider == types.ProviderAWS {
-		return &AWSSecurityDriver{Creds: c.creds}
+		return &storage.AWSSecurityAPI{Creds: c.creds}
 	}
-	return &UnimplementedSecurityDriver{}
+	return &storage.UnimplementedSecurityAPI{}
 }
 
-type s3BucketDriver struct {
+// --- 导出的驱动构造器供 wireVendor 使用 ---
+
+// NewBucketAPI creates the base S3 bucket driver (exported for wireVendor).
+func NewBucketAPI(client S3Client, creds storage.ConnectionCredentials) storage.BucketAPI {
+	return &s3BucketAPI{client: client, creds: creds}
+}
+
+// NewObjectAPI creates the base S3 object driver (exported for wireVendor).
+func NewObjectAPI(client S3Client) storage.ObjectAPI {
+	return &s3ObjectAPI{client: client}
+}
+
+type s3BucketAPI struct {
 	client S3Client
 	creds  storage.ConnectionCredentials
 }
 
-func (d *s3BucketDriver) ListBuckets(ctx context.Context) ([]storage.BucketDescriptor, error) {
+func (d *s3BucketAPI) ListBuckets(ctx context.Context) ([]storage.BucketDescriptor, error) {
 	out, err := d.client.ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
 		return nil, WrapS3Error("获取 Bucket 列表", err)
@@ -98,7 +129,7 @@ func (d *s3BucketDriver) ListBuckets(ctx context.Context) ([]storage.BucketDescr
 	return items, nil
 }
 
-func (d *s3BucketDriver) CreateBucket(ctx context.Context, input storage.BucketCreateInput) error {
+func (d *s3BucketAPI) CreateBucket(ctx context.Context, input storage.BucketCreateInput) error {
 	bucketName := strings.TrimSpace(input.Name)
 	if bucketName == "" {
 		return errors.New("bucket name is required")
@@ -122,7 +153,7 @@ func (d *s3BucketDriver) CreateBucket(ctx context.Context, input storage.BucketC
 	return nil
 }
 
-func (d *s3BucketDriver) DeleteBucket(ctx context.Context, name string) error {
+func (d *s3BucketAPI) DeleteBucket(ctx context.Context, name string) error {
 	bucketName := strings.TrimSpace(name)
 	if bucketName == "" {
 		return errors.New("bucket name is required")
@@ -133,7 +164,7 @@ func (d *s3BucketDriver) DeleteBucket(ctx context.Context, name string) error {
 	return nil
 }
 
-func (d *s3BucketDriver) HeadBucket(ctx context.Context, name string) error {
+func (d *s3BucketAPI) HeadBucket(ctx context.Context, name string) error {
 	bucketName := strings.TrimSpace(name)
 	if bucketName == "" {
 		return errors.New("bucket name is required")
@@ -144,7 +175,7 @@ func (d *s3BucketDriver) HeadBucket(ctx context.Context, name string) error {
 	return nil
 }
 
-func (d *s3BucketDriver) BucketLocation(ctx context.Context, name string) (string, error) {
+func (d *s3BucketAPI) BucketLocation(ctx context.Context, name string) (string, error) {
 	bucketName := strings.TrimSpace(name)
 	if bucketName == "" {
 		return "", errors.New("bucket name is required")
@@ -157,7 +188,7 @@ func (d *s3BucketDriver) BucketLocation(ctx context.Context, name string) (strin
 }
 
 // encryption
-func (d *s3BucketDriver) GetBucketEncryption(ctx context.Context, bucket string) (*storage.BucketEncryptionConfiguration, error) {
+func (d *s3BucketAPI) GetBucketEncryption(ctx context.Context, bucket string) (*storage.BucketEncryptionConfiguration, error) {
 	out, err := d.client.GetBucketEncryption(ctx, &s3.GetBucketEncryptionInput{
 		Bucket: aws.String(bucket),
 	})
@@ -180,7 +211,7 @@ func (d *s3BucketDriver) GetBucketEncryption(ctx context.Context, bucket string)
 	return &storage.BucketEncryptionConfiguration{Rules: rules}, nil
 }
 
-func (d *s3BucketDriver) PutBucketEncryption(ctx context.Context, bucket string, config storage.BucketEncryptionConfiguration) error {
+func (d *s3BucketAPI) PutBucketEncryption(ctx context.Context, bucket string, config storage.BucketEncryptionConfiguration) error {
 	rules := make([]s3types.ServerSideEncryptionRule, len(config.Rules))
 	for i, r := range config.Rules {
 		rules[i] = s3types.ServerSideEncryptionRule{}
@@ -200,7 +231,7 @@ func (d *s3BucketDriver) PutBucketEncryption(ctx context.Context, bucket string,
 	return WrapS3Error("put bucket encryption", err)
 }
 
-func (d *s3BucketDriver) DeleteBucketEncryption(ctx context.Context, bucket string) error {
+func (d *s3BucketAPI) DeleteBucketEncryption(ctx context.Context, bucket string) error {
 	_, err := d.client.DeleteBucketEncryption(ctx, &s3.DeleteBucketEncryptionInput{
 		Bucket: aws.String(bucket),
 	})
@@ -208,7 +239,7 @@ func (d *s3BucketDriver) DeleteBucketEncryption(ctx context.Context, bucket stri
 }
 
 // policy
-func (d *s3BucketDriver) GetBucketPolicy(ctx context.Context, bucket string) (string, error) {
+func (d *s3BucketAPI) GetBucketPolicy(ctx context.Context, bucket string) (string, error) {
 	out, err := d.client.GetBucketPolicy(ctx, &s3.GetBucketPolicyInput{
 		Bucket: aws.String(bucket),
 	})
@@ -218,7 +249,7 @@ func (d *s3BucketDriver) GetBucketPolicy(ctx context.Context, bucket string) (st
 	return aws.ToString(out.Policy), nil
 }
 
-func (d *s3BucketDriver) PutBucketPolicy(ctx context.Context, bucket, policy string) error {
+func (d *s3BucketAPI) PutBucketPolicy(ctx context.Context, bucket, policy string) error {
 	_, err := d.client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
 		Bucket: aws.String(bucket),
 		Policy: aws.String(policy),
@@ -226,7 +257,7 @@ func (d *s3BucketDriver) PutBucketPolicy(ctx context.Context, bucket, policy str
 	return WrapS3Error("put bucket policy", err)
 }
 
-func (d *s3BucketDriver) DeleteBucketPolicy(ctx context.Context, bucket string) error {
+func (d *s3BucketAPI) DeleteBucketPolicy(ctx context.Context, bucket string) error {
 	_, err := d.client.DeleteBucketPolicy(ctx, &s3.DeleteBucketPolicyInput{
 		Bucket: aws.String(bucket),
 	})
@@ -234,7 +265,7 @@ func (d *s3BucketDriver) DeleteBucketPolicy(ctx context.Context, bucket string) 
 }
 
 // versioning
-func (d *s3BucketDriver) GetBucketVersioning(ctx context.Context, bucket string) (storage.BucketVersioningStatus, error) {
+func (d *s3BucketAPI) GetBucketVersioning(ctx context.Context, bucket string) (storage.BucketVersioningStatus, error) {
 	out, err := d.client.GetBucketVersioning(ctx, &s3.GetBucketVersioningInput{
 		Bucket: aws.String(bucket),
 	})
@@ -244,7 +275,7 @@ func (d *s3BucketDriver) GetBucketVersioning(ctx context.Context, bucket string)
 	return storage.BucketVersioningStatus(out.Status), nil
 }
 
-func (d *s3BucketDriver) PutBucketVersioning(ctx context.Context, bucket string, status storage.BucketVersioningStatus) error {
+func (d *s3BucketAPI) PutBucketVersioning(ctx context.Context, bucket string, status storage.BucketVersioningStatus) error {
 	_, err := d.client.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
 		Bucket: aws.String(bucket),
 		VersioningConfiguration: &s3types.VersioningConfiguration{
@@ -255,7 +286,7 @@ func (d *s3BucketDriver) PutBucketVersioning(ctx context.Context, bucket string,
 }
 
 // lifecycle
-func (d *s3BucketDriver) GetBucketLifecycleConfiguration(ctx context.Context, bucket string) ([]storage.LifecycleRule, error) {
+func (d *s3BucketAPI) GetBucketLifecycleConfiguration(ctx context.Context, bucket string) ([]storage.LifecycleRule, error) {
 	out, err := d.client.GetBucketLifecycleConfiguration(ctx, &s3.GetBucketLifecycleConfigurationInput{
 		Bucket: aws.String(bucket),
 	})
@@ -291,7 +322,7 @@ func (d *s3BucketDriver) GetBucketLifecycleConfiguration(ctx context.Context, bu
 	return rules, nil
 }
 
-func (d *s3BucketDriver) PutBucketLifecycleConfiguration(ctx context.Context, bucket string, rules []storage.LifecycleRule) error {
+func (d *s3BucketAPI) PutBucketLifecycleConfiguration(ctx context.Context, bucket string, rules []storage.LifecycleRule) error {
 	s3Rules := make([]s3types.LifecycleRule, len(rules))
 	for i, r := range rules {
 		s3Rules[i] = s3types.LifecycleRule{
@@ -321,7 +352,7 @@ func (d *s3BucketDriver) PutBucketLifecycleConfiguration(ctx context.Context, bu
 	return WrapS3Error("put bucket lifecycle", err)
 }
 
-func (d *s3BucketDriver) DeleteBucketLifecycle(ctx context.Context, bucket string) error {
+func (d *s3BucketAPI) DeleteBucketLifecycle(ctx context.Context, bucket string) error {
 	_, err := d.client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
 		Bucket: aws.String(bucket),
 	})
@@ -329,7 +360,7 @@ func (d *s3BucketDriver) DeleteBucketLifecycle(ctx context.Context, bucket strin
 }
 
 // cors
-func (d *s3BucketDriver) GetBucketCors(ctx context.Context, bucket string) ([]storage.CORSRule, error) {
+func (d *s3BucketAPI) GetBucketCors(ctx context.Context, bucket string) ([]storage.CORSRule, error) {
 	out, err := d.client.GetBucketCors(ctx, &s3.GetBucketCorsInput{
 		Bucket: aws.String(bucket),
 	})
@@ -354,7 +385,7 @@ func (d *s3BucketDriver) GetBucketCors(ctx context.Context, bucket string) ([]st
 	return rules, nil
 }
 
-func (d *s3BucketDriver) PutBucketCors(ctx context.Context, bucket string, rules []storage.CORSRule) error {
+func (d *s3BucketAPI) PutBucketCors(ctx context.Context, bucket string, rules []storage.CORSRule) error {
 	s3Rules := make([]s3types.CORSRule, len(rules))
 	for i, r := range rules {
 		s3Rules[i] = s3types.CORSRule{
@@ -375,7 +406,7 @@ func (d *s3BucketDriver) PutBucketCors(ctx context.Context, bucket string, rules
 	return WrapS3Error("put bucket cors", err)
 }
 
-func (d *s3BucketDriver) DeleteBucketCors(ctx context.Context, bucket string) error {
+func (d *s3BucketAPI) DeleteBucketCors(ctx context.Context, bucket string) error {
 	_, err := d.client.DeleteBucketCors(ctx, &s3.DeleteBucketCorsInput{
 		Bucket: aws.String(bucket),
 	})
@@ -383,7 +414,7 @@ func (d *s3BucketDriver) DeleteBucketCors(ctx context.Context, bucket string) er
 }
 
 // website
-func (d *s3BucketDriver) GetBucketWebsite(ctx context.Context, bucket string) (*storage.BucketWebsiteConfiguration, error) {
+func (d *s3BucketAPI) GetBucketWebsite(ctx context.Context, bucket string) (*storage.BucketWebsiteConfiguration, error) {
 	out, err := d.client.GetBucketWebsite(ctx, &s3.GetBucketWebsiteInput{
 		Bucket: aws.String(bucket),
 	})
@@ -411,7 +442,7 @@ func (d *s3BucketDriver) GetBucketWebsite(ctx context.Context, bucket string) (*
 	return cfg, nil
 }
 
-func (d *s3BucketDriver) PutBucketWebsite(ctx context.Context, bucket string, config storage.BucketWebsiteConfiguration) error {
+func (d *s3BucketAPI) PutBucketWebsite(ctx context.Context, bucket string, config storage.BucketWebsiteConfiguration) error {
 	input := &s3.PutBucketWebsiteInput{
 		Bucket:               aws.String(bucket),
 		WebsiteConfiguration: &s3types.WebsiteConfiguration{},
@@ -432,14 +463,14 @@ func (d *s3BucketDriver) PutBucketWebsite(ctx context.Context, bucket string, co
 	return WrapS3Error("put bucket website", err)
 }
 
-func (d *s3BucketDriver) DeleteBucketWebsite(ctx context.Context, bucket string) error {
+func (d *s3BucketAPI) DeleteBucketWebsite(ctx context.Context, bucket string) error {
 	_, err := d.client.DeleteBucketWebsite(ctx, &s3.DeleteBucketWebsiteInput{
 		Bucket: aws.String(bucket),
 	})
 	return WrapS3Error("delete bucket website", err)
 }
 
-func (d *s3BucketDriver) GetBucketACL(ctx context.Context, name string) (storage.BucketACL, error) {
+func (d *s3BucketAPI) GetBucketACL(ctx context.Context, name string) (storage.BucketACL, error) {
 	var result storage.BucketACL
 	bucket := strings.TrimSpace(name)
 	if bucket == "" {
@@ -458,7 +489,7 @@ func (d *s3BucketDriver) GetBucketACL(ctx context.Context, name string) (storage
 	return result, nil
 }
 
-func (d *s3BucketDriver) PutBucketACL(ctx context.Context, name string, acl storage.BucketACLInput) error {
+func (d *s3BucketAPI) PutBucketACL(ctx context.Context, name string, acl storage.BucketACLInput) error {
 	bucket := strings.TrimSpace(name)
 	if bucket == "" {
 		return errors.New("bucket name is required")
@@ -494,7 +525,7 @@ func (d *s3BucketDriver) PutBucketACL(ctx context.Context, name string, acl stor
 	return nil
 }
 
-func (d *s3BucketDriver) GetPublicAccessBlock(ctx context.Context, name string) (storage.PublicAccessBlock, error) {
+func (d *s3BucketAPI) GetPublicAccessBlock(ctx context.Context, name string) (storage.PublicAccessBlock, error) {
 	var result storage.PublicAccessBlock
 	bucket := strings.TrimSpace(name)
 	if bucket == "" {
@@ -520,7 +551,7 @@ func (d *s3BucketDriver) GetPublicAccessBlock(ctx context.Context, name string) 
 	return result, nil
 }
 
-func (d *s3BucketDriver) PutPublicAccessBlock(ctx context.Context, name string, block storage.PublicAccessBlock) error {
+func (d *s3BucketAPI) PutPublicAccessBlock(ctx context.Context, name string, block storage.PublicAccessBlock) error {
 	bucket := strings.TrimSpace(name)
 	if bucket == "" {
 		return errors.New("bucket name is required")
@@ -540,28 +571,28 @@ func (d *s3BucketDriver) PutPublicAccessBlock(ctx context.Context, name string, 
 	return nil
 }
 
-func (d *s3BucketDriver) GetBucketReferer(ctx context.Context, name string) (storage.BucketReferer, error) {
+func (d *s3BucketAPI) GetBucketReferer(ctx context.Context, name string) (storage.BucketReferer, error) {
 	return storage.BucketReferer{}, ErrUnsupportedCapability
 }
 
-func (d *s3BucketDriver) PutBucketReferer(ctx context.Context, name string, referer storage.BucketReferer) error {
+func (d *s3BucketAPI) PutBucketReferer(ctx context.Context, name string, referer storage.BucketReferer) error {
 	return ErrUnsupportedCapability
 }
 
 // MAZ-related operations are not available on S3-compatible drivers by default.
-func (d *s3BucketDriver) GetBucketMAZConfig(ctx context.Context, name string) (*storage.MAZConfiguration, error) {
+func (d *s3BucketAPI) GetBucketMAZConfig(ctx context.Context, name string) (*storage.MAZConfiguration, error) {
 	return nil, storage.ErrUnsupportedCapability
 }
 
-func (d *s3BucketDriver) EnableBucketMAZ(ctx context.Context, name string) error {
+func (d *s3BucketAPI) EnableBucketMAZ(ctx context.Context, name string) error {
 	return storage.ErrUnsupportedCapability
 }
 
-func (d *s3BucketDriver) DisableBucketMAZ(ctx context.Context, name string) error {
+func (d *s3BucketAPI) DisableBucketMAZ(ctx context.Context, name string) error {
 	return storage.ErrUnsupportedCapability
 }
 
-func (d *s3BucketDriver) lookupBucketRegion(ctx context.Context, name string) (string, error) {
+func (d *s3BucketAPI) lookupBucketRegion(ctx context.Context, name string) (string, error) {
 	out, err := d.client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{Bucket: aws.String(name)})
 	if err != nil {
 		return "", err
@@ -691,11 +722,11 @@ func guessS3CannedACL(grants []storage.AccessGrant) string {
 	}
 }
 
-type s3ObjectDriver struct {
+type s3ObjectAPI struct {
 	client S3Client
 }
 
-func (d *s3ObjectDriver) ListObjects(ctx context.Context, input storage.ListObjectsInput) (storage.ListObjectsResult, error) {
+func (d *s3ObjectAPI) ListObjects(ctx context.Context, input storage.ListObjectsInput) (storage.ListObjectsResult, error) {
 	var result storage.ListObjectsResult
 	bucket := strings.TrimSpace(input.Bucket)
 	if bucket == "" {
@@ -758,7 +789,7 @@ func (d *s3ObjectDriver) ListObjects(ctx context.Context, input storage.ListObje
 	return result, nil
 }
 
-func (d *s3ObjectDriver) UploadObject(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error {
+func (d *s3ObjectAPI) UploadObject(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -780,7 +811,7 @@ func (d *s3ObjectDriver) UploadObject(ctx context.Context, bucket, key string, b
 	return nil
 }
 
-func (d *s3ObjectDriver) DownloadObject(ctx context.Context, input storage.DownloadObjectInput) (storage.ObjectDownload, error) {
+func (d *s3ObjectAPI) DownloadObject(ctx context.Context, input storage.DownloadObjectInput) (storage.ObjectDownload, error) {
 	var download storage.ObjectDownload
 	bucket := strings.TrimSpace(input.Bucket)
 	key := strings.TrimSpace(input.Key)
@@ -813,7 +844,7 @@ func (d *s3ObjectDriver) DownloadObject(ctx context.Context, input storage.Downl
 	return download, nil
 }
 
-func (d *s3ObjectDriver) DeleteObject(ctx context.Context, bucket, key string) error {
+func (d *s3ObjectAPI) DeleteObject(ctx context.Context, bucket, key string) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -830,7 +861,7 @@ func (d *s3ObjectDriver) DeleteObject(ctx context.Context, bucket, key string) e
 }
 
 // DeleteObjects batch-deletes up to 1000 objects using the S3 DeleteObjects API.
-func (d *s3ObjectDriver) DeleteObjects(ctx context.Context, bucket string, keys []string) (storage.DeleteObjectsResult, error) {
+func (d *s3ObjectAPI) DeleteObjects(ctx context.Context, bucket string, keys []string) (storage.DeleteObjectsResult, error) {
 	var result storage.DeleteObjectsResult
 	if strings.TrimSpace(bucket) == "" {
 		return result, errors.New("bucket is required")
@@ -896,7 +927,7 @@ func (d *s3ObjectDriver) DeleteObjects(ctx context.Context, bucket string, keys 
 	return result, nil
 }
 
-func (d *s3ObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error {
+func (d *s3ObjectAPI) CopyObject(ctx context.Context, sourceBucket, sourceKey, targetBucket, targetKey string) error {
 	if strings.TrimSpace(sourceBucket) == "" || strings.TrimSpace(sourceKey) == "" {
 		return errors.New("source bucket/key is required")
 	}
@@ -914,15 +945,15 @@ func (d *s3ObjectDriver) CopyObject(ctx context.Context, sourceBucket, sourceKey
 	return nil
 }
 
-func (d *s3ObjectDriver) CreateSymlink(context.Context, string, string, string) error {
+func (d *s3ObjectAPI) CreateSymlink(context.Context, string, string, string) error {
 	return ErrUnsupportedCapability
 }
 
-func (d *s3ObjectDriver) GetSymlink(context.Context, string, string) (string, error) {
+func (d *s3ObjectAPI) GetSymlink(context.Context, string, string) (string, error) {
 	return "", ErrUnsupportedCapability
 }
 
-func (d *s3ObjectDriver) HeadObject(ctx context.Context, bucket, key string) (storage.ObjectDescriptor, error) {
+func (d *s3ObjectAPI) HeadObject(ctx context.Context, bucket, key string) (storage.ObjectDescriptor, error) {
 	var info storage.ObjectDescriptor
 	if strings.TrimSpace(bucket) == "" {
 		return info, errors.New("bucket is required")
@@ -986,7 +1017,7 @@ func applyS3ResponseHeaders(input *s3.GetObjectInput, headers map[string]string)
 	}
 }
 
-func (d *s3ObjectDriver) PresignURL(ctx context.Context, input storage.PresignRequest) (string, error) {
+func (d *s3ObjectAPI) PresignURL(ctx context.Context, input storage.PresignRequest) (string, error) {
 	bucket := strings.TrimSpace(input.Bucket)
 	key := strings.TrimSpace(input.Key)
 	if bucket == "" {
@@ -1072,7 +1103,7 @@ func (d *s3ObjectDriver) PresignURL(ctx context.Context, input storage.PresignRe
 	}
 }
 
-func (d *s3ObjectDriver) InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error) {
+func (d *s3ObjectAPI) InitiateMultipartUpload(ctx context.Context, bucket, key string) (string, error) {
 	if strings.TrimSpace(bucket) == "" {
 		return "", errors.New("bucket is required")
 	}
@@ -1089,7 +1120,7 @@ func (d *s3ObjectDriver) InitiateMultipartUpload(ctx context.Context, bucket, ke
 	return aws.ToString(out.UploadId), nil
 }
 
-func (d *s3ObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error) {
+func (d *s3ObjectAPI) GetObjectTags(ctx context.Context, bucket, key string) (map[string]string, error) {
 	if strings.TrimSpace(bucket) == "" {
 		return nil, errors.New("bucket is required")
 	}
@@ -1110,7 +1141,7 @@ func (d *s3ObjectDriver) GetObjectTags(ctx context.Context, bucket, key string) 
 	return result, nil
 }
 
-func (d *s3ObjectDriver) PutObjectTags(ctx context.Context, bucket, key string, tags map[string]string) error {
+func (d *s3ObjectAPI) PutObjectTags(ctx context.Context, bucket, key string, tags map[string]string) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -1137,7 +1168,7 @@ func (d *s3ObjectDriver) PutObjectTags(ctx context.Context, bucket, key string, 
 	return nil
 }
 
-func (d *s3ObjectDriver) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error) {
+func (d *s3ObjectAPI) UploadPart(ctx context.Context, bucket, key, uploadID string, partNumber int, body io.Reader, size int64) (string, error) {
 	if strings.TrimSpace(bucket) == "" {
 		return "", errors.New("bucket is required")
 	}
@@ -1167,7 +1198,7 @@ func (d *s3ObjectDriver) UploadPart(ctx context.Context, bucket, key, uploadID s
 	return strings.Trim(aws.ToString(out.ETag), `"`), nil
 }
 
-func (d *s3ObjectDriver) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error {
+func (d *s3ObjectAPI) CompleteMultipartUpload(ctx context.Context, bucket, key, uploadID string, parts map[int]string) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -1207,7 +1238,7 @@ func (d *s3ObjectDriver) CompleteMultipartUpload(ctx context.Context, bucket, ke
 	return nil
 }
 
-func (d *s3ObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
+func (d *s3ObjectAPI) AbortMultipartUpload(ctx context.Context, bucket, key, uploadID string) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -1227,7 +1258,7 @@ func (d *s3ObjectDriver) AbortMultipartUpload(ctx context.Context, bucket, key, 
 	return nil
 }
 
-func (d *s3ObjectDriver) UpdateObjectMetadata(ctx context.Context, bucket, key string, input storage.ObjectMetadataUpdate) error {
+func (d *s3ObjectAPI) UpdateObjectMetadata(ctx context.Context, bucket, key string, input storage.ObjectMetadataUpdate) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -1268,7 +1299,7 @@ func (d *s3ObjectDriver) UpdateObjectMetadata(ctx context.Context, bucket, key s
 	return nil
 }
 
-func (d *s3ObjectDriver) GetObjectACL(ctx context.Context, bucket, key string) (storage.ObjectACL, error) {
+func (d *s3ObjectAPI) GetObjectACL(ctx context.Context, bucket, key string) (storage.ObjectACL, error) {
 	var acl storage.ObjectACL
 	if strings.TrimSpace(bucket) == "" {
 		return acl, errors.New("bucket is required")
@@ -1300,7 +1331,7 @@ func (d *s3ObjectDriver) GetObjectACL(ctx context.Context, bucket, key string) (
 	return acl, nil
 }
 
-func (d *s3ObjectDriver) PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error {
+func (d *s3ObjectAPI) PutObjectACL(ctx context.Context, bucket, key, cannedACL string) error {
 	if strings.TrimSpace(bucket) == "" {
 		return errors.New("bucket is required")
 	}
@@ -1322,7 +1353,7 @@ func (d *s3ObjectDriver) PutObjectACL(ctx context.Context, bucket, key, cannedAC
 	return nil
 }
 
-func (d *s3ObjectDriver) GetObjectLockConfiguration(ctx context.Context, bucket string) (storage.ObjectLockConfiguration, error) {
+func (d *s3ObjectAPI) GetObjectLockConfiguration(ctx context.Context, bucket string) (storage.ObjectLockConfiguration, error) {
 	var result storage.ObjectLockConfiguration
 	bucket = strings.TrimSpace(bucket)
 	if bucket == "" {
@@ -1355,7 +1386,7 @@ func (d *s3ObjectDriver) GetObjectLockConfiguration(ctx context.Context, bucket 
 	return result, nil
 }
 
-func (d *s3ObjectDriver) GetObjectRetention(ctx context.Context, bucket, key, versionID string) (storage.ObjectRetentionState, error) {
+func (d *s3ObjectAPI) GetObjectRetention(ctx context.Context, bucket, key, versionID string) (storage.ObjectRetentionState, error) {
 	var result storage.ObjectRetentionState
 	bucket = strings.TrimSpace(bucket)
 	key = strings.TrimSpace(key)
@@ -1388,7 +1419,7 @@ func (d *s3ObjectDriver) GetObjectRetention(ctx context.Context, bucket, key, ve
 	return result, nil
 }
 
-func (d *s3ObjectDriver) PutObjectRetention(ctx context.Context, input storage.PutObjectRetentionInput) error {
+func (d *s3ObjectAPI) PutObjectRetention(ctx context.Context, input storage.PutObjectRetentionInput) error {
 	bucket := strings.TrimSpace(input.Bucket)
 	key := strings.TrimSpace(input.Key)
 	if bucket == "" {
@@ -1424,7 +1455,7 @@ func (d *s3ObjectDriver) PutObjectRetention(ctx context.Context, input storage.P
 	return nil
 }
 
-func (d *s3ObjectDriver) GetObjectLegalHold(ctx context.Context, bucket, key, versionID string) (storage.ObjectLegalHoldState, error) {
+func (d *s3ObjectAPI) GetObjectLegalHold(ctx context.Context, bucket, key, versionID string) (storage.ObjectLegalHoldState, error) {
 	var result storage.ObjectLegalHoldState
 	bucket = strings.TrimSpace(bucket)
 	key = strings.TrimSpace(key)
@@ -1454,7 +1485,7 @@ func (d *s3ObjectDriver) GetObjectLegalHold(ctx context.Context, bucket, key, ve
 	return result, nil
 }
 
-func (d *s3ObjectDriver) PutObjectLegalHold(ctx context.Context, input storage.PutObjectLegalHoldInput) error {
+func (d *s3ObjectAPI) PutObjectLegalHold(ctx context.Context, input storage.PutObjectLegalHoldInput) error {
 	bucket := strings.TrimSpace(input.Bucket)
 	key := strings.TrimSpace(input.Key)
 	if bucket == "" {

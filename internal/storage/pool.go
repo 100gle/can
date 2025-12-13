@@ -36,7 +36,7 @@ type poolEntry struct {
 }
 
 type clientPool struct {
-	factory StorageFactory
+	factory StorageFactory // Optional; if nil use unified builder
 	ttl     time.Duration
 	mu      sync.RWMutex
 	items   map[string]*poolEntry
@@ -45,10 +45,8 @@ type clientPool struct {
 const defaultClientTTL = 5 * time.Minute
 
 // NewClientPool returns a production ready client cache.
+// If factory is nil, uses the unified NewClient switch.
 func NewClientPool(factory StorageFactory, opts ...ClientPoolOption) ClientPool {
-	if factory == nil {
-		panic("client pool requires a storage factory")
-	}
 	pool := &clientPool{
 		factory: factory,
 		ttl:     defaultClientTTL,
@@ -84,10 +82,18 @@ func (p *clientPool) Get(ctx context.Context, accountID string, supplier Credent
 	if err != nil {
 		return nil, ConnectionCredentials{}, err
 	}
-	client, err := p.factory.NewClient(ctx, creds)
+
+	// Create client using factory if provided, otherwise use unified builder
+	var client StorageClient
+	if p.factory != nil {
+		client, err = p.factory.NewClient(ctx, creds)
+	} else {
+		client, err = buildClient(ctx, creds)
+	}
 	if err != nil {
 		return nil, ConnectionCredentials{}, err
 	}
+
 	entry := &poolEntry{client: client, creds: creds, expiresAt: now.Add(p.ttl)}
 	p.mu.Lock()
 	p.items[key] = entry

@@ -21,7 +21,7 @@ func (s *BucketConfigService) GetCORS(ctx context.Context, accountID, bucket str
 	if err != nil {
 		return nil, err
 	}
-	rules, err := client.Buckets().GetBucketCors(ctx, strings.TrimSpace(bucket))
+	rules, err := client.Bucket().GetBucketCors(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchCORSConfiguration" {
@@ -64,7 +64,7 @@ func (s *BucketConfigService) SetCORS(ctx context.Context, accountID, bucket str
 			MaxAgeSeconds:  rule.MaxAgeSeconds,
 		})
 	}
-	err = client.Buckets().PutBucketCors(ctx, strings.TrimSpace(bucket), rules)
+	err = client.Bucket().PutBucketCors(ctx, strings.TrimSpace(bucket), rules)
 	if err != nil {
 		return fmt.Errorf("put bucket cors: %w", err)
 	}
@@ -80,7 +80,7 @@ func (s *BucketConfigService) DeleteCORS(ctx context.Context, accountID, bucket 
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().DeleteBucketCors(ctx, strings.TrimSpace(bucket))
+	err = client.Bucket().DeleteBucketCors(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket cors: %w", err)
 	}

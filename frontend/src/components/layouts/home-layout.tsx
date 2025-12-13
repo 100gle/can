@@ -1,4 +1,5 @@
 import logo from "@/assets/images/logo-universal.png";
+import { SketchBackground } from "@/components/decorations/sketch-background";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -10,8 +11,9 @@ type HomeLayoutProps = {
 export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
   const { t } = useTranslation("common");
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-background/95 text-foreground">
-      <div className="w-full px-4 py-8 sm:px-8">
+    <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-background to-background/95 text-foreground">
+      <SketchBackground />
+      <div className="relative z-10 w-full px-4 py-8 sm:px-8">
         <div className="mx-auto w-full max-w-6xl flex flex-col gap-8">
           <header>
             <div className="flex flex-col gap-6">
@@ -23,9 +25,9 @@ export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
                   className="h-12 w-12 rounded-xl border border-border/50 bg-gradient-to-br from-primary/20 to-primary/5 p-1.5"
                 />
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.5em] text-muted-foreground/70">
-                    CAN Object Studio
-                  </p>
+                  {/* <p className="text-xs font-medium uppercase tracking-[0.5em] text-muted-foreground/70">
+                    CAN Studio
+                  </p> */}
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                     {t("home.title")}
                   </h1>

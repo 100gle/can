@@ -1,6 +1,7 @@
-package storage
+package api
 
 import (
+	"errors"
 	"io"
 	"time"
 
@@ -222,3 +223,6 @@ const (
 	MAZStatusEnabled  = "Enabled"
 	MAZStatusDisabled = "Disabled"
 )
+
+// ErrUnsupportedCapability helps drivers communicate unsupported operations.
+var ErrUnsupportedCapability = errors.New("feature not supported for this provider")

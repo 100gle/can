@@ -21,7 +21,7 @@ func (s *BucketConfigService) GetPolicy(ctx context.Context, accountID, bucket s
 	if err != nil {
 		return nil, err
 	}
-	raw, err := client.Buckets().GetBucketPolicy(ctx, strings.TrimSpace(bucket))
+	raw, err := client.Bucket().GetBucketPolicy(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy" {
@@ -66,7 +66,7 @@ func (s *BucketConfigService) SetPolicy(ctx context.Context, accountID, bucket s
 		}
 		payload = string(blob)
 	}
-	err = client.Buckets().PutBucketPolicy(ctx, strings.TrimSpace(bucket), payload)
+	err = client.Bucket().PutBucketPolicy(ctx, strings.TrimSpace(bucket), payload)
 	if err != nil {
 		return fmt.Errorf("put bucket policy: %w", err)
 	}
@@ -82,7 +82,7 @@ func (s *BucketConfigService) DeletePolicy(ctx context.Context, accountID, bucke
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().DeleteBucketPolicy(ctx, strings.TrimSpace(bucket))
+	err = client.Bucket().DeleteBucketPolicy(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete bucket policy: %w", err)
 	}

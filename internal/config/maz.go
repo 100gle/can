@@ -19,7 +19,7 @@ func (s *BucketConfigService) GetBucketMAZConfig(ctx context.Context, accountID,
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := client.Buckets().GetBucketMAZConfig(ctx, bucket)
+	cfg, err := client.Bucket().GetBucketMAZConfig(ctx, bucket)
 	if err != nil {
 		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return nil, fmt.Errorf("%s 不支持多可用区配置查询", creds.Provider.Label())
@@ -38,7 +38,7 @@ func (s *BucketConfigService) EnableBucketMAZ(ctx context.Context, accountID, bu
 	if err != nil {
 		return err
 	}
-	if err := client.Buckets().EnableBucketMAZ(ctx, bucket); err != nil {
+	if err := client.Bucket().EnableBucketMAZ(ctx, bucket); err != nil {
 		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return fmt.Errorf("%s 暂不支持在创建后开启多可用区", creds.Provider.Label())
 		}
@@ -56,7 +56,7 @@ func (s *BucketConfigService) DisableBucketMAZ(ctx context.Context, accountID, b
 	if err != nil {
 		return err
 	}
-	if err := client.Buckets().DisableBucketMAZ(ctx, bucket); err != nil {
+	if err := client.Bucket().DisableBucketMAZ(ctx, bucket); err != nil {
 		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return fmt.Errorf("%s 暂不支持关闭多可用区", creds.Provider.Label())
 		}

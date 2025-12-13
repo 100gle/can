@@ -20,7 +20,7 @@ func (s *BucketConfigService) GetBucketACL(ctx context.Context, accountID, bucke
 	if err != nil {
 		return nil, err
 	}
-	result, err := client.Buckets().GetBucketACL(ctx, bucket)
+	result, err := client.Bucket().GetBucketACL(ctx, bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (s *BucketConfigService) SetBucketACL(ctx context.Context, accountID, bucke
 		Canned:  strings.TrimSpace(acl.Canned),
 		Grants:  mapConfigGrants(acl.Grants),
 	}
-	return client.Buckets().PutBucketACL(ctx, bucket, input)
+	return client.Bucket().PutBucketACL(ctx, bucket, input)
 }
 
 // GetPublicAccessBlock retrieves the AWS style block public access configuration.
@@ -56,7 +56,7 @@ func (s *BucketConfigService) GetPublicAccessBlock(ctx context.Context, accountI
 	if err != nil {
 		return nil, err
 	}
-	block, err := client.Buckets().GetPublicAccessBlock(ctx, bucket)
+	block, err := client.Bucket().GetPublicAccessBlock(ctx, bucket)
 	if err != nil {
 		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return nil, fmt.Errorf("%s 不支持阻止公共访问", creds.Provider.Label())
@@ -78,7 +78,7 @@ func (s *BucketConfigService) SetPublicAccessBlock(ctx context.Context, accountI
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().PutPublicAccessBlock(ctx, bucket, storage.PublicAccessBlock{
+	err = client.Bucket().PutPublicAccessBlock(ctx, bucket, storage.PublicAccessBlock{
 		BlockPublicAcls:       cfg.BlockPublicAcls,
 		IgnorePublicAcls:      cfg.IgnorePublicAcls,
 		BlockPublicPolicy:     cfg.BlockPublicPolicy,
@@ -99,7 +99,7 @@ func (s *BucketConfigService) GetBucketReferer(ctx context.Context, accountID, b
 	if err != nil {
 		return nil, err
 	}
-	referer, err := client.Buckets().GetBucketReferer(ctx, bucket)
+	referer, err := client.Bucket().GetBucketReferer(ctx, bucket)
 	if err != nil {
 		if errors.Is(err, storage.ErrUnsupportedCapability) {
 			return nil, fmt.Errorf("%s 不支持 Referer 白名单", creds.Provider.Label())
@@ -121,7 +121,7 @@ func (s *BucketConfigService) SetBucketReferer(ctx context.Context, accountID, b
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().PutBucketReferer(ctx, bucket, storage.BucketReferer{
+	err = client.Bucket().PutBucketReferer(ctx, bucket, storage.BucketReferer{
 		Enabled:    referer.Enabled,
 		AllowEmpty: referer.AllowEmpty,
 		Whitelist:  append([]string(nil), referer.Whitelist...),

@@ -49,7 +49,7 @@ func (s *Service) ListObjects(ctx context.Context, accountID string, input ListO
 		Limit:     input.Limit,
 		Marker:    input.Marker,
 	}
-	data, err := client.Objects().ListObjects(ctx, payload)
+	data, err := client.Object().ListObjects(ctx, payload)
 	if err != nil {
 		return result, err
 	}
@@ -145,7 +145,7 @@ func (s *Service) DeleteObject(ctx context.Context, accountID, bucket, key strin
 	if key == "" {
 		return errors.New("object key is required")
 	}
-	return client.Objects().DeleteObject(ctx, bucket, key)
+	return client.Object().DeleteObject(ctx, bucket, key)
 }
 
 // DeleteObjectWithOptions removes an object with mutation tracking metadata.
@@ -170,7 +170,7 @@ func (s *Service) BatchDeleteObjects(ctx context.Context, accountID, bucket stri
 		return result, errors.New("bucket is required")
 	}
 	result.Total = len(keys)
-	driver := client.Objects()
+	driver := client.Object()
 
 	// Use the batch DeleteObjects API for better performance
 	driverResult, err := driver.DeleteObjects(ctx, bucket, keys)
@@ -221,7 +221,7 @@ func (s *Service) CopyObject(ctx context.Context, accountID, sourceBucket, sourc
 	if strings.TrimSpace(targetBucket) == "" || strings.TrimSpace(targetKey) == "" {
 		return errors.New("target bucket/key is required")
 	}
-	return client.Objects().CopyObject(ctx, sourceBucket, sourceKey, targetBucket, targetKey)
+	return client.Object().CopyObject(ctx, sourceBucket, sourceKey, targetBucket, targetKey)
 }
 
 func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, newKey string) error {
@@ -244,7 +244,7 @@ func (s *Service) RenameObject(ctx context.Context, accountID, bucket, oldKey, n
 	if oldKey == newKey {
 		return errors.New("new object key must be different from the current key")
 	}
-	driver := client.Objects()
+	driver := client.Object()
 	if _, err := driver.HeadObject(ctx, bucket, newKey); err == nil {
 		return fmt.Errorf("object %q already exists", newKey)
 	} else if !isNotFoundError(err) {
@@ -276,7 +276,7 @@ func (s *Service) MoveObjects(ctx context.Context, accountID string, requests []
 	if err != nil {
 		return result, err
 	}
-	driver := client.Objects()
+	driver := client.Object()
 	result.Total = len(requests)
 	for _, req := range requests {
 		srcBucket := strings.TrimSpace(req.SourceBucket)
@@ -361,7 +361,7 @@ func (s *Service) CreateFolder(ctx context.Context, accountID, bucket, prefix st
 		key += "/"
 	}
 	body := bytes.NewReader(nil)
-	return client.Objects().UploadObject(ctx, bucket, key, body, 0, "application/x-directory")
+	return client.Object().UploadObject(ctx, bucket, key, body, 0, "application/x-directory")
 }
 
 // CreateSymlink materialises an OSS-style symbolic link referencing another object key.
@@ -379,7 +379,7 @@ func (s *Service) CreateSymlink(ctx context.Context, accountID, bucket, linkKey,
 	if linkKey == "" || targetKey == "" {
 		return errors.New("link key 与目标 key 均不能为空")
 	}
-	return client.Objects().CreateSymlink(ctx, bucket, linkKey, targetKey)
+	return client.Object().CreateSymlink(ctx, bucket, linkKey, targetKey)
 }
 
 // GetSymlink returns the target of an OSS symlink.
@@ -396,7 +396,7 @@ func (s *Service) GetSymlink(ctx context.Context, accountID, bucket, key string)
 	if key == "" {
 		return "", errors.New("object key is required")
 	}
-	return client.Objects().GetSymlink(ctx, bucket, key)
+	return client.Object().GetSymlink(ctx, bucket, key)
 }
 
 // HeadObject fetches metadata for a single object.
@@ -414,7 +414,7 @@ func (s *Service) HeadObject(ctx context.Context, accountID, bucket, key string)
 	if key == "" {
 		return info, errors.New("object key is required")
 	}
-	raw, err := client.Objects().HeadObject(ctx, bucket, key)
+	raw, err := client.Object().HeadObject(ctx, bucket, key)
 	if err != nil {
 		return info, err
 	}
@@ -429,7 +429,7 @@ func (s *Service) GetObjectAttributes(ctx context.Context, accountID, bucket, ke
 	if err != nil {
 		return attrs, err
 	}
-	driver := client.Objects()
+	driver := client.Object()
 	bucket = strings.TrimSpace(bucket)
 	if bucket == "" {
 		return attrs, errors.New("bucket is required")
@@ -466,7 +466,7 @@ func (s *Service) UpdateObjectAttributes(ctx context.Context, accountID string, 
 	if err != nil {
 		return ObjectAttributes{}, err
 	}
-	if err := applyObjectPatch(ctx, client.Objects(), patch); err != nil {
+	if err := applyObjectPatch(ctx, client.Object(), patch); err != nil {
 		return ObjectAttributes{}, err
 	}
 	return s.GetObjectAttributes(ctx, accountID, patch.Bucket, patch.Key)
@@ -479,7 +479,7 @@ func (s *Service) BatchUpdateObjectAttributes(ctx context.Context, accountID str
 	if err != nil {
 		return result, err
 	}
-	driver := client.Objects()
+	driver := client.Object()
 	result.Total = len(patches)
 	for _, patch := range patches {
 		if err := applyObjectPatch(ctx, driver, patch); err != nil {
@@ -506,7 +506,7 @@ func (s *Service) GetObjectLockConfiguration(ctx context.Context, accountID, buc
 	if bucket == "" {
 		return cfg, errors.New("bucket is required")
 	}
-	providerCfg, err := client.Objects().GetObjectLockConfiguration(ctx, bucket)
+	providerCfg, err := client.Object().GetObjectLockConfiguration(ctx, bucket)
 	if err != nil {
 		return cfg, err
 	}
@@ -525,7 +525,7 @@ func (s *Service) GetObjectRetention(ctx context.Context, accountID, bucket, key
 	if bucket == "" || key == "" {
 		return state, errors.New("bucket and key are required")
 	}
-	providerState, err := client.Objects().GetObjectRetention(ctx, bucket, key, versionID)
+	providerState, err := client.Object().GetObjectRetention(ctx, bucket, key, versionID)
 	if err != nil {
 		return state, err
 	}
@@ -555,7 +555,7 @@ func (s *Service) UpdateObjectRetention(ctx context.Context, accountID string, i
 		RetainUntil:      input.RetainUntil,
 		BypassGovernance: input.BypassGovernance,
 	}
-	if err := client.Objects().PutObjectRetention(ctx, payload); err != nil {
+	if err := client.Object().PutObjectRetention(ctx, payload); err != nil {
 		return state, err
 	}
 	return s.GetObjectRetention(ctx, accountID, input.Bucket, input.Key, input.VersionID)
@@ -573,7 +573,7 @@ func (s *Service) GetObjectLegalHold(ctx context.Context, accountID, bucket, key
 	if bucket == "" || key == "" {
 		return state, errors.New("bucket and key are required")
 	}
-	providerState, err := client.Objects().GetObjectLegalHold(ctx, bucket, key, versionID)
+	providerState, err := client.Object().GetObjectLegalHold(ctx, bucket, key, versionID)
 	if err != nil {
 		return state, err
 	}
@@ -601,7 +601,7 @@ func (s *Service) UpdateObjectLegalHold(ctx context.Context, accountID string, i
 		VersionID: input.VersionID,
 		Status:    input.Status,
 	}
-	if err := client.Objects().PutObjectLegalHold(ctx, payload); err != nil {
+	if err := client.Object().PutObjectLegalHold(ctx, payload); err != nil {
 		return state, err
 	}
 	return s.GetObjectLegalHold(ctx, accountID, input.Bucket, input.Key, input.VersionID)
@@ -645,7 +645,7 @@ func (s *Service) GetPresignedURLWithHeaders(
 		expirationSeconds = maxTTL
 	}
 	duration := time.Duration(expirationSeconds) * time.Second
-	url, err := client.Objects().PresignURL(ctx, storage.PresignRequest{
+	url, err := client.Object().PresignURL(ctx, storage.PresignRequest{
 		Bucket:          bucket,
 		Key:             key,
 		Method:          method,
@@ -672,7 +672,7 @@ func (s *Service) InitiateMultipartUpload(ctx context.Context, accountID, bucket
 	if key == "" {
 		return "", errors.New("object key is required")
 	}
-	return client.Objects().InitiateMultipartUpload(ctx, bucket, key)
+	return client.Object().InitiateMultipartUpload(ctx, bucket, key)
 }
 
 // UploadPart uploads a single part for a multipart session.
@@ -702,7 +702,7 @@ func (s *Service) UploadPart(
 		return "", errors.New("part payload is empty")
 	}
 	reader := bytes.NewReader(data)
-	return client.Objects().UploadPart(ctx, bucket, key, uploadID, partNumber, reader, int64(len(data)))
+	return client.Object().UploadPart(ctx, bucket, key, uploadID, partNumber, reader, int64(len(data)))
 }
 
 // CompleteMultipartUpload finalises the multipart upload with the collected ETags.
@@ -727,7 +727,7 @@ func (s *Service) CompleteMultipartUpload(
 	if len(parts) == 0 {
 		return errors.New("at least one part is required")
 	}
-	return client.Objects().CompleteMultipartUpload(ctx, bucket, key, uploadID, parts)
+	return client.Object().CompleteMultipartUpload(ctx, bucket, key, uploadID, parts)
 }
 
 // AbortMultipartUpload cancels an in-progress multipart upload.
@@ -745,7 +745,7 @@ func (s *Service) AbortMultipartUpload(ctx context.Context, accountID, bucket, k
 	if strings.TrimSpace(uploadID) == "" {
 		return errors.New("upload id is required")
 	}
-	return client.Objects().AbortMultipartUpload(ctx, bucket, key, uploadID)
+	return client.Object().AbortMultipartUpload(ctx, bucket, key, uploadID)
 }
 
 // GenerateAccessLinks builds presigned URLs (one per method) and stores them in history.
@@ -779,7 +779,7 @@ func (s *Service) GenerateAccessLinks(ctx context.Context, accountID string, inp
 			VersionID:       input.VersionID,
 			ResponseHeaders: baseHeaders,
 		}
-		url, err := client.Objects().PresignURL(ctx, req)
+		url, err := client.Object().PresignURL(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -875,7 +875,7 @@ func convertLegalHoldState(state storage.ObjectLegalHoldState) ObjectLegalHoldSt
 	}
 }
 
-func applyObjectPatch(ctx context.Context, driver storage.ObjectDriver, patch ObjectAttributesPatch) error {
+func applyObjectPatch(ctx context.Context, driver storage.ObjectAPI, patch ObjectAttributesPatch) error {
 	bucket := strings.TrimSpace(patch.Bucket)
 	key := strings.TrimSpace(patch.Key)
 	if bucket == "" || key == "" {

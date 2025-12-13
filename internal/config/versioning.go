@@ -19,7 +19,7 @@ func (s *BucketConfigService) GetVersioning(ctx context.Context, accountID, buck
 	if err != nil {
 		return nil, err
 	}
-	verStatus, err := client.Buckets().GetBucketVersioning(ctx, strings.TrimSpace(bucket))
+	verStatus, err := client.Bucket().GetBucketVersioning(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return nil, fmt.Errorf("get bucket versioning: %w", err)
 	}
@@ -54,7 +54,7 @@ func (s *BucketConfigService) updateVersioning(ctx context.Context, accountID, b
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().PutBucketVersioning(ctx, strings.TrimSpace(bucket), status)
+	err = client.Bucket().PutBucketVersioning(ctx, strings.TrimSpace(bucket), status)
 	if err != nil {
 		return fmt.Errorf("update bucket versioning: %w", err)
 	}

@@ -76,7 +76,7 @@ func (s *Service) SearchObjects(ctx context.Context, accountID string, query *Se
 	if len(buckets) == 0 {
 		return &SearchResponse{Results: []*SearchResult{}, Total: 0, HasMore: false, NextOffset: offset}, nil
 	}
-	driver := client.Objects()
+	driver := client.Object()
 	needed := offset + pageLimit
 	buffer := pageLimit
 	maxInspect := needed + buffer
@@ -303,7 +303,7 @@ func (s *Service) resolveBuckets(ctx context.Context, client storage.StorageClie
 	if bucket := strings.TrimSpace(requested); bucket != "" {
 		return []string{bucket}, nil
 	}
-	list, err := client.Buckets().ListBuckets(ctx)
+	list, err := client.Bucket().ListBuckets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func (s *Service) resolveBuckets(ctx context.Context, client storage.StorageClie
 	return names, nil
 }
 
-func (s *Service) populateTags(ctx context.Context, driver storage.ObjectDriver, bucket string, records []objectRecord) {
+func (s *Service) populateTags(ctx context.Context, driver storage.ObjectAPI, bucket string, records []objectRecord) {
 	for i := range records {
 		tags, err := driver.GetObjectTags(ctx, bucket, records[i].Key)
 		if err != nil {

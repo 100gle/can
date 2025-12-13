@@ -21,7 +21,7 @@ func (s *BucketConfigService) GetLifecycle(ctx context.Context, accountID, bucke
 	if err != nil {
 		return nil, err
 	}
-	rules, err := client.Buckets().GetBucketLifecycleConfiguration(ctx, strings.TrimSpace(bucket))
+	rules, err := client.Bucket().GetBucketLifecycleConfiguration(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchLifecycleConfiguration" {
@@ -99,7 +99,7 @@ func (s *BucketConfigService) SetLifecycle(ctx context.Context, accountID, bucke
 	if len(storageRules) == 0 {
 		return s.DeleteLifecycle(ctx, accountID, bucket)
 	}
-	err = client.Buckets().PutBucketLifecycleConfiguration(ctx, strings.TrimSpace(bucket), storageRules)
+	err = client.Bucket().PutBucketLifecycleConfiguration(ctx, strings.TrimSpace(bucket), storageRules)
 	if err != nil {
 		return fmt.Errorf("put lifecycle configuration: %w", err)
 	}
@@ -115,7 +115,7 @@ func (s *BucketConfigService) DeleteLifecycle(ctx context.Context, accountID, bu
 	if err != nil {
 		return err
 	}
-	err = client.Buckets().DeleteBucketLifecycle(ctx, strings.TrimSpace(bucket))
+	err = client.Bucket().DeleteBucketLifecycle(ctx, strings.TrimSpace(bucket))
 	if err != nil {
 		return fmt.Errorf("delete lifecycle configuration: %w", err)
 	}
