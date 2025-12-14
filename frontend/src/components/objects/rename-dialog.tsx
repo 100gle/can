@@ -123,11 +123,11 @@ function RenameDialogContent({ objectKey, prefix, onClose }: RenameDialogContent
 
       <DialogFooter>
         <Button variant="outline" onClick={onClose} disabled={loading}>
-          {t("objects.rename.button.cancel")}
+          {t("common.cancel")}
         </Button>
         <Button onClick={handleSubmit} disabled={loading || !newName.trim()}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {t("objects.rename.button.confirm")}
+          {t("common.confirm")}
         </Button>
       </DialogFooter>
     </>

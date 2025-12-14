@@ -95,7 +95,7 @@ export const BucketSettingsPage = () => {
             })
           }
         >
-          {t("bucket.settings.page.backToDashboard")}
+          {t("common.back")}
         </Button>
       </main>
     );

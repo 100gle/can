@@ -185,7 +185,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
                       onClick={() => removeTagRow(entry.id)}
                       disabled={tagEntries.length === 1}
                     >
-                      {t("objects.batchAttributes.tags.delete")}
+                      {t("common.delete")}
                     </Button>
                   </div>
                 ))}
@@ -260,7 +260,7 @@ export function BatchAttributesDialog({ open, onOpenChange, objects }: BatchAttr
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={submitting}>
-            {t("objects.batchAttributes.button.cancel")}
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleApply} disabled={!canSubmit || submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -1,56 +1,24 @@
-# CAN · S3 兼容对象存储工具
+# Can
 
-跨平台的 Wails + React 客户端，用于管理多账户的 S3 兼容对象存储（AWS、阿里云 OSS、腾讯云 COS、Cloudflare R2 等）。
+**Can** is a modern, cross-platform desktop client for managing S3-compatible object storage services. Built with Wails and React, it offers a high-performance, native-like experience for managing your files across multiple cloud providers.
 
-## 开发与调试
+## Features
 
-- `wails dev`：同时热重载 Go + Vite，桌面端端到端联调；
-- `pnpm --dir frontend dev`：仅前端预览，独立于 Wails；
-- `go test ./...`：运行所有 Go 单元测试。
+- **Wide Vendor Support**: Fully supports major providers (AWS S3, Aliyun OSS, Tencent COS, Qiniu Kodo, Cloudflare R2, MinIO) via S3 API and native SDK integrations.
+- **Modern UI**: A sleek, responsive interface allowing you to browse and manage objects just like your desktop file system.
+- **Cross-Platform**: Seamlessly runs on macOS, Windows, and Linux.
+- **Native Experience**: Interact with your cloud storage as if it were a local drive.
+- **Local & Secure**: A purely local application—no intermediate servers. All your data and configurations are stored swiftly and securely on your client.
+- **Out of the Box**: Zero complex configuration required. Uses a single local database file for easy management.
 
-## 构建
+## Tech Stack
 
-```
-pnpm --dir frontend build && wails build
-```
-
-构建后的桌面产物位于 `build/` 目录。
-
-## 数据库存储
-
-账户配置默认保存在 SQLite 数据库，并可通过环境变量切换：
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `CAN_DB_DRIVER` | `sqlite` | 支持 `sqlite`（ORM 持久化）或 `memory`（内存演示）。 |
-| `CAN_DB_DSN` | `%USER_CONFIG%/can/accounts.db` | SQLite 文件路径；当 driver 为 `sqlite` 且未显式设置时自动创建。 |
-| `CAN_TRANSFER_DB` | `%USER_CONFIG%/can/transfers.db` | 传输任务队列的 SQLite 文件；缺省时自动创建，无法创建时回退到内存队列。 |
-
-切换为内存模式时（`CAN_DB_DRIVER=memory`）不会持久化任何账户，仅适合演示或测试。
-
-## 更多配置
-
-应用打包、窗口配置等均在 `wails.json` 中维护，详见官方文档：https://wails.io/docs/reference/project-config
-
-## 开发进度与文档
-
-### 当前状态
-- ✅ 账户管理框架完成
-- ✅ 安全加密存储实现
-- ⚠️ S3 API 层（待实现）
-- ❌ 存储桶/对象管理（待实现）
-
-### 重要文档
-- **[R2 Testing Setup](docs/R2_Testing_Setup.md)** - 如何配置和测试 Cloudflare R2 账户
-- **[TODO R2 Implementation](docs/TODO_R2_Implementation.md)** - 详细的实现计划和任务分解（供开发者参考）
-- **[Implementation Guide](docs/Implementation_Guide.md)** - 代码结构、关键接口和实现指南
-- **[Features](docs/features.md)** - 完整的功能规划文档
-- **[Specifications](docs/spec/)** - 各功能模块的详细规格
-
+- **Backend**: [Go](https://go.dev/) + [Wails](https://wails.io/)
+- **Frontend**: [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vitejs.dev/)
+- **UI Framework**: [TailwindCSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
+- **Storage**: SQLite
 
 ## Architecture
-
-![Architecture Diagram](docs/architecture.png)
 
 ```mermaid
 ---
@@ -73,11 +41,11 @@ flowchart TB
   end
  subgraph Providers["Cloud Storage Providers"]
         CF["Cloudflare R2"]
-        AliOSS["阿里云 OSS"]
-        QiNiu["七牛云"]
-        TencentCOS["腾讯云 COS"]
+        AliOSS["Alibaba Cloud OSS"]
+        QiNiu["Qiniu Kodo"]
+        TencentCOS["Tencent Cloud COS"]
         AWSS3["AWS S3"]
-        Minio["Minio"]
+        Minio["MinIO"]
         Other["Other S3 Compatible<br>Services"]
   end
     User <-- Interact --> Desktop
@@ -103,9 +71,55 @@ flowchart TB
      AWSS3:::providerStyle
      Minio:::providerStyle
      Other:::providerStyle
-    classDef userStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
-    classDef frontendStyle fill:#fff9c4,stroke:#f57c00,stroke-width:2px,color:#000
-    classDef backendStyle fill:#f5f5f5,stroke:#616161,stroke-width:2px,color:#000
-    classDef interfaceStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000
-    classDef providerStyle fill:#ffe0b2,stroke:#e64a19,stroke-width:2px,color:#000
+     classDef userStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+     classDef frontendStyle fill:#fff9c4,stroke:#f57c00,stroke-width:2px,color:#000
+     classDef backendStyle fill:#f5f5f5,stroke:#616161,stroke-width:2px,color:#000
+     classDef interfaceStyle fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000
+     classDef providerStyle fill:#ffe0b2,stroke:#e64a19,stroke-width:2px,color:#000
 ```
+
+## Contribution
+
+### Prerequisites
+
+- **Go**: Version 1.21 or higher.
+- **Node.js**: Version 18 or higher.
+- **pnpm**: Recommended package manager.
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/yourusername/can.git
+    cd can
+    ```
+
+2.  **Install dependencies and build**
+    ```bash
+    # Install frontend dependencies
+    pnpm install
+
+    # Build the application
+    wails build
+    ```
+    The executable will be generated in the `build/bin` directory.
+
+### Development
+
+To run the application in development mode with hot reloading:
+
+```bash
+wails dev
+```
+
+This command will start both the Go backend and the Vite frontend dev server.
+
+- **Frontend Only**: `pnpm --dir frontend dev` (for UI-only development)
+- **Run Tests**: `go test ./...`
+- **Frontend Code Quality**:
+    - Lint: `pnpm --dir frontend lint`
+    - Format: `pnpm --dir frontend format`
+
+## License
+
+Distributed under the Apache License 2.0. See `LICENSE` for more information.

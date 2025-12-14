@@ -24,7 +24,10 @@ export function AppearanceCard() {
       description={t("settings.appearance.desc")}
     >
       <SettingsItem label={t("settings.language")}>
-        <Select value={i18n.language.slice(0, 2)} onValueChange={(val) => i18n.changeLanguage(val)}>
+        <Select
+          value={(i18n.language || "en").slice(0, 2)}
+          onValueChange={(val) => i18n.changeLanguage(val)}
+        >
           <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>

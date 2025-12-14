@@ -106,7 +106,7 @@ export const PolicyPanel = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("actions.cancel", "取消")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleClear}>
-              {t("actions.delete", "删除")}
+              {t("common.delete", "删除")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

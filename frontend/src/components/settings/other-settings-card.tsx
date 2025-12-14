@@ -1,3 +1,4 @@
+import { UpdateChecker } from "@/components/settings/update-checker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +25,6 @@ import {
   type DatabaseDriver,
   type LogLevel,
 } from "@/state/preferences";
-import { UpdateChecker } from "@/components/settings/update-checker";
-import { MetricsPanel } from "@/components/settings/metrics-panel";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsItem } from "./settings-item";
@@ -149,16 +148,6 @@ export function OtherSettingsCard() {
 
       {/* Check Updates */}
       <UpdateChecker appVersion={APP_VERSION} onOpenExternalLink={openExternalLink} />
-
-      {/* Performance Metrics - Full Width */}
-      <SettingsItem
-        label={t("system.metrics.title")}
-        description={t("system.metrics.subtitle")}
-        fullWidth
-        showSeparator={false}
-      >
-        <MetricsPanel />
-      </SettingsItem>
     </SettingsSection>
   );
 }

@@ -81,7 +81,7 @@ export function ObjectContextMenu({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem inset disabled={!onDownload} onSelect={handle(onDownload)}>
-          <DownloadCloud className="mr-2 h-4 w-4" /> {t("objects.context.download")}
+          <DownloadCloud className="mr-2 h-4 w-4" /> {t("common.download")}
         </ContextMenuItem>
         <ContextMenuItem inset disabled={!onCopyLink} onSelect={handle(onCopyLink)}>
           <Link2 className="mr-2 h-4 w-4" /> {t("objects.context.copyLink")}
@@ -106,7 +106,7 @@ export function ObjectContextMenu({
           disabled={!onDelete}
           onSelect={handle(onDelete)}
         >
-          <Trash2 className="mr-2 h-4 w-4" /> {t("objects.context.delete")}
+          <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

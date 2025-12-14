@@ -183,7 +183,7 @@ export function DownloadsPanel({ open, onOpenChange }: DownloadsPanelProps) {
                             onClick={() => transfersStore.cancelTask(task.id)}
                           >
                             <XCircle className="h-4 w-4" />
-                            {t("downloads.action.cancel")}
+                            {t("common.cancel")}
                           </Button>
                         </>
                       )}

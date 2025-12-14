@@ -80,7 +80,7 @@ export function TreeView({
   onDelete,
   onEnterFolder,
 }: TreeViewProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation();
   const [nodes, setNodes] = useState<TreeNodeData[]>([]);
   const [rootLoading, setRootLoading] = useState(false);
   const [rootLoaded, setRootLoaded] = useState(false);
@@ -326,7 +326,7 @@ export function TreeView({
         <p>{rootError}</p>
         <div>
           <Button variant="destructive" size="sm" onClick={handleRootRetry}>
-            {t("retry")}
+            {t("common.retry")}
           </Button>
         </div>
       </div>
@@ -337,7 +337,7 @@ export function TreeView({
     return (
       <div className="flex items-center justify-center py-8 text-muted-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        {t("loading")}
+        {t("common.loading")}
       </div>
     );
   }
@@ -484,7 +484,7 @@ const TreeNode = memo(
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onDownload(object.key)}>
               <Download className="mr-2 h-4 w-4" />
-              {t("contextMenu.download")}
+              {t("common.download")}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => onCopyLink(object.key)}>
               <Link2 className="mr-2 h-4 w-4" />
@@ -498,7 +498,7 @@ const TreeNode = memo(
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          {t("contextMenu.delete")}
+          {t("common.delete")}
         </ContextMenuItem>
       </>
     );

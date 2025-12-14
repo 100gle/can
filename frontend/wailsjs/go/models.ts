@@ -1479,30 +1479,6 @@ export namespace system {
 	        this.error = source["error"];
 	    }
 	}
-	export class SystemMetrics {
-	    timestamp: string;
-	    memoryAlloc: number;
-	    memoryTotal: number;
-	    memorySys: number;
-	    numGoroutines: number;
-	    numCgoCalls: number;
-	    activeTransfers: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new SystemMetrics(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.timestamp = source["timestamp"];
-	        this.memoryAlloc = source["memoryAlloc"];
-	        this.memoryTotal = source["memoryTotal"];
-	        this.memorySys = source["memorySys"];
-	        this.numGoroutines = source["numGoroutines"];
-	        this.numCgoCalls = source["numCgoCalls"];
-	        this.activeTransfers = source["activeTransfers"];
-	    }
-	}
 	export class UpdateInfo {
 	    currentVersion: string;
 	    latestVersion: string;

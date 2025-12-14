@@ -30,7 +30,7 @@ export const RefererProtectionPanel = ({ provider }: RefererProtectionPanelProps
       <Card>
         <CardHeader>
           <CardTitle>{t("bucket.referer.title")}</CardTitle>
-          <CardDescription>{t("bucket.referer.loading")}</CardDescription>
+          <CardDescription>{t("common.loading")}</CardDescription>
         </CardHeader>
       </Card>
     );

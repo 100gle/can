@@ -214,7 +214,7 @@ export function DownloadOptionsDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={submitting}>
-            {t("objects.downloadOptions.button.cancel")}
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleDownload} disabled={disableSubmit}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

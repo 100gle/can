@@ -281,7 +281,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{t("actions.download", "Download")}</TooltipContent>
+                <TooltipContent>{t("common.download", "Download")}</TooltipContent>
               </Tooltip>
             )}
             <DropdownMenu>
@@ -318,7 +318,7 @@ export function createFileTableColumns(config: FileTableColumnConfig): ColumnDef
                       }}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      {t("actions.delete", "Delete")}
+                      {t("common.delete", "Delete")}
                     </DropdownMenuItem>
                   </>
                 )}

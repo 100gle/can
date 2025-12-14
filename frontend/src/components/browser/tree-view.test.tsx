@@ -65,7 +65,7 @@ describe("TreeView error handling", () => {
     render(<TreeView {...baseProps} />);
 
     await waitFor(() => expect(screen.getByText("AccessDenied")).toBeTruthy());
-    expect(screen.getByRole("button", { name: "重试" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "common.retry" })).toBeTruthy();
     expect(toastError).toHaveBeenCalled();
   });
 
@@ -78,9 +78,9 @@ describe("TreeView error handling", () => {
 
     await waitFor(() => expect(screen.getByText("临时错误")).toBeTruthy());
 
-    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
 
     await waitFor(() => expect(listChildrenPaginated).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.getByText("文件夹为空")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("treeView.folderEmpty")).toBeTruthy());
   });
 });

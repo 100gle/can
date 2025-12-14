@@ -105,7 +105,7 @@ export const Sidebar = ({ onCreateAccount, accountId: _accountId }: SidebarProps
           onClick={() => navigate({ to: "/settings" })}
         >
           <Settings className="h-4 w-4" />
-          {t("settings")}
+          {t("settings.title")}
         </Button>
       </div>
     </div>

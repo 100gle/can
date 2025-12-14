@@ -60,10 +60,10 @@ export function BatchToolbar({
                 disabled={selecting}
               >
                 <Download className="h-4 w-4" />
-                {t("objects.batchToolbar.action.download")}
+                {t("common.download")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t("objects.batchToolbar.action.downloadTooltip")}</TooltipContent>
+            <TooltipContent>{t("common.downloadTooltip")}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -128,7 +128,7 @@ export function BatchToolbar({
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
-                {t("objects.batchToolbar.action.delete")}
+                {t("common.delete")}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t("objects.batchToolbar.action.deleteTooltip")}</TooltipContent>

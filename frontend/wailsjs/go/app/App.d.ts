@@ -130,8 +130,6 @@ export function GetPublicAccessBlock(arg1:string,arg2:string):Promise<config.Pub
 
 export function GetSymlink(arg1:string,arg2:string,arg3:string):Promise<string>;
 
-export function GetSystemMetrics():Promise<system.SystemMetrics>;
-
 export function GetTransferConfig():Promise<transfer.TransferConfig>;
 
 export function GetTransferSpeedLimit():Promise<number>;

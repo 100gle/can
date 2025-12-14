@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { SettingsItem } from "@/components/settings/settings-item";
+import { Button } from "@/components/ui/button";
 import { CheckForUpdates } from "@wailsjs/go/app/App";
 import { system } from "@wailsjs/go/models";
 import { ExternalLink, Loader2 } from "lucide-react";
@@ -72,6 +72,7 @@ export const UpdateChecker = memo(function UpdateChecker({
             : t("system.update.latest")
           : updateError || t("system.update.notChecked")
       }
+      showSeparator={false}
     >
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handleCheckUpdates} disabled={checkingUpdate}>

@@ -74,7 +74,7 @@ export const AccessControlPanel = ({ provider }: AccessControlPanelProps) => {
       <Card>
         <CardHeader>
           <CardTitle>{t("bucket.acl.title")}</CardTitle>
-          <CardDescription>{t("bucket.acl.loading")}</CardDescription>
+          <CardDescription>{t("common.loading")}</CardDescription>
         </CardHeader>
       </Card>
     );

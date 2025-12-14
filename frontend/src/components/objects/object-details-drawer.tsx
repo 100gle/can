@@ -378,7 +378,7 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
                             size="sm"
                             onClick={() => navigator.clipboard.writeText(info.versionId || "")}
                           >
-                            {t("objects.details.general.copy")}
+                            {t("common.copy")}
                           </Button>
                         </div>
                       </div>
@@ -535,7 +535,7 @@ export function ObjectDetailsDrawer({ open, objectKey, onClose }: ObjectDetailsD
 
         <SheetFooter className="mt-auto">
           <Button variant="outline" onClick={onClose} disabled={saving}>
-            {t("objects.details.button.cancel")}
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving || loading}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

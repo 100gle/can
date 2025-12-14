@@ -45,7 +45,7 @@ export const BlockPublicAccessPanel = ({ provider }: BlockPublicAccessPanelProps
       <Card>
         <CardHeader>
           <CardTitle>{t("bucket.publicAccess.title")}</CardTitle>
-          <CardDescription>{t("bucket.publicAccess.loading")}</CardDescription>
+          <CardDescription>{t("common.loading")}</CardDescription>
         </CardHeader>
       </Card>
     );

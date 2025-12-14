@@ -34,7 +34,7 @@ describe("TableFooterPaginator", () => {
       />,
     );
 
-    const [nextButton] = screen.getAllByText("下一页");
+    const [nextButton] = screen.getAllByText("table.pagination.next");
     fireEvent.click(nextButton);
     expect(onPageChange).toHaveBeenCalledWith(3);
     expect(onLoadMore).toHaveBeenCalledTimes(1);
@@ -53,7 +53,7 @@ describe("TableFooterPaginator", () => {
       />,
     );
 
-    const [nextButton] = screen.getAllByText("下一页");
+    const [nextButton] = screen.getAllByText("table.pagination.next");
     fireEvent.click(nextButton);
     expect(onPageChange).toHaveBeenCalledWith(2);
     expect(onLoadMore).not.toHaveBeenCalled();

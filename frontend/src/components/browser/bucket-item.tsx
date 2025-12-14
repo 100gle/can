@@ -38,7 +38,7 @@ export const BucketItem = memo(function BucketItem({
         {onSettings && (
           <ContextMenuItem onClick={() => onSettings(bucket.name)}>
             <Settings2 className="mr-2 h-4 w-4" />
-            {t("contextMenu.settings")}
+            {t("common.settings")}
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -47,7 +47,7 @@ export const BucketItem = memo(function BucketItem({
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          {t("contextMenu.delete")}
+          {t("common.delete")}
         </ContextMenuItem>
       </>
     ),

@@ -117,7 +117,7 @@ export function SnapshotPanel() {
             <div className="flex justify-between items-center">
               <Button variant="outline" size="sm" onClick={loadSnapshots} disabled={listLoading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${listLoading ? "animate-spin" : ""}`} />
-                {t("bucket.snapshot.refresh")}
+                {t("common.refresh")}
               </Button>
               <Button onClick={handleCreateSnapshot} disabled={loading}>
                 {loading ? t("bucket.snapshot.creating") : t("bucket.snapshot.create")}
@@ -183,7 +183,7 @@ export function SnapshotPanel() {
               onClick={confirmDelete}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {t("actions.delete", "删除")}
+              {t("common.delete", "删除")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

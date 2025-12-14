@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { act } from "react";
 import type { ReactNode } from "react";
+import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AccountSwitcher } from "./account-switcher";
 import { accountsStore, useAccountsStore, type AccountModel } from "@/state/accounts";
+import { AccountSwitcher } from "./account-switcher";
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => () => undefined,
@@ -62,7 +62,7 @@ describe("AccountSwitcher", () => {
     render(<AccountSwitcher />);
 
     expect(screen.getByText("主账户")).toBeTruthy();
-    expect(screen.getByLabelText("连接正常")).toBeTruthy();
+    expect(screen.getByLabelText("account.status.ok")).toBeTruthy();
   });
 
   it("switches account and triggers connection test asynchronously", async () => {

@@ -228,7 +228,7 @@ export function ExportFileListDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={exporting}>
-            {t("objects.export.button.cancel")}
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleExport} disabled={!canExport || exporting}>
             {exporting ? (

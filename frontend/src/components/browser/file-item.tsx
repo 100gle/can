@@ -69,7 +69,7 @@ export function FileItem({
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onDownload(object.key)}>
             <Download className="mr-2 h-4 w-4" />
-            {t("contextMenu.download")}
+            {t("common.download")}
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onCopyLink(object.key)}>
             <Link2 className="mr-2 h-4 w-4" />
@@ -83,7 +83,7 @@ export function FileItem({
         className="text-destructive focus:text-destructive"
       >
         <Trash2 className="mr-2 h-4 w-4" />
-        {t("contextMenu.delete")}
+        {t("common.delete")}
       </ContextMenuItem>
     </>
   );

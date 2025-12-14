@@ -14,7 +14,7 @@ type ConnectionStatus = "ok" | "error" | "pending" | "connecting";
 const CONNECTION_CHECK_INTERVAL = 30_000; // 30 seconds
 
 export const AccountSwitcher = () => {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const accounts = useAccountsStore((state) => state.accounts);
   const activeAccountId = useAccountsStore((state) => state.activeAccountId);

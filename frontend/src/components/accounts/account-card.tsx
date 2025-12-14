@@ -135,10 +135,10 @@ export const AccountCard = memo(function AccountCard({
                     size="sm"
                     className="gap-1.5 px-3"
                     onClick={handleDelete}
-                    aria-label={t("account.card.deleteAria")}
+                    aria-label={t("common.deleteAria")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    <span>{t("account.card.delete")}</span>
+                    <span>{t("common.delete")}</span>
                   </Button>
                 )}
               </div>

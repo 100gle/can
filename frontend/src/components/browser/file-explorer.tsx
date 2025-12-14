@@ -295,7 +295,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                     <>
                       <ContextMenuItem onClick={actions.handleUploadClick}>
                         <Upload className="mr-2 h-4 w-4" />
-                        {t("contextMenu.upload")}
+                        {t("common.upload")}
                       </ContextMenuItem>
                       <ContextMenuItem onClick={actions.handleUploadFolder}>
                         <FolderPlus className="mr-2 h-4 w-4" />
@@ -306,7 +306,7 @@ export function FileExplorer({ accountId, onOpenBucketSettings, className }: Fil
                   <ContextMenuSeparator />
                   <ContextMenuItem onClick={controller.refresh}>
                     <RefreshCcw className="mr-2 h-4 w-4" />
-                    {t("contextMenu.refresh")}
+                    {t("common.refresh")}
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>

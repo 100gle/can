@@ -12,14 +12,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// GetSystemMetrics returns current system performance metrics.
-func (a *App) GetSystemMetrics() system.SystemMetrics {
-	if a.system == nil {
-		return system.SystemMetrics{}
-	}
-	return a.system.GetMetrics()
-}
-
 // CheckForUpdates queries remote releases and reports availability.
 func (a *App) CheckForUpdates(currentVersion string) (system.UpdateInfo, error) {
 	if a.system == nil {

@@ -238,10 +238,6 @@ export function GetSymlink(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetSymlink'](arg1, arg2, arg3);
 }
 
-export function GetSystemMetrics() {
-  return window['go']['app']['App']['GetSystemMetrics']();
-}
-
 export function GetTransferConfig() {
   return window['go']['app']['App']['GetTransferConfig']();
 }

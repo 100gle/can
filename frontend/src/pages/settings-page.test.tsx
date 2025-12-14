@@ -1,9 +1,9 @@
-import React, { act } from "react";
-import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
-import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { routeTree } from "@/routeTree.gen";
 import { accountsStore } from "@/state/accounts";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
+import React, { act } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Let React know this environment supports `act`
 // https://react.dev/reference/react-dom/test-utils/act
@@ -39,7 +39,7 @@ describe("SettingsPage", () => {
 
   it("renders without entering infinite update loops", async () => {
     const { root, container } = await renderAt("/settings");
-    expect(container.textContent).toContain("系统设置");
+    expect(container.textContent).toContain("common.settings");
     await act(async () => {
       root.unmount();
     });

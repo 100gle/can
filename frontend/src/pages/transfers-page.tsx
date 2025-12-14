@@ -312,7 +312,7 @@ const TaskRow = memo(function TaskRow({
         ) : (
           <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
             <ArrowDownCircle className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-medium">{t("transfers.type.download")}</span>
+            <span className="text-xs font-medium">{t("common.download")}</span>
           </div>
         )}
       </TableCell>
@@ -373,7 +373,7 @@ const TaskRow = memo(function TaskRow({
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => onCancel(task.id)}
-                title={t("transfers.action.cancel")}
+                title={t("common.cancel")}
               >
                 <XCircle className="h-4 w-4" />
               </Button>
@@ -395,7 +395,7 @@ const TaskRow = memo(function TaskRow({
                 size="icon"
                 className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => onCancel(task.id)}
-                title={t("transfers.action.cancel")}
+                title={t("common.cancel")}
               >
                 <XCircle className="h-4 w-4" />
               </Button>
@@ -409,7 +409,7 @@ const TaskRow = memo(function TaskRow({
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(task.id)}
-              title={t("transfers.action.delete")}
+              title={t("common.delete")}
             >
               <Trash2 className="h-4 w-4" />
             </Button>

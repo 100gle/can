@@ -60,10 +60,7 @@ func New() *App {
 	searchStore := bootstrap.InitSearchStore()
 	searchSvc := search.NewService(accountSvc, clientPool, searchStore)
 
-	systemSvc := system.NewService(func() int {
-		count, _ := transferSvc.CountActiveTasks(context.Background())
-		return count
-	})
+	systemSvc := system.NewService()
 
 	// Backup Service Init
 	dataDir, _ := bootstrap.DefaultDataDir() // Best effort

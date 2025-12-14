@@ -122,7 +122,7 @@ export default function DashboardPage() {
               disabled={refreshing}
             >
               <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? t("dashboard.refreshing") : t("dashboard.refresh")}
+              {refreshing ? t("dashboard.refreshing") : t("common.refresh")}
             </Button>
           </div>
 

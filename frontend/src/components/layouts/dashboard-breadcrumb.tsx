@@ -32,7 +32,7 @@ export const useDashboardBreadcrumbs = (): BreadcrumbResult => {
         const label = account ? account.name : activeAccountId;
         items.push({ label, to: `/accounts/${activeAccountId}/dashboard` });
       }
-      items.push({ label: t("settings"), to: "/settings" });
+      items.push({ label: t("settings.title"), to: "/settings" });
       return { items, isSubPage: true };
     }
 

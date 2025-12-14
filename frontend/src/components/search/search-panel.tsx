@@ -455,7 +455,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
                       placeholder={t("searchPanel.save.namePlaceholder")}
                     />
                   </div>
-                  <Button onClick={handleSaveQuery}>{t("searchPanel.save.confirm")}</Button>
+                  <Button onClick={handleSaveQuery}>{t("common.confirm")}</Button>
                 </div>
               </PopoverContent>
             </Popover>
@@ -517,7 +517,7 @@ export const SearchPanel = ({ buckets }: SearchPanelProps) => {
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              {t("searchPanel.results.loading")}
+              {t("common.loading")}
             </div>
           )}
         </div>

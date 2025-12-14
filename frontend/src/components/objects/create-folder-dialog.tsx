@@ -105,7 +105,7 @@ export function CreateFolderDialog({ open, onOpenChange }: CreateFolderDialogPro
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            {t("objects.createFolder.button.cancel")}
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || !folderName.trim()}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

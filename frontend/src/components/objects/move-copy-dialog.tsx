@@ -235,7 +235,7 @@ function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentPr
           />
           <div className="mt-4 flex justify-end">
             <Button variant="ghost" onClick={() => setPickingFolder(false)}>
-              {t("objects.moveCopy.picker.back")}
+              {t("common.back")}
             </Button>
           </div>
         </div>
@@ -248,7 +248,7 @@ function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentPr
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="copy" className="gap-2">
-                <Copy className="h-4 w-4" /> {t("objects.moveCopy.tabs.copy")}
+                <Copy className="h-4 w-4" /> {t("common.copy")}
               </TabsTrigger>
               <TabsTrigger value="move" className="gap-2">
                 <MoveRight className="h-4 w-4" /> {t("objects.moveCopy.tabs.move")}
@@ -312,7 +312,7 @@ function MoveCopyDialogContent({ defaultMode, onClose }: MoveCopyDialogContentPr
           </Button>
           <Button onClick={handleConfirm} disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("objects.moveCopy.button.confirm")}
+            {t("common.confirm")}
           </Button>
         </DialogFooter>
       )}

@@ -301,7 +301,7 @@ export function FilePreviewModal({
       return (
         <div className="flex h-64 items-center justify-center text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          {t("objects.preview.loading")}
+          {t("common.loading")}
         </div>
       );
     }
@@ -390,7 +390,7 @@ export function FilePreviewModal({
               fallback={
                 <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("objects.preview.loading")}
+                  {t("common.loading")}
                 </div>
               }
             >
@@ -421,7 +421,7 @@ export function FilePreviewModal({
                   fallback={
                     <div className="flex h-full items-center justify-center text-muted-foreground">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t("objects.preview.loading")}
+                      {t("common.loading")}
                     </div>
                   }
                 >
@@ -439,7 +439,7 @@ export function FilePreviewModal({
                 fallback={
                   <div className="flex h-[55vh] items-center justify-center text-muted-foreground">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("objects.preview.loading")}
+                    {t("common.loading")}
                   </div>
                 }
               >
@@ -460,7 +460,7 @@ export function FilePreviewModal({
             fallback={
               <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("objects.preview.loading")}
+                {t("common.loading")}
               </div>
             }
           >

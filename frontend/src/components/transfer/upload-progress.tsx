@@ -41,10 +41,10 @@ export const UploadProgress = () => {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            {t("transfer.queue")}
+            {t("transfers.queue.title")}
           </p>
           <h3 className="text-lg font-semibold">
-            {t("transfer.tasksSummary", { count: running.length, percent })}
+            {t("transfers.tasksSummary", { count: running.length, percent })}
           </h3>
           <p className="text-sm text-muted-foreground">
             {formatBytes(progress)} / {formatBytes(total)}
@@ -52,13 +52,13 @@ export const UploadProgress = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => transfersStore.syncBackendTasks()}>
-            {t("transfer.refresh")}
+            {t("common.refresh")}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => transfersStore.clearCompleted()}
-            title={t("transfer.clearCompleted")}
+            title={t("transfers.clearCompleted")}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -78,10 +78,8 @@ export const UploadProgress = () => {
                 <div>
                   <p className="font-semibold">{task.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {task.type === "upload"
-                      ? t("transfer.type.upload")
-                      : t("transfer.type.download")}{" "}
-                    · {task.bucket}
+                    {task.type === "upload" ? t("common.upload") : t("common.download")} ·{" "}
+                    {task.bucket}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -90,7 +88,7 @@ export const UploadProgress = () => {
                       size="icon"
                       variant="ghost"
                       onClick={() => transfersStore.resumeTask(task.id)}
-                      title={t("transfer.resume")}
+                      title={t("transfers.action.resume")}
                     >
                       <Play className="h-4 w-4" />
                     </Button>
@@ -99,7 +97,7 @@ export const UploadProgress = () => {
                       size="icon"
                       variant="ghost"
                       onClick={() => transfersStore.pauseTask(task.id)}
-                      title={t("transfer.pause")}
+                      title={t("transfers.action.pause")}
                     >
                       <Pause className="h-4 w-4" />
                     </Button>
@@ -108,7 +106,7 @@ export const UploadProgress = () => {
                     size="icon"
                     variant="ghost"
                     onClick={() => transfersStore.cancelTask(task.id)}
-                    title={t("transfer.cancel")}
+                    title={t("common.cancel")}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -123,10 +121,10 @@ export const UploadProgress = () => {
                 </span>
                 <span>
                   {task.status === "paused"
-                    ? t("transfer.status.paused")
+                    ? t("transfers.status.paused")
                     : task.speed
                       ? `${formatBytes(task.speed)}/s`
-                      : t("transfer.status.preparing")}
+                      : t("transfers.status.preparing")}
                 </span>
               </div>
             </div>
