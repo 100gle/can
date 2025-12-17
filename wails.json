@@ -1,0 +1,18 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "can",
+  "outputfilename": "can",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm run build",
+  "frontend:dev:watcher": "pnpm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "100gle",
+    "email": "loogle.space@gmail.com"
+  },
+  "preBuildHooks": {
+    "windows/*": "go run ../../cmd/icon-gen/main.go ../../frontend/src/assets/images/logo-universal.png ../windows/icon.ico",
+    "darwin/*": "cp ../../frontend/src/assets/images/logo-universal.png ../appicon.png",
+    "linux/*": "cp ../../frontend/src/assets/images/logo-universal.png ../appicon.png"
+  }
+}

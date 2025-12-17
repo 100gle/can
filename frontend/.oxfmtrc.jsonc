@@ -1,0 +1,3 @@
+{
+    "ignorePatterns": ["wailsjs", "test/snapshots/**", "test.js", "*.gen.ts"]
+}
