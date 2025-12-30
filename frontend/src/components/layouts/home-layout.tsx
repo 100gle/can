@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePreferencesStore } from "@/state/preferences";
-import { Languages, Laptop, Moon, Sun } from "lucide-react";
+import { Check, Languages, Laptop, Moon, Sun } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -42,15 +42,17 @@ export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-9 w-9">
-                        <Languages className="h-4 w-4" />
+                        <Languages className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem onClick={() => setLanguage("en")}>
-                        English {language === "en" && "✓"}
+                        English
+                        {language === "en" && <Check className="ml-auto size-4" />}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLanguage("zh")}>
-                        中文 {language === "zh" && "✓"}
+                        中文
+                        {language === "zh" && <Check className="ml-auto size-4" />}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -58,25 +60,25 @@ export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-9 w-9">
-                        <ThemeIcon className="h-4 w-4" />
+                        <ThemeIcon className="size-4" />
                         <span className="sr-only">Toggle theme</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setThemePreference("light")}>
-                        <Sun className="mr-2 h-4 w-4" />
-                        {t("theme.light", "Light")}
-                        {themePreference === "light" && <span className="ml-auto">✓</span>}
+                        <Sun className="size-4" />
+                        {t("settings.theme.light", "Light")}
+                        {themePreference === "light" && <Check className="ml-auto size-4" />}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setThemePreference("dark")}>
-                        <Moon className="mr-2 h-4 w-4" />
-                        {t("theme.dark", "Dark")}
-                        {themePreference === "dark" && <span className="ml-auto">✓</span>}
+                        <Moon className="size-4" />
+                        {t("settings.theme.dark", "Dark")}
+                        {themePreference === "dark" && <Check className="ml-auto size-4" />}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setThemePreference("system")}>
-                        <Laptop className="mr-2 h-4 w-4" />
-                        {t("theme.system", "System")}
-                        {themePreference === "system" && <span className="ml-auto">✓</span>}
+                        <Laptop className="size-4" />
+                        {t("settings.theme.system", "System")}
+                        {themePreference === "system" && <Check className="ml-auto size-4" />}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
