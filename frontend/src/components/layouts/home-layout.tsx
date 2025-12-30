@@ -1,5 +1,4 @@
 import logo from "@/assets/images/logo-universal.png";
-import { SketchBackground } from "@/components/decorations/sketch-background";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,8 +23,7 @@ export const HomeLayout = ({ children, toolbarSlot }: HomeLayoutProps) => {
   const ThemeIcon = themePreference === "system" ? Laptop : themePreference === "dark" ? Moon : Sun;
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-gradient-to-b from-background to-background/95 text-foreground">
-      <SketchBackground />
+    <div className="sketch-background relative flex min-h-screen flex-col text-foreground">
       <div className="relative z-10 w-full px-4 py-8 sm:px-8">
         <div className="mx-auto w-full max-w-6xl flex flex-col gap-8">
           <header>

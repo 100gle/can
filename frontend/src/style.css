@@ -165,6 +165,21 @@
   --shadow-2xl: var(--shadow-2xl);
 }
 
+@layer utilities {
+  .sketch-background {
+    --grid-line: color-mix(in srgb, var(--primary) 4%, transparent);
+    
+    background-color: color-mix(in srgb, var(--background) 99%, var(--primary));
+    background-image: 
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-position: -1px -1px;
+    background-size: 50px 50px, 50px 50px, 150px 150px, 150px 150px;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
