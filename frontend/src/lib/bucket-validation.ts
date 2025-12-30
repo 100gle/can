@@ -1,6 +1,7 @@
 /**
- * Bucket name validation for different cloud providers.
+ * Bucket name validation for different cloud providers using Zod.
  */
+import { z } from "zod";
 
 export type Provider = "aws" | "oss" | "cos" | "qiniu" | "r2" | "minio" | "custom";
 
@@ -8,6 +9,74 @@ export interface ValidationResult {
   valid: boolean;
   error?: string;
 }
+
+// Provider-specific schemas
+const basicBucketSchema = z
+  .string()
+  .min(3, "bucket.validation.tooShort")
+  .max(63, "bucket.validation.tooLong")
+  .refine((s) => /^[a-z0-9]/.test(s), "bucket.validation.invalidStart")
+  .refine((s) => /[a-z0-9]$/.test(s), "bucket.validation.invalidEnd")
+  .refine((s) => /^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(s), "bucket.validation.invalidChars");
+
+const awsBucketSchema = z
+  .string()
+  .min(3, "bucket.validation.tooShort")
+  .max(63, "bucket.validation.tooLong")
+  .refine((s) => /^[a-z0-9]/.test(s), "bucket.validation.invalidStart")
+  .refine((s) => /[a-z0-9]$/.test(s), "bucket.validation.invalidEnd")
+  .refine((s) => /^[a-z0-9.-]+$/.test(s), "bucket.validation.invalidChars")
+  .refine((s) => !s.includes(".."), "bucket.validation.aws.adjacentPeriods")
+  .refine((s) => !/^\d+\.\d+\.\d+\.\d+$/.test(s), "bucket.validation.aws.ipFormat")
+  .refine(
+    (s) => !["xn--", "sthree-", "amzn-s3-demo-"].some((p) => s.startsWith(p)),
+    "bucket.validation.aws.prohibitedPrefix"
+  )
+  .refine(
+    (s) => !["-s3alias", "--ol-s3", ".mrap", "--x-s3", "--table-s3"].some((x) => s.endsWith(x)),
+    "bucket.validation.aws.prohibitedSuffix"
+  );
+
+const ossBucketSchema = z
+  .string()
+  .min(3, "bucket.validation.tooShort")
+  .max(63, "bucket.validation.tooLong")
+  .refine((s) => /^[a-z0-9]/.test(s), "bucket.validation.invalidStart")
+  .refine((s) => /[a-z0-9]$/.test(s), "bucket.validation.invalidEnd")
+  .refine((s) => /^[a-z0-9-]+$/.test(s), "bucket.validation.oss.invalidChars");
+
+const cosBucketSchema = z
+  .string()
+  .min(1, "bucket.validation.empty")
+  .max(50, "bucket.validation.cos.tooLong")
+  .refine((s) => !s.startsWith("-"), "bucket.validation.cos.startsWithHyphen")
+  .refine((s) => !s.endsWith("-"), "bucket.validation.cos.endsWithHyphen")
+  .refine((s) => /^[a-z0-9-]+$/.test(s), "bucket.validation.cos.invalidChars");
+
+const qiniuBucketSchema = z
+  .string()
+  .min(3, "bucket.validation.tooShort")
+  .max(63, "bucket.validation.tooLong")
+  .refine((s) => /^[a-z0-9]/.test(s), "bucket.validation.invalidStart")
+  .refine((s) => /[a-z0-9]$/.test(s), "bucket.validation.invalidEnd")
+  .refine((s) => /^[a-z0-9-]+$/.test(s), "bucket.validation.qiniu.invalidChars");
+
+const r2BucketSchema = z
+  .string()
+  .min(3, "bucket.validation.tooShort")
+  .max(63, "bucket.validation.tooLong")
+  .refine((s) => !s.startsWith("-"), "bucket.validation.r2.startsWithHyphen")
+  .refine((s) => !s.endsWith("-"), "bucket.validation.r2.endsWithHyphen")
+  .refine((s) => /^[a-z0-9-]+$/.test(s), "bucket.validation.r2.invalidChars");
+
+const schemaMap: Record<string, z.ZodType<string>> = {
+  aws: awsBucketSchema,
+  minio: awsBucketSchema,
+  oss: ossBucketSchema,
+  cos: cosBucketSchema,
+  qiniu: qiniuBucketSchema,
+  r2: r2BucketSchema,
+};
 
 /**
  * Validate bucket name according to provider-specific rules.
@@ -19,166 +88,12 @@ export function validateBucketName(provider: string, name: string): ValidationRe
     return { valid: false, error: "bucket.validation.empty" };
   }
 
-  switch (provider) {
-    case "aws":
-    case "minio":
-      return validateAWSBucketName(trimmed);
-    case "oss":
-      return validateOSSBucketName(trimmed);
-    case "cos":
-      return validateCOSBucketName(trimmed);
-    case "qiniu":
-      return validateQiniuBucketName(trimmed);
-    case "r2":
-      return validateR2BucketName(trimmed);
-    default:
-      return validateBasicBucketName(trimmed);
-  }
-}
+  const schema = schemaMap[provider] ?? basicBucketSchema;
+  const result = schema.safeParse(trimmed);
 
-function isAlphanumericLower(char: string): boolean {
-  const code = char.charCodeAt(0);
-  return (code >= 97 && code <= 122) || (code >= 48 && code <= 57); // a-z or 0-9
-}
+  if (result.success) {
+    return { valid: true };
+  }
 
-function validateBasicBucketName(name: string): ValidationResult {
-  if (name.length < 3) {
-    return { valid: false, error: "bucket.validation.tooShort" };
-  }
-  if (name.length > 63) {
-    return { valid: false, error: "bucket.validation.tooLong" };
-  }
-  if (!isAlphanumericLower(name[0])) {
-    return { valid: false, error: "bucket.validation.invalidStart" };
-  }
-  if (!isAlphanumericLower(name[name.length - 1])) {
-    return { valid: false, error: "bucket.validation.invalidEnd" };
-  }
-  // Only allow lowercase, numbers, dots, hyphens
-  if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(name) && name.length >= 3) {
-    return { valid: false, error: "bucket.validation.invalidChars" };
-  }
-  return { valid: true };
-}
-
-function validateAWSBucketName(name: string): ValidationResult {
-  if (name.length < 3) {
-    return { valid: false, error: "bucket.validation.tooShort" };
-  }
-  if (name.length > 63) {
-    return { valid: false, error: "bucket.validation.tooLong" };
-  }
-  if (!isAlphanumericLower(name[0])) {
-    return { valid: false, error: "bucket.validation.invalidStart" };
-  }
-  if (!isAlphanumericLower(name[name.length - 1])) {
-    return { valid: false, error: "bucket.validation.invalidEnd" };
-  }
-  // Only lowercase letters, numbers, dots, hyphens
-  if (!/^[a-z0-9.-]+$/.test(name)) {
-    return { valid: false, error: "bucket.validation.invalidChars" };
-  }
-  // No adjacent periods
-  if (name.includes("..")) {
-    return { valid: false, error: "bucket.validation.aws.adjacentPeriods" };
-  }
-  // No IP address format
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) {
-    return { valid: false, error: "bucket.validation.aws.ipFormat" };
-  }
-  // Prohibited prefixes
-  const prohibitedPrefixes = ["xn--", "sthree-", "amzn-s3-demo-"];
-  for (const prefix of prohibitedPrefixes) {
-    if (name.startsWith(prefix)) {
-      return { valid: false, error: "bucket.validation.aws.prohibitedPrefix" };
-    }
-  }
-  // Prohibited suffixes
-  const prohibitedSuffixes = ["-s3alias", "--ol-s3", ".mrap", "--x-s3", "--table-s3"];
-  for (const suffix of prohibitedSuffixes) {
-    if (name.endsWith(suffix)) {
-      return { valid: false, error: "bucket.validation.aws.prohibitedSuffix" };
-    }
-  }
-  return { valid: true };
-}
-
-function validateOSSBucketName(name: string): ValidationResult {
-  if (name.length < 3) {
-    return { valid: false, error: "bucket.validation.tooShort" };
-  }
-  if (name.length > 63) {
-    return { valid: false, error: "bucket.validation.tooLong" };
-  }
-  if (!isAlphanumericLower(name[0])) {
-    return { valid: false, error: "bucket.validation.invalidStart" };
-  }
-  if (!isAlphanumericLower(name[name.length - 1])) {
-    return { valid: false, error: "bucket.validation.invalidEnd" };
-  }
-  // Only lowercase letters, numbers, hyphens (no dots)
-  if (!/^[a-z0-9-]+$/.test(name)) {
-    return { valid: false, error: "bucket.validation.oss.invalidChars" };
-  }
-  return { valid: true };
-}
-
-function validateCOSBucketName(name: string): ValidationResult {
-  if (name.length < 1) {
-    return { valid: false, error: "bucket.validation.empty" };
-  }
-  if (name.length > 50) {
-    return { valid: false, error: "bucket.validation.cos.tooLong" };
-  }
-  if (name.startsWith("-")) {
-    return { valid: false, error: "bucket.validation.cos.startsWithHyphen" };
-  }
-  if (name.endsWith("-")) {
-    return { valid: false, error: "bucket.validation.cos.endsWithHyphen" };
-  }
-  // Only lowercase letters, numbers, hyphens
-  if (!/^[a-z0-9-]+$/.test(name)) {
-    return { valid: false, error: "bucket.validation.cos.invalidChars" };
-  }
-  return { valid: true };
-}
-
-function validateQiniuBucketName(name: string): ValidationResult {
-  if (name.length < 3) {
-    return { valid: false, error: "bucket.validation.tooShort" };
-  }
-  if (name.length > 63) {
-    return { valid: false, error: "bucket.validation.tooLong" };
-  }
-  if (!isAlphanumericLower(name[0])) {
-    return { valid: false, error: "bucket.validation.invalidStart" };
-  }
-  if (!isAlphanumericLower(name[name.length - 1])) {
-    return { valid: false, error: "bucket.validation.invalidEnd" };
-  }
-  // Only lowercase letters, numbers, hyphens
-  if (!/^[a-z0-9-]+$/.test(name)) {
-    return { valid: false, error: "bucket.validation.qiniu.invalidChars" };
-  }
-  return { valid: true };
-}
-
-function validateR2BucketName(name: string): ValidationResult {
-  if (name.length < 3) {
-    return { valid: false, error: "bucket.validation.tooShort" };
-  }
-  if (name.length > 63) {
-    return { valid: false, error: "bucket.validation.tooLong" };
-  }
-  if (name.startsWith("-")) {
-    return { valid: false, error: "bucket.validation.r2.startsWithHyphen" };
-  }
-  if (name.endsWith("-")) {
-    return { valid: false, error: "bucket.validation.r2.endsWithHyphen" };
-  }
-  // Only lowercase letters, numbers, hyphens
-  if (!/^[a-z0-9-]+$/.test(name)) {
-    return { valid: false, error: "bucket.validation.r2.invalidChars" };
-  }
-  return { valid: true };
+  return { valid: false, error: result.error.issues[0]?.message };
 }
