@@ -10,8 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DownloadImportTemplate, ImportAccounts, ImportAccountsBatch } from "@wailsjs/go/app/App";
-import type { accounts } from "@wailsjs/go/models";
+import { type ImportResult, useImportAccounts, useImportAccountsBatch } from "@/hooks/useAccounts";
+import { DownloadImportTemplate } from "@wailsjs/go/app/App";
 import {
   AlertCircle,
   ArrowLeft,
@@ -24,8 +24,13 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+// =============================================================================
+// Types
+// =============================================================================
 
 type ImportDialogProps = {
   open: boolean;
@@ -35,16 +40,11 @@ type ImportDialogProps = {
 
 type DialogView = "select" | "batch";
 type BatchFormat = "csv" | "json";
-type ImportState = "idle" | "importing" | "done";
 
-type ImportResult = {
-  imported: number;
-  skipped: number;
-  failed: number;
-  errors?: accounts.BatchImportError[];
-};
+// =============================================================================
+// Constants
+// =============================================================================
 
-// Provider 配置
 const PROVIDERS = [
   { id: "aws", label: "AWS S3" },
   { id: "oss", label: "Aliyun OSS" },
@@ -55,12 +55,10 @@ const PROVIDERS = [
   { id: "custom", label: "Custom" },
 ];
 
-// CSV 模板示例
 const CSV_EXAMPLE = `name,provider,endpoint,accessKeyId,secretAccessKey,tag,region,useSSL,port
 "我的 AWS 账户",aws,s3.amazonaws.com,AKIAEXAMPLE,secretKey,"生产",us-east-1,true,443
 "阿里云 OSS",oss,oss-cn-hangzhou.aliyuncs.com,LTAI5t,secretKey,"",cn-hangzhou,true,443`;
 
-// JSON 模板示例（JSONC 格式，包含注释）
 const JSON_EXAMPLE = `[
   {
     "name": "我的 AWS 账户",
@@ -77,19 +75,204 @@ const JSON_EXAMPLE = `[
   // 可添加更多记录...
 ]`;
 
+// =============================================================================
+// Sub-components
+// =============================================================================
+
+/** Reusable import option button (single/batch) */
+type ImportOptionButtonProps = {
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  onClick: () => void;
+  disabled?: boolean;
+};
+
+const ImportOptionButton = ({ icon, title, hint, onClick, disabled }: ImportOptionButtonProps) => (
+  <Button
+    variant="outline"
+    size="lg"
+    onClick={onClick}
+    disabled={disabled}
+    className="flex h-auto flex-1 flex-col items-center gap-3 py-6"
+  >
+    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+      {icon}
+    </div>
+    <div className="text-center">
+      <div className="font-semibold">{title}</div>
+      <div className="mt-1 text-xs font-normal text-muted-foreground">{hint}</div>
+    </div>
+  </Button>
+);
+
+/** Displays import result summary and errors */
+type ImportResultDisplayProps = {
+  result: ImportResult | null;
+  error: string | null;
+};
+
+const ImportResultDisplay = ({ result, error }: ImportResultDisplayProps) => {
+  const { t } = useTranslation();
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        {error}
+      </div>
+    );
+  }
+
+  if (!result) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        <div className="flex items-center gap-1.5">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <span>{t("import.imported", { count: result.imported })}</span>
+        </div>
+        {result.skipped > 0 && (
+          <div className="flex items-center gap-1.5">
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
+            <span>{t("import.skipped", { count: result.skipped })}</span>
+          </div>
+        )}
+        {result.failed > 0 && (
+          <div className="flex items-center gap-1.5">
+            <XCircle className="h-4 w-4 text-red-500" />
+            <span>{t("import.failed", { count: result.failed })}</span>
+          </div>
+        )}
+      </div>
+
+      {result.errors && result.errors.length > 0 && (
+        <div className="max-h-32 overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-3">
+          <div className="space-y-2 text-sm">
+            {result.errors.slice(0, 10).map((err, idx) => (
+              <div key={idx} className="flex items-start gap-2">
+                <Badge variant="outline" className="shrink-0">
+                  {err.index > 0 ? `#${err.index}` : t("import.fileError")}
+                </Badge>
+                <span className="text-muted-foreground">
+                  {err.name && <span className="font-medium">{err.name}: </span>}
+                  {err.message}
+                </span>
+              </div>
+            ))}
+            {result.errors.length > 10 && (
+              <div className="text-muted-foreground">
+                {t("import.moreErrors", { count: result.errors.length - 10 })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Shared field documentation for CSV/JSON templates */
+type TemplateFieldsInfoProps = {
+  format: BatchFormat;
+};
+
+const TemplateFieldsInfo = ({ format }: TemplateFieldsInfoProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="text-xs text-muted-foreground">
+      <p className="font-medium">{t("import.batch.requiredFields")}</p>
+      <p className="mt-1">
+        <code className="rounded bg-muted px-1">name</code>,{" "}
+        <code className="rounded bg-muted px-1">provider</code>,{" "}
+        <code className="rounded bg-muted px-1">endpoint</code>,{" "}
+        <code className="rounded bg-muted px-1">accessKeyId</code>,{" "}
+        <code className="rounded bg-muted px-1">secretAccessKey</code>
+      </p>
+      <p className="mt-2 font-medium">{t("import.batch.optionalFields")}</p>
+      <p className="mt-1">
+        <code className="rounded bg-muted px-1">tag</code> ({t("import.batch.defaultEmpty")}),{" "}
+        <code className="rounded bg-muted px-1">region</code> ({t("import.batch.defaultEmpty")}),{" "}
+        <code className="rounded bg-muted px-1">useSSL</code> ({t("import.batch.defaultTrue")}),{" "}
+        <code className="rounded bg-muted px-1">port</code>
+      </p>
+      <p className="mt-2 font-medium">{t("import.batch.notes")}</p>
+      <ul className="mt-1 list-inside list-disc space-y-0.5">
+        {format === "csv" ? (
+          <>
+            <li>{t("import.batch.note.header")}</li>
+            <li>{t("import.batch.note.quote")}</li>
+            <li>{t("import.batch.note.comment")}</li>
+          </>
+        ) : (
+          <>
+            <li>{t("import.batch.note.array")}</li>
+            <li>{t("import.batch.note.jsonc")}</li>
+          </>
+        )}
+      </ul>
+    </div>
+  );
+};
+
+/** Template preview block with example code */
+type TemplatePreviewProps = {
+  example: string;
+};
+
+const TemplatePreview = ({ example }: TemplatePreviewProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+      <h4 className="mb-2 text-sm font-medium">{t("import.batch.templatePreview")}</h4>
+      <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted/40 p-2 font-mono text-xs text-muted-foreground">
+        {example}
+      </pre>
+    </div>
+  );
+};
+
 export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProps) => {
   const { t } = useTranslation();
   const [view, setView] = useState<DialogView>("select");
   const [batchFormat, setBatchFormat] = useState<BatchFormat>("csv");
-  const [state, setState] = useState<ImportState>("idle");
-  const [result, setResult] = useState<ImportResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [copiedProvider, setCopiedProvider] = useState<string | null>(null);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  // TanStack Query mutations
+  const singleImport = useImportAccounts();
+  const batchImport = useImportAccountsBatch();
+
+  // Derive state from mutations
+  const isPending = singleImport.isPending || batchImport.isPending;
+  const currentResult: ImportResult | null =
+    singleImport.data && !singleImport.data.cancelled
+      ? singleImport.data
+      : batchImport.data && !batchImport.data.cancelled
+        ? batchImport.data
+        : null;
+  const currentError = singleImport.error?.message || batchImport.error?.message || templateError;
+  const showResult = (singleImport.isSuccess || batchImport.isSuccess) && !isPending;
+
+  // Notify parent on successful import
+  useEffect(() => {
+    if (singleImport.isSuccess && singleImport.data.imported > 0) {
+      onSuccess?.();
+    }
+  }, [singleImport.isSuccess, singleImport.data, onSuccess]);
+
+  useEffect(() => {
+    if (batchImport.isSuccess && batchImport.data.imported > 0) {
+      onSuccess?.();
+    }
+  }, [batchImport.isSuccess, batchImport.data, onSuccess]);
 
   const handleReset = () => {
-    setState("idle");
-    setResult(null);
-    setError(null);
+    singleImport.reset();
+    batchImport.reset();
+    setTemplateError(null);
   };
 
   const handleClose = () => {
@@ -103,63 +286,20 @@ export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProp
     setView("select");
   };
 
-  const handleSingleImport = async () => {
-    setState("importing");
-    setError(null);
-
-    try {
-      const summary = await ImportAccounts();
-      if (summary.cancelled) {
-        setState("idle");
-        return;
-      }
-      setResult({
-        imported: summary.imported,
-        skipped: summary.skipped,
-        failed: summary.failed,
-      });
-      setState("done");
-      if (summary.imported > 0) {
-        onSuccess?.();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("import.error"));
-      setState("done");
-    }
+  const handleSingleImport = () => {
+    singleImport.mutate();
   };
 
-  const handleBatchImport = async () => {
-    setState("importing");
-    setError(null);
-    setResult(null);
-
-    try {
-      const summary = await ImportAccountsBatch();
-      if (summary.cancelled) {
-        setState("idle");
-        return;
-      }
-      setResult({
-        imported: summary.imported,
-        skipped: summary.skipped,
-        failed: summary.failed,
-        errors: summary.errors,
-      });
-      setState("done");
-      if (summary.imported > 0) {
-        onSuccess?.();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("import.error"));
-      setState("done");
-    }
+  const handleBatchImport = () => {
+    batchImport.mutate();
   };
 
   const handleDownloadTemplate = async () => {
     try {
+      setTemplateError(null);
       await DownloadImportTemplate(batchFormat);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("import.templateDownloadFailed"));
+      setTemplateError(err instanceof Error ? err.message : t("import.templateDownloadFailed"));
     }
   };
 
@@ -169,122 +309,39 @@ export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProp
     setTimeout(() => setCopiedProvider(null), 1500);
   };
 
-  const renderResultSummary = () => {
-    if (!result) return null;
-
-    return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span>{t("import.imported", { count: result.imported })}</span>
-          </div>
-          {result.skipped > 0 && (
-            <div className="flex items-center gap-1.5">
-              <AlertCircle className="h-4 w-4 text-yellow-500" />
-              <span>{t("import.skipped", { count: result.skipped })}</span>
-            </div>
-          )}
-          {result.failed > 0 && (
-            <div className="flex items-center gap-1.5">
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span>{t("import.failed", { count: result.failed })}</span>
-            </div>
-          )}
-        </div>
-
-        {result.errors && result.errors.length > 0 && (
-          <div className="max-h-32 overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-3">
-            <div className="space-y-2 text-sm">
-              {result.errors.slice(0, 10).map((err, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  <Badge variant="outline" className="shrink-0">
-                    {err.index > 0 ? `#${err.index}` : t("import.fileError")}
-                  </Badge>
-                  <span className="text-muted-foreground">
-                    {err.name && <span className="font-medium">{err.name}: </span>}
-                    {err.message}
-                  </span>
-                </div>
-              ))}
-              {result.errors.length > 10 && (
-                <div className="text-muted-foreground">
-                  {t("import.moreErrors", { count: result.errors.length - 10 })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // 选择导入方式视图
+  // Select view: choose import method
   const renderSelectView = () => (
     <div className="space-y-6 py-4">
       <div className="flex gap-4">
-        {/* 单文件导入按钮 */}
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={handleSingleImport}
-          disabled={state === "importing"}
-          className="flex h-auto flex-1 flex-col items-center gap-3 py-6"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            {state === "importing" ? (
+        <ImportOptionButton
+          icon={
+            singleImport.isPending ? (
               <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               <FileArchive className="h-6 w-6" />
-            )}
-          </div>
-          <div className="text-center">
-            <div className="font-semibold">{t("import.single.title")}</div>
-            <div className="mt-1 text-xs font-normal text-muted-foreground">
-              {t("import.single.hint")}
-            </div>
-          </div>
-        </Button>
-
-        {/* 批量导入按钮 */}
-        <Button
-          variant="outline"
-          size="lg"
+            )
+          }
+          title={t("import.single.title")}
+          hint={t("import.single.hint")}
+          onClick={handleSingleImport}
+          disabled={isPending}
+        />
+        <ImportOptionButton
+          icon={<FileSpreadsheet className="h-6 w-6" />}
+          title={t("import.batch.title")}
+          hint={t("import.batch.hint")}
           onClick={() => setView("batch")}
-          disabled={state === "importing"}
-          className="flex h-auto flex-1 flex-col items-center gap-3 py-6"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <FileSpreadsheet className="h-6 w-6" />
-          </div>
-          <div className="text-center">
-            <div className="font-semibold">{t("import.batch.title")}</div>
-            <div className="mt-1 text-xs font-normal text-muted-foreground">
-              {t("import.batch.hint")}
-            </div>
-          </div>
-        </Button>
+          disabled={isPending}
+        />
       </div>
 
-      {/* 单文件导入结果 */}
-      {state === "done" && (result || error) && (
-        <div className="space-y-3">
-          {error ? (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          ) : (
-            renderResultSummary()
-          )}
-        </div>
-      )}
+      {showResult && <ImportResultDisplay result={currentResult} error={currentError} />}
     </div>
   );
 
-  // 批量导入视图
+  // Batch import view
   const renderBatchView = () => (
     <div className="space-y-4 py-4">
-      {/* 格式选择 Tabs */}
       <Tabs value={batchFormat} onValueChange={(v) => setBatchFormat(v as BatchFormat)}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="csv" className="gap-2">
@@ -298,78 +355,17 @@ export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProp
         </TabsList>
 
         <TabsContent value="csv" className="mt-4 space-y-4">
-          {/* CSV 模板预览 */}
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-            <h4 className="mb-2 text-sm font-medium">{t("import.batch.templatePreview")}</h4>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted/40 p-2 font-mono text-xs text-muted-foreground">
-              {CSV_EXAMPLE}
-            </pre>
-          </div>
-
-          {/* 说明事项 */}
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium">{t("import.batch.requiredFields")}</p>
-            <p className="mt-1">
-              <code className="rounded bg-muted px-1">name</code>,{" "}
-              <code className="rounded bg-muted px-1">provider</code>,{" "}
-              <code className="rounded bg-muted px-1">endpoint</code>,{" "}
-              <code className="rounded bg-muted px-1">accessKeyId</code>,{" "}
-              <code className="rounded bg-muted px-1">secretAccessKey</code>
-            </p>
-            <p className="mt-2 font-medium">{t("import.batch.optionalFields")}</p>
-            <p className="mt-1">
-              <code className="rounded bg-muted px-1">tag</code> ({t("import.batch.defaultEmpty")}),{" "}
-              <code className="rounded bg-muted px-1">region</code> (
-              {t("import.batch.defaultEmpty")}
-              ), <code className="rounded bg-muted px-1">useSSL</code> (
-              {t("import.batch.defaultTrue")}), <code className="rounded bg-muted px-1">port</code>
-            </p>
-            <p className="mt-2 font-medium">{t("import.batch.notes")}</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5">
-              <li>{t("import.batch.note.header")}</li>
-              <li>{t("import.batch.note.quote")}</li>
-              <li>{t("import.batch.note.comment")}</li>
-            </ul>
-          </div>
+          <TemplatePreview example={CSV_EXAMPLE} />
+          <TemplateFieldsInfo format="csv" />
         </TabsContent>
 
         <TabsContent value="json" className="mt-4 space-y-4">
-          {/* JSON 模板预览 */}
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-            <h4 className="mb-2 text-sm font-medium">{t("import.batch.templatePreview")}</h4>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted/40 p-2 font-mono text-xs text-muted-foreground">
-              {JSON_EXAMPLE}
-            </pre>
-          </div>
-
-          {/* 说明事项 */}
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium">{t("import.batch.requiredFields")}</p>
-            <p className="mt-1">
-              <code className="rounded bg-muted px-1">name</code>,{" "}
-              <code className="rounded bg-muted px-1">provider</code>,{" "}
-              <code className="rounded bg-muted px-1">endpoint</code>,{" "}
-              <code className="rounded bg-muted px-1">accessKeyId</code>,{" "}
-              <code className="rounded bg-muted px-1">secretAccessKey</code>
-            </p>
-            <p className="mt-2 font-medium">{t("import.batch.optionalFields")}</p>
-            <p className="mt-1">
-              <code className="rounded bg-muted px-1">tag</code> ({t("import.batch.defaultEmpty")}),{" "}
-              <code className="rounded bg-muted px-1">region</code> (
-              {t("import.batch.defaultEmpty")}
-              ), <code className="rounded bg-muted px-1">useSSL</code> (
-              {t("import.batch.defaultTrue")}), <code className="rounded bg-muted px-1">port</code>
-            </p>
-            <p className="mt-2 font-medium">{t("import.batch.notes")}</p>
-            <ul className="mt-1 list-inside list-disc space-y-0.5">
-              <li>{t("import.batch.note.array")}</li>
-              <li>{t("import.batch.note.jsonc")}</li>
-            </ul>
-          </div>
+          <TemplatePreview example={JSON_EXAMPLE} />
+          <TemplateFieldsInfo format="json" />
         </TabsContent>
       </Tabs>
 
-      {/* Provider 可选值 - 使用真实图标 */}
+      {/* Provider badges */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">
           {t("import.batch.providerLabel")}
@@ -384,7 +380,6 @@ export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProp
             >
               <ProviderIcon provider={p.id} size="sm" className="h-4 w-4" />
               <span className="font-medium">{p.id}</span>
-              {/* 复制成功覆盖层 */}
               {copiedProvider === p.id && (
                 <span className="absolute inset-0 flex items-center justify-center rounded-full bg-gray-100">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -395,18 +390,7 @@ export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProp
         </div>
       </div>
 
-      {/* 导入结果 */}
-      {state === "done" && (result || error) && (
-        <div className="space-y-3">
-          {error ? (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          ) : (
-            renderResultSummary()
-          )}
-        </div>
-      )}
+      {showResult && <ImportResultDisplay result={currentResult} error={currentError} />}
     </div>
   );
 
@@ -437,13 +421,13 @@ export const ImportDialog = ({ open, onOpenChange, onSuccess }: ImportDialogProp
               <Download className="h-4 w-4" />
               {t("import.downloadTemplate")}
             </Button>
-            <Button className="gap-2" onClick={handleBatchImport} disabled={state === "importing"}>
-              {state === "importing" ? (
+            <Button className="gap-2" onClick={handleBatchImport} disabled={isPending}>
+              {batchImport.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {state === "importing" ? t("import.importing") : t("import.startImport")}
+              {batchImport.isPending ? t("import.importing") : t("import.startImport")}
             </Button>
           </DialogFooter>
         )}

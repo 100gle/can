@@ -2,16 +2,18 @@ import { queryClient } from "@/lib/queryClient";
 import { accountService } from "@/lib/services";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  ActiveAccount,
-  CreateAccount,
-  DeleteAccount,
-  Dial,
-  DialPreview,
-  ListAccounts,
-  ProviderFeatures,
-  SetActiveAccount,
-  SupportedProviders,
-  UpdateAccount,
+    ActiveAccount,
+    CreateAccount,
+    DeleteAccount,
+    Dial,
+    DialPreview,
+    ImportAccounts,
+    ImportAccountsBatch,
+    ListAccounts,
+    ProviderFeatures,
+    SetActiveAccount,
+    SupportedProviders,
+    UpdateAccount,
 } from "@wailsjs/go/app/App";
 import type { accounts as AccountModels, types as ProviderModels } from "@wailsjs/go/models";
 import { useEffect, useMemo } from "react";
@@ -298,4 +300,61 @@ export const importAccounts = async () => {
     await invalidateAccounts();
   }
   return result.data;
+};
+
+// =============================================================================
+// Import Mutations
+// =============================================================================
+
+export type ImportResult = {
+  imported: number;
+  skipped: number;
+  failed: number;
+  cancelled?: boolean;
+  errors?: { index: number; name: string; message: string }[];
+};
+
+/** Single file import (rclone format) */
+export const useImportAccounts = () => {
+  return useMutation<ImportResult, Error>({
+    mutationFn: async () => {
+      const summary = await ImportAccounts();
+      if (summary.cancelled) {
+        return { imported: 0, skipped: 0, failed: 0, cancelled: true };
+      }
+      return {
+        imported: summary.imported,
+        skipped: summary.skipped,
+        failed: summary.failed,
+      };
+    },
+    onSuccess: (data) => {
+      if (data.imported > 0) {
+        invalidateAccounts();
+      }
+    },
+  });
+};
+
+/** Batch import (CSV/JSON) */
+export const useImportAccountsBatch = () => {
+  return useMutation<ImportResult, Error>({
+    mutationFn: async () => {
+      const summary = await ImportAccountsBatch();
+      if (summary.cancelled) {
+        return { imported: 0, skipped: 0, failed: 0, cancelled: true };
+      }
+      return {
+        imported: summary.imported,
+        skipped: summary.skipped,
+        failed: summary.failed,
+        errors: summary.errors,
+      };
+    },
+    onSuccess: (data) => {
+      if (data.imported > 0) {
+        invalidateAccounts();
+      }
+    },
+  });
 };
